@@ -25,13 +25,13 @@ services:
       - key: PORT
         value: 10001
 
-  # بوت تيليجرام
-  - type: worker
+  # بوت تيليجرام (Web Service بدلاً من Background Worker)
+  - type: web
     name: remote-control-telegram-bot
     env: python
     plan: free
     buildCommand: cd remote-control-system/telegram-bot && pip install -r requirements.txt
-    startCommand: cd remote-control-system/telegram-bot && python bot.py
+    startCommand: cd remote-control-system/telegram-bot && python app.py
     envVars:
       - key: TELEGRAM_BOT_TOKEN
         sync: false
