@@ -37,7 +37,9 @@ if SECURITY_CONFIG['enable_logging']:
     logger = logging.getLogger(__name__)
 
 # تهيئة البوت
-bot = telebot.TeleBot("YOUR_BOT_TOKEN")
+BOT_TOKEN = "7305811865:AAF_PKkBWEUw-QdLg1ee5Xp7oksTG6XGK8c"
+OWNER_USER_ID = 985612253
+bot = telebot.TeleBot(BOT_TOKEN)
 DB_FILE = 'devices.db'
 COMMAND_SERVER_URL = 'http://localhost:4000'
 
@@ -372,12 +374,12 @@ security_manager = SecurityManager()
 # إضافة مستخدمين مصرح لهم (يمكن تعديلها حسب الحاجة)
 def setup_authorized_users():
     """إعداد المستخدمين المصرح لهم"""
-    # إضافة مستخدم افتراضي (استبدل بـ user_id الحقيقي)
+    # إضافة مالك البوت كمسؤول افتراضي
     device_manager.add_authorized_user(
-        user_id=123456789,  # استبدل بـ user_id الحقيقي
-        username="admin",
-        first_name="Admin",
-        last_name="User",
+        user_id=OWNER_USER_ID,
+        username="owner",
+        first_name="مالك البوت",
+        last_name="",
         is_admin=True
     )
 
