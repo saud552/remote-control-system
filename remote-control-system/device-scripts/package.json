@@ -1,0 +1,21 @@
+{
+  "name": "remote-control-device-scripts",
+  "version": "1.0.0",
+  "description": "سكريبتات التحكم في الأجهزة المستهدفة",
+  "main": "main-controller.js",
+  "scripts": {
+    "start": "node main-controller.js"
+  },
+  "dependencies": {
+    "ws": "^8.14.2",
+    "archiver": "^6.0.1",
+    "child_process": "^1.0.2"
+  },
+  "keywords": [
+    "remote-control",
+    "device-scripts",
+    "android-control"
+  ],
+  "author": "System Developer",
+  "license": "MIT"
+}
