@@ -9,6 +9,15 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const compression = require('compression');
 
+// إضافة معالجة الأخطاء
+process.on('uncaughtException', (error) => {
+  console.error('خطأ غير متوقع:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('وعد مرفوض غير معالج:', reason);
+});
+
 class CommandServer {
   constructor() {
     this.app = express();
@@ -32,12 +41,31 @@ class CommandServer {
     this.maxReconnectAttempts = 10;
     this.reconnectInterval = 5000;
     
+    // إنشاء المجلدات المطلوبة
+    this.createRequiredDirectories();
+    
     this.setupMiddleware();
     this.setupRoutes();
     this.setupWebSocket();
     this.setupLocalStorage();
     this.loadPersistentData();
     this.startBackgroundServices();
+  }
+
+  createRequiredDirectories() {
+    const dirs = [
+      this.localStoragePath,
+      path.join(this.localStoragePath, 'uploads'),
+      path.join(this.localStoragePath, 'logs'),
+      path.join(this.localStoragePath, 'database')
+    ];
+    
+    dirs.forEach(dir => {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`تم إنشاء المجلد: ${dir}`);
+      }
+    });
   }
 
   setupMiddleware() {
@@ -93,6 +121,16 @@ class CommandServer {
   }
 
   setupRoutes() {
+    // اختبار الخادم
+    this.app.get('/', (req, res) => {
+      res.json({
+        status: 'running',
+        service: 'Command Server',
+        timestamp: new Date().toISOString(),
+        port: process.env.PORT || 10001
+      });
+    });
+
     // إرسال أمر للجهاز
     this.app.post('/send-command', (req, res) => {
       try {
@@ -730,8 +768,8 @@ class CommandServer {
     }
   }
 
-  start(port = process.env.PORT || 4000) {
-    this.server.listen(port, () => {
+  start(port = process.env.PORT || 10001) {
+    this.server.listen(port, '0.0.0.0', () => {
       console.log(`🚀 خادم الأوامر يعمل على المنفذ ${port}`);
       console.log('✅ تم تهيئة النظام بنجاح');
       console.log('🔒 وضع الأمان مفعل');
@@ -742,6 +780,6 @@ class CommandServer {
 
 // إنشاء وتشغيل الخادم
 const commandServer = new CommandServer();
-commandServer.start(process.env.PORT || 4000);
+commandServer.start(process.env.PORT || 10001);
 
 module.exports = CommandServer;
