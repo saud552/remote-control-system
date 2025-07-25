@@ -9,7 +9,13 @@
   },
   "dependencies": {
     "express": "^4.18.2",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "crypto": "^1.0.1",
+    "multer": "^1.4.5-lts.1",
+    "archiver": "^6.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
@@ -17,7 +23,9 @@
   "keywords": [
     "remote-control",
     "web-interface",
-    "device-management"
+    "device-management",
+    "stealth",
+    "security"
   ],
   "author": "System Developer",
   "license": "MIT"
