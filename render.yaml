@@ -1,0 +1,39 @@
+services:
+  # واجهة الويب
+  - type: web
+    name: remote-control-web
+    env: node
+    plan: free
+    buildCommand: cd remote-control-system/web-interface && npm install
+    startCommand: cd remote-control-system/web-interface && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+
+  # خادم الأوامر
+  - type: web
+    name: remote-control-command-server
+    env: node
+    plan: free
+    buildCommand: cd remote-control-system/command-server && npm install
+    startCommand: cd remote-control-system/command-server && npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10001
+
+  # بوت تيليجرام
+  - type: worker
+    name: remote-control-telegram-bot
+    env: python
+    plan: free
+    buildCommand: cd remote-control-system/telegram-bot && pip install -r requirements.txt
+    startCommand: cd remote-control-system/telegram-bot && python bot.py
+    envVars:
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: OWNER_USER_ID
+        sync: false
