@@ -769,8 +769,13 @@ class CommandServer {
   }
 
   start(port = process.env.PORT || 10001) {
-    this.server.listen(port, '0.0.0.0', () => {
-      console.log(`🚀 خادم الأوامر يعمل على المنفذ ${port}`);
+    // تأكد من استخدام المنفذ الصحيح
+    const actualPort = process.env.PORT || 10001;
+    console.log(`🔧 محاولة تشغيل على المنفذ: ${actualPort}`);
+    console.log(`🔧 متغير PORT: ${process.env.PORT}`);
+    
+    this.server.listen(actualPort, '0.0.0.0', () => {
+      console.log(`🚀 خادم الأوامر يعمل على المنفذ ${actualPort}`);
       console.log('✅ تم تهيئة النظام بنجاح');
       console.log('🔒 وضع الأمان مفعل');
       console.log('💾 التخزين المحلي مفعل');
