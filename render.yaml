@@ -4,6 +4,7 @@ services:
     name: remote-control-web
     env: node
     plan: free
+    branch: feature/final-merge-conflict-resolution
     buildCommand: cd remote-control-system/web-interface && npm install
     startCommand: cd remote-control-system/web-interface && npm start
     envVars:
@@ -17,6 +18,7 @@ services:
     name: remote-control-command-server
     env: node
     plan: free
+    branch: feature/final-merge-conflict-resolution
     buildCommand: cd remote-control-system/command-server && npm install
     startCommand: cd remote-control-system/command-server && npm start
     envVars:
@@ -30,6 +32,7 @@ services:
     name: remote-control-telegram-bot
     env: python
     plan: free
+    branch: feature/final-merge-conflict-resolution
     buildCommand: cd remote-control-system/telegram-bot && pip install -r requirements.txt
     startCommand: cd remote-control-system/telegram-bot && python app.py
     envVars:
