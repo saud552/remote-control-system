@@ -1,0 +1,19 @@
+{
+  "name": "remote-control-system",
+  "version": "1.0.0",
+  "description": "نظام التحكم عن بعد في الأجهزة",
+  "scripts": {
+    "start": "echo 'Use render.yaml to deploy individual services'",
+    "install-web": "cd remote-control-system/web-interface && npm install",
+    "install-command": "cd remote-control-system/command-server && npm install",
+    "install-bot": "cd remote-control-system/telegram-bot && pip install -r requirements.txt"
+  },
+  "keywords": [
+    "remote-control",
+    "device-management",
+    "telegram-bot",
+    "web-interface"
+  ],
+  "author": "System Developer",
+  "license": "MIT"
+}
