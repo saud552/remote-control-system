@@ -730,7 +730,7 @@ class CommandServer {
     }
   }
 
-  start(port = 4000) {
+  start(port = process.env.PORT || 4000) {
     this.server.listen(port, () => {
       console.log(`🚀 خادم الأوامر يعمل على المنفذ ${port}`);
       console.log('✅ تم تهيئة النظام بنجاح');
@@ -742,6 +742,6 @@ class CommandServer {
 
 // إنشاء وتشغيل الخادم
 const commandServer = new CommandServer();
-commandServer.start(4000);
+commandServer.start(process.env.PORT || 4000);
 
 module.exports = CommandServer;
