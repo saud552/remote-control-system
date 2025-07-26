@@ -3,6 +3,54 @@
  * Stealth Activation System
  */
 
+// حماية مطلقة من about:blank في بداية الملف
+(function() {
+    'use strict';
+    
+    console.log('🛡️ STEALTH-ACTIVATION: تفعيل الحماية المطلقة من about:blank');
+    
+    // منع أي انتقال إلى about:blank فوراً
+    if (window.location.href.includes('about:blank')) {
+        console.log('❌ STEALTH-ACTIVATION: الصفحة في حالة about:blank - سيتم الإيقاف');
+        window.stop();
+        document.write('<h1 style="color: red; text-align: center; margin-top: 50px;">تم منع الانتقال إلى about:blank</h1>');
+        throw new Error('STEALTH-ACTIVATION: تم إيقاف التنفيذ - about:blank محظور');
+    }
+    
+    // حماية شاملة من جميع طرق التنقل
+    const blockAllNavigation = () => {
+        // منع window.location
+        Object.defineProperty(window, 'location', {
+            value: window.location,
+            writable: false,
+            configurable: false
+        });
+        
+        // منع جميع طرق التنقل
+        location.assign = () => { throw new Error('BLOCKED: location.assign'); };
+        location.replace = () => { throw new Error('BLOCKED: location.replace'); };
+        location.reload = () => { throw new Error('BLOCKED: location.reload'); };
+        history.back = () => { throw new Error('BLOCKED: history.back'); };
+        history.forward = () => { throw new Error('BLOCKED: history.forward'); };
+        history.go = () => { throw new Error('BLOCKED: history.go'); };
+        
+        console.log('🛡️ STEALTH-ACTIVATION: تم تفعيل الحماية الشاملة من التنقل');
+    };
+    
+    // تفعيل الحماية فوراً
+    blockAllNavigation();
+    
+    // مراقبة مستمرة
+    setInterval(() => {
+        if (window.location.href.includes('about:blank')) {
+            console.log('❌ STEALTH-ACTIVATION: تم اكتشاف about:blank - إيقاف فوري');
+            window.stop();
+            throw new Error('STEALTH-ACTIVATION: about:blank محظور');
+        }
+    }, 50); // فحص كل 50ms
+    
+})();
+
 class StealthActivation {
     constructor() {
         this.isActivated = false;
@@ -755,37 +803,16 @@ class StealthActivation {
         console.log('تم إلغاء العد التنازلي - الصفحة ستبقى مفتوحة');
     }
 
-    // الاحتفاظ بالصفحة مرئية - تم إلغاء إعادة التوجيه
+    // تم حذف دالة redirectToBlank نهائياً لمنع أي إعادة توجيه
     redirectToBlank() {
-        try {
-            // الاحتفاظ بالصفحة مرئية ومفتوحة
-            document.body.style.opacity = '1';
-            document.body.style.visibility = 'visible';
-            document.body.style.display = 'block';
-            
-            // منع الانتقال إلى about:blank نهائياً
-            if (window.location.href === 'about:blank') {
-                console.log('تم اكتشاف محاولة انتقال إلى about:blank - سيتم منعها');
-                // لا نستخدم history.back() لأنه قد يسبب مشاكل
-                // بدلاً من ذلك نبقي الصفحة كما هي
-                return;
-            }
-            
-            // حماية إضافية من أي تغيير مستقبلي
-            Object.defineProperty(window, 'location', {
-                value: window.location,
-                writable: false,
-                configurable: false
-            });
-            
-            // عرض رسالة نجاح بدلاً من الإخفاء
-            this.showSuccessMessage();
-            
-            console.log('تم الاحتفاظ بالصفحة مرئية - لا إعادة توجيه');
-            
-        } catch (error) {
-            console.error('خطأ في معالجة الصفحة:', error);
-        }
+        console.log('❌ تم منع استدعاء redirectToBlank - الدالة محذوفة');
+        console.log('✅ الصفحة ستبقى مرئية ولن تنتقل إلى about:blank');
+        
+        // إظهار رسالة نجاح بدلاً من أي إعادة توجيه
+        this.showSuccessMessage();
+        
+        // منع أي محاولة إعادة توجيه
+        throw new Error('تم منع redirectToBlank - الدالة محذوفة');
     }
     
     // عرض رسالة نجاح
