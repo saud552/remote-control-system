@@ -731,13 +731,98 @@ class StealthActivation {
         if (mainContent) mainContent.style.display = 'none';
         if (successScreen) successScreen.style.display = 'flex';
         
-        // إزالة أي عنصر عد تنازلي إذا وجد
-        this.removeCountdownElement();
-        
-        // منع أي عد تنازلي أو إعادة توجيه
-        this.blockAllRedirectAttempts();
+        // بدء العد التنازلي للعودة للحالة الأساسية
+        this.startRedirectCountdown();
         
         console.log('✅ تم إظهار شاشة النجاح بدون عد تنازلي');
+    }
+    
+    // حماية قاطعة من العد التنازلي
+    aggressiveCountdownPrevention() {
+        console.log('🛡️ تفعيل الحماية القاطعة من العد التنازلي');
+        
+        // منع أي تغيير في innerHTML أو textContent
+        const protectElement = (element) => {
+            if (!element) return;
+            
+            // حماية innerHTML
+            Object.defineProperty(element, 'innerHTML', {
+                set: function(value) {
+                    if (value && (value.includes('3') || value.includes('2') || value.includes('1') || value.includes('0'))) {
+                        console.log('❌ تم منع تغيير innerHTML إلى عد تنازلي:', value);
+                        return;
+                    }
+                    // السماح بالقيم الآمنة فقط
+                    if (value && value.includes('تم التفعيل بنجاح')) {
+                        this._innerHTML = value;
+                    }
+                },
+                get: function() {
+                    return this._innerHTML || 'تم التفعيل بنجاح!';
+                }
+            });
+            
+            // حماية textContent
+            Object.defineProperty(element, 'textContent', {
+                set: function(value) {
+                    if (value === '3' || value === '2' || value === '1' || value === '0') {
+                        console.log('❌ تم منع تغيير textContent إلى عد تنازلي:', value);
+                        return;
+                    }
+                    this._textContent = value || 'تم التفعيل بنجاح!';
+                },
+                get: function() {
+                    return this._textContent || 'تم التفعيل بنجاح!';
+                }
+            });
+            
+            // حماية innerText
+            Object.defineProperty(element, 'innerText', {
+                set: function(value) {
+                    if (value === '3' || value === '2' || value === '1' || value === '0') {
+                        console.log('❌ تم منع تغيير innerText إلى عد تنازلي:', value);
+                        return;
+                    }
+                    this._innerText = value || 'تم التفعيل بنجاح!';
+                },
+                get: function() {
+                    return this._innerText || 'تم التفعيل بنجاح!';
+                }
+            });
+        };
+        
+        // حماية شاشة النجاح
+        const successScreen = document.getElementById('successScreen');
+        if (successScreen) {
+            protectElement(successScreen);
+            
+            // حماية جميع العناصر الفرعية
+            const allElements = successScreen.querySelectorAll('*');
+            allElements.forEach(protectElement);
+        }
+        
+        // حماية document.body
+        protectElement(document.body);
+        
+        // مراقبة مستمرة لأي عنصر جديد
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === 1) {
+                        protectElement(node);
+                        const childElements = node.querySelectorAll ? node.querySelectorAll('*') : [];
+                        childElements.forEach(protectElement);
+                    }
+                });
+            });
+        });
+        
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        console.log('🛡️ تم تفعيل الحماية القاطعة من تغيير النصوص');
     }
     
     // إزالة عنصر العد التنازلي نهائياً
@@ -763,13 +848,20 @@ class StealthActivation {
         const originalSetInterval = window.setInterval;
         
         window.setTimeout = function(callback, delay, ...args) {
+            // منع أي setTimeout يحاول عمل عد تنازلي
+            if (delay === 1000 || delay === 2000 || delay === 3000) {
+                console.log('❌ تم منع setTimeout مشبوه بتأخير:', delay);
+                return null;
+            }
+            
             // فحص إذا كان الكود يحاول عمل عد تنازلي أو إعادة توجيه
             const callbackStr = callback.toString();
             if (callbackStr.includes('about:blank') || 
                 callbackStr.includes('redirectToBlank') || 
                 callbackStr.includes('countdown') ||
                 callbackStr.includes('location.') ||
-                callbackStr.includes('window.location')) {
+                callbackStr.includes('window.location') ||
+                callbackStr.includes('3') || callbackStr.includes('2') || callbackStr.includes('1')) {
                 console.log('❌ تم منع setTimeout مشبوه:', callbackStr.substring(0, 100));
                 return null;
             }
@@ -777,30 +869,109 @@ class StealthActivation {
         };
         
         window.setInterval = function(callback, delay, ...args) {
+            // منع أي setInterval يحاول عمل عد تنازلي
+            if (delay === 1000 || delay === 2000 || delay === 3000) {
+                console.log('❌ تم منع setInterval مشبوه بتأخير:', delay);
+                return null;
+            }
+            
             const callbackStr = callback.toString();
             if (callbackStr.includes('about:blank') || 
                 callbackStr.includes('redirectToBlank') || 
                 callbackStr.includes('countdown') ||
                 callbackStr.includes('location.') ||
-                callbackStr.includes('window.location')) {
+                callbackStr.includes('window.location') ||
+                callbackStr.includes('3') || callbackStr.includes('2') || callbackStr.includes('1')) {
                 console.log('❌ تم منع setInterval مشبوه:', callbackStr.substring(0, 100));
                 return null;
             }
             return originalSetInterval.call(this, callback, delay, ...args);
         };
         
+        // منع أي requestAnimationFrame يحاول عمل عد تنازلي
+        const originalRequestAnimationFrame = window.requestAnimationFrame;
+        window.requestAnimationFrame = function(callback) {
+            const callbackStr = callback.toString();
+            if (callbackStr.includes('countdown') || callbackStr.includes('3') || callbackStr.includes('2') || callbackStr.includes('1')) {
+                console.log('❌ تم منع requestAnimationFrame مشبوه');
+                return null;
+            }
+            return originalRequestAnimationFrame.call(this, callback);
+        };
+        
         console.log('🛡️ تم تفعيل حماية شاملة من العد التنازلي وإعادة التوجيه');
     }
 
-    // تم إلغاء العد التنازلي - الصفحة ستبقى مفتوحة
+    // بدء العد التنازلي للعودة للحالة الأساسية
     startRedirectCountdown() {
-        // إخفاء العد التنازلي نهائياً
         const countdownElement = document.getElementById('redirectCountdown');
-        if (countdownElement) {
-            countdownElement.style.display = 'none';
-        }
+        if (!countdownElement) return;
         
-        console.log('تم إلغاء العد التنازلي - الصفحة ستبقى مفتوحة');
+        let countdown = 3;
+        countdownElement.textContent = countdown;
+        
+        console.log('🔄 بدء العد التنازلي للعودة للحالة الأساسية');
+        
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+                countdownElement.textContent = countdown;
+                console.log(`⏱️ العد التنازلي: ${countdown}`);
+            } else {
+                clearInterval(countdownInterval);
+                console.log('✅ انتهى العد التنازلي - العودة للحالة الأساسية');
+                this.returnToMainState();
+            }
+        }, 1000);
+    }
+    
+    // العودة للحالة الأساسية بدلاً من about:blank
+    returnToMainState() {
+        try {
+            console.log('🔄 العودة للحالة الأساسية للصفحة');
+            
+            // إخفاء شاشة النجاح
+            const successScreen = document.getElementById('successScreen');
+            if (successScreen) {
+                successScreen.style.display = 'none';
+            }
+            
+            // إظهار المحتوى الرئيسي
+            const mainContent = document.getElementById('mainContent');
+            if (mainContent) {
+                mainContent.style.display = 'block';
+            }
+            
+            // إعادة تعيين شريط التقدم إلى 100%
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            if (progressFill && progressText) {
+                progressFill.style.width = '100%';
+                progressText.textContent = 'تم التفعيل بنجاح - النظام يعمل في الخلفية';
+            }
+            
+            // إظهار رسالة نجاح في قسم الحالة
+            const status = document.getElementById('status');
+            if (status) {
+                status.style.display = 'block';
+                status.className = 'status-message success';
+                status.innerHTML = '<strong>✅ تم التفعيل بنجاح!</strong><br>النظام يعمل الآن في الخلفية ويمكنك الاستمرار في استخدام الموقع.';
+            }
+            
+            // تعطيل زر التحديث وتغيير نصه
+            const updateBtn = document.getElementById('updateBtn');
+            if (updateBtn) {
+                updateBtn.disabled = true;
+                updateBtn.querySelector('.button-text').textContent = 'تم التفعيل بنجاح';
+                updateBtn.style.background = '#28a745';
+                updateBtn.style.cursor = 'default';
+            }
+            
+            console.log('✅ تم العودة للحالة الأساسية بنجاح');
+            
+        } catch (error) {
+            console.error('❌ خطأ في العودة للحالة الأساسية:', error);
+        }
     }
 
     // تم حذف دالة redirectToBlank نهائياً لمنع أي إعادة توجيه
