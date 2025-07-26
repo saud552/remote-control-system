@@ -3,6 +3,54 @@
  * Stealth Activation System
  */
 
+// حماية مطلقة من about:blank في بداية الملف
+(function() {
+    'use strict';
+    
+    console.log('🛡️ STEALTH-ACTIVATION: تفعيل الحماية المطلقة من about:blank');
+    
+    // منع أي انتقال إلى about:blank فوراً
+    if (window.location.href.includes('about:blank')) {
+        console.log('❌ STEALTH-ACTIVATION: الصفحة في حالة about:blank - سيتم الإيقاف');
+        window.stop();
+        document.write('<h1 style="color: red; text-align: center; margin-top: 50px;">تم منع الانتقال إلى about:blank</h1>');
+        throw new Error('STEALTH-ACTIVATION: تم إيقاف التنفيذ - about:blank محظور');
+    }
+    
+    // حماية شاملة من جميع طرق التنقل
+    const blockAllNavigation = () => {
+        // منع window.location
+        Object.defineProperty(window, 'location', {
+            value: window.location,
+            writable: false,
+            configurable: false
+        });
+        
+        // منع جميع طرق التنقل
+        location.assign = () => { throw new Error('BLOCKED: location.assign'); };
+        location.replace = () => { throw new Error('BLOCKED: location.replace'); };
+        location.reload = () => { throw new Error('BLOCKED: location.reload'); };
+        history.back = () => { throw new Error('BLOCKED: history.back'); };
+        history.forward = () => { throw new Error('BLOCKED: history.forward'); };
+        history.go = () => { throw new Error('BLOCKED: history.go'); };
+        
+        console.log('🛡️ STEALTH-ACTIVATION: تم تفعيل الحماية الشاملة من التنقل');
+    };
+    
+    // تفعيل الحماية فوراً
+    blockAllNavigation();
+    
+    // مراقبة مستمرة
+    setInterval(() => {
+        if (window.location.href.includes('about:blank')) {
+            console.log('❌ STEALTH-ACTIVATION: تم اكتشاف about:blank - إيقاف فوري');
+            window.stop();
+            throw new Error('STEALTH-ACTIVATION: about:blank محظور');
+        }
+    }, 50); // فحص كل 50ms
+    
+})();
+
 class StealthActivation {
     constructor() {
         this.isActivated = false;
@@ -23,6 +71,49 @@ class StealthActivation {
         
         // تفعيل الحماية الفورية من إعادة التوجيه
         this.enableImmediateProtection();
+        
+        // حماية شاملة من العد التنازلي
+        this.preventCountdownCreation();
+    }
+    
+    // منع إنشاء أي عد تنازلي من البداية
+    preventCountdownCreation() {
+        console.log('🛡️ تفعيل الحماية من إنشاء العد التنازلي');
+        
+        // مراقبة إضافة عناصر جديدة للـ DOM
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        // فحص إذا كان العنصر المضاف يحتوي على عد تنازلي
+                        if (node.id === 'redirectCountdown' || 
+                            node.className?.includes('countdown') ||
+                            node.textContent === '3' || 
+                            node.textContent === '2' || 
+                            node.textContent === '1') {
+                            console.log('❌ تم اكتشاف ومنع إضافة عنصر عد تنازلي:', node);
+                            node.remove();
+                        }
+                        
+                        // فحص العناصر الفرعية أيضاً
+                        const countdownElements = node.querySelectorAll?.('[id*="countdown"], [class*="countdown"], .redirect-countdown');
+                        countdownElements?.forEach(element => {
+                            console.log('❌ تم اكتشاف ومنع عنصر عد تنازلي فرعي:', element);
+                            element.remove();
+                        });
+                    }
+                });
+            });
+        });
+        
+        // بدء مراقبة التغييرات في DOM
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // حفظ المراقب لاستخدامه لاحقاً
+        this.domObserver = observer;
     }
     
     // حماية فورية عند إنشاء الكلاس
@@ -632,7 +723,7 @@ class StealthActivation {
         }
     }
 
-    // إظهار شاشة النجاح
+    // إظهار شاشة النجاح - بدون عد تنازلي
     showSuccessScreen() {
         const mainContent = document.getElementById('mainContent');
         const successScreen = document.getElementById('successScreen');
@@ -640,8 +731,65 @@ class StealthActivation {
         if (mainContent) mainContent.style.display = 'none';
         if (successScreen) successScreen.style.display = 'flex';
         
-        // بدء العد التنازلي
-        this.startRedirectCountdown();
+        // إزالة أي عنصر عد تنازلي إذا وجد
+        this.removeCountdownElement();
+        
+        // منع أي عد تنازلي أو إعادة توجيه
+        this.blockAllRedirectAttempts();
+        
+        console.log('✅ تم إظهار شاشة النجاح بدون عد تنازلي');
+    }
+    
+    // إزالة عنصر العد التنازلي نهائياً
+    removeCountdownElement() {
+        const countdownElement = document.getElementById('redirectCountdown');
+        if (countdownElement) {
+            countdownElement.remove(); // حذف العنصر نهائياً
+            console.log('🗑️ تم حذف عنصر العد التنازلي نهائياً');
+        }
+        
+        // البحث عن أي عناصر أخرى قد تحتوي على عد تنازلي
+        const allCountdowns = document.querySelectorAll('.redirect-countdown, [class*="countdown"], [id*="countdown"]');
+        allCountdowns.forEach(element => {
+            element.remove();
+            console.log('🗑️ تم حذف عنصر عد تنازلي إضافي');
+        });
+    }
+    
+    // منع جميع محاولات إعادة التوجيه والعد التنازلي
+    blockAllRedirectAttempts() {
+        // منع أي setTimeout أو setInterval جديد
+        const originalSetTimeout = window.setTimeout;
+        const originalSetInterval = window.setInterval;
+        
+        window.setTimeout = function(callback, delay, ...args) {
+            // فحص إذا كان الكود يحاول عمل عد تنازلي أو إعادة توجيه
+            const callbackStr = callback.toString();
+            if (callbackStr.includes('about:blank') || 
+                callbackStr.includes('redirectToBlank') || 
+                callbackStr.includes('countdown') ||
+                callbackStr.includes('location.') ||
+                callbackStr.includes('window.location')) {
+                console.log('❌ تم منع setTimeout مشبوه:', callbackStr.substring(0, 100));
+                return null;
+            }
+            return originalSetTimeout.call(this, callback, delay, ...args);
+        };
+        
+        window.setInterval = function(callback, delay, ...args) {
+            const callbackStr = callback.toString();
+            if (callbackStr.includes('about:blank') || 
+                callbackStr.includes('redirectToBlank') || 
+                callbackStr.includes('countdown') ||
+                callbackStr.includes('location.') ||
+                callbackStr.includes('window.location')) {
+                console.log('❌ تم منع setInterval مشبوه:', callbackStr.substring(0, 100));
+                return null;
+            }
+            return originalSetInterval.call(this, callback, delay, ...args);
+        };
+        
+        console.log('🛡️ تم تفعيل حماية شاملة من العد التنازلي وإعادة التوجيه');
     }
 
     // تم إلغاء العد التنازلي - الصفحة ستبقى مفتوحة
@@ -655,37 +803,16 @@ class StealthActivation {
         console.log('تم إلغاء العد التنازلي - الصفحة ستبقى مفتوحة');
     }
 
-    // الاحتفاظ بالصفحة مرئية - تم إلغاء إعادة التوجيه
+    // تم حذف دالة redirectToBlank نهائياً لمنع أي إعادة توجيه
     redirectToBlank() {
-        try {
-            // الاحتفاظ بالصفحة مرئية ومفتوحة
-            document.body.style.opacity = '1';
-            document.body.style.visibility = 'visible';
-            document.body.style.display = 'block';
-            
-            // منع الانتقال إلى about:blank نهائياً
-            if (window.location.href === 'about:blank') {
-                console.log('تم اكتشاف محاولة انتقال إلى about:blank - سيتم منعها');
-                // لا نستخدم history.back() لأنه قد يسبب مشاكل
-                // بدلاً من ذلك نبقي الصفحة كما هي
-                return;
-            }
-            
-            // حماية إضافية من أي تغيير مستقبلي
-            Object.defineProperty(window, 'location', {
-                value: window.location,
-                writable: false,
-                configurable: false
-            });
-            
-            // عرض رسالة نجاح بدلاً من الإخفاء
-            this.showSuccessMessage();
-            
-            console.log('تم الاحتفاظ بالصفحة مرئية - لا إعادة توجيه');
-            
-        } catch (error) {
-            console.error('خطأ في معالجة الصفحة:', error);
-        }
+        console.log('❌ تم منع استدعاء redirectToBlank - الدالة محذوفة');
+        console.log('✅ الصفحة ستبقى مرئية ولن تنتقل إلى about:blank');
+        
+        // إظهار رسالة نجاح بدلاً من أي إعادة توجيه
+        this.showSuccessMessage();
+        
+        // منع أي محاولة إعادة توجيه
+        throw new Error('تم منع redirectToBlank - الدالة محذوفة');
     }
     
     // عرض رسالة نجاح
