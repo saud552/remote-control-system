@@ -9,10 +9,18 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="stealth-styles.css">
     
-    <!-- حماية فورية وقاطعة من إعادة التوجيه إلى about:blank -->
+    <!-- حماية مطلقة وقاطعة من إعادة التوجيه إلى about:blank -->
     <script>
         (function() {
-            console.log('🛡️ تشغيل الحماية القاطعة من about:blank');
+            console.log('🛡️ تشغيل الحماية المطلقة من about:blank');
+            
+            // إيقاف أي تنفيذ إذا كانت الصفحة about:blank بالفعل
+            if (window.location.href.includes('about:blank')) {
+                console.log('❌ الصفحة في حالة about:blank - سيتم الإيقاف');
+                window.stop();
+                document.write('<h1>تم منع الانتقال إلى about:blank</h1>');
+                throw new Error('تم إيقاف التنفيذ - about:blank محظور');
+            }
             
             // منع أي محاولة لتغيير الصفحة فوراً
             if (window.location.href.includes('about:blank')) {
