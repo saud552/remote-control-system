@@ -96,4 +96,6 @@ if __name__ == "__main__":
     
     # تشغيل Flask app
     port = int(os.environ.get('PORT', 10002))
+    print(f"🌐 تشغيل Flask app على المنفذ: {port}")
+    print(f"🔗 رابط الخدمة: https://remote-control-telegram-bot.onrender.com")
     app.run(host='0.0.0.0', port=port, debug=False)

