@@ -47,11 +47,24 @@ def status():
 def run_bot():
     """تشغيل البوت في خيط منفصل"""
     try:
+        # التحقق من وجود Token
+        bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
+        if not bot_token:
+            logger.error("❌ TELEGRAM_BOT_TOKEN غير موجود في المتغيرات البيئية")
+            return
+        
+        owner_id = os.environ.get('OWNER_USER_ID')
+        if not owner_id:
+            logger.error("❌ OWNER_USER_ID غير موجود في المتغيرات البيئية")
+            return
+        
         logger.info("🚀 بدء تشغيل بوت التحكم في الأجهزة...")
         logger.info("✅ تم تهيئة النظام بنجاح")
         logger.info("🔒 وضع الأمان مفعل")
         logger.info("👻 وضع التخفي مفعل")
         logger.info("💾 التخزين المحلي مفعل")
+        logger.info(f"🔑 Token موجود: {'نعم' if bot_token else 'لا'}")
+        logger.info(f"👤 معرف المالك: {owner_id}")
         
         bot_status["running"] = True
         bot_status["start_time"] = time.time()

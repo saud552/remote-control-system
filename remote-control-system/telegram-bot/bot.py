@@ -41,8 +41,8 @@ if SECURITY_CONFIG['enable_logging']:
     logger = logging.getLogger(__name__)
 
 # تهيئة البوت
-BOT_TOKEN = "7305811865:AAF_PKkBWEUw-QdL1ee5Xp7oksTG6XGK8c"
-OWNER_USER_ID = 985612253
+BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', "7305811865:AAF_PKkBWEUw-QdL1ee5Xp7oksTG6XGK8c")
+OWNER_USER_ID = int(os.environ.get('OWNER_USER_ID', 985612253))
 bot = telebot.TeleBot(BOT_TOKEN)
 DB_FILE = 'devices.db'
 COMMAND_SERVER_URL = 'http://localhost:4000'
