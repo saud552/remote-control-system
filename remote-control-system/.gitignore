@@ -1,0 +1,306 @@
+# 🚀 نظام التحكم عن بعد المتقدم v2.0.0
+# ملف تجاهل Git
+
+# ===== ملفات النظام =====
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ===== ملفات Node.js =====
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn-integrity
+.pnp.*
+
+# ===== ملفات Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ===== ملفات البيئة =====
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ===== ملفات السجلات =====
+logs/
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ===== ملفات البيانات =====
+data/
+local-storage/
+advanced-logs/
+advanced-data/
+uploads/
+database/
+*.db
+*.sqlite
+*.sqlite3
+
+# ===== ملفات التخزين المؤقت =====
+.cache/
+.temp/
+tmp/
+temp/
+*.tmp
+*.temp
+
+# ===== ملفات PID =====
+*.pid
+.pid
+system.pid
+command-server.pid
+web-interface.pid
+telegram-bot.pid
+
+# ===== ملفات التكوين الحساسة =====
+config.json
+secrets.json
+credentials.json
+bot-token.txt
+encryption-keys.txt
+
+# ===== ملفات النسخ الاحتياطي =====
+*.bak
+*.backup
+*.old
+*.orig
+*.save
+
+# ===== ملفات التطوير =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== ملفات الاختبار =====
+coverage/
+.nyc_output
+.coverage
+.pytest_cache/
+.tox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+
+# ===== ملفات البناء =====
+build/
+dist/
+out/
+.next/
+.nuxt/
+.vuepress/dist
+.serverless/
+.fusebox/
+.dynamodb/
+
+# ===== ملفات الأمان =====
+*.key
+*.pem
+*.crt
+*.csr
+*.p12
+*.pfx
+*.jks
+*.keystore
+
+# ===== ملفات التشفير =====
+encrypted/
+*.enc
+*.encrypted
+*.aes
+
+# ===== ملفات المراقبة =====
+monitoring/
+stats/
+performance-stats.json
+system-stats.json
+
+# ===== ملفات PM2 =====
+.pm2/
+ecosystem.config.js
+
+# ===== ملفات Docker =====
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# ===== ملفات CI/CD =====
+.github/
+.gitlab-ci.yml
+.travis.yml
+.circleci/
+azure-pipelines.yml
+
+# ===== ملفات التوثيق المولدة =====
+docs/build/
+docs/_build/
+site/
+
+# ===== ملفات الوسائط =====
+*.mp4
+*.avi
+*.mov
+*.wmv
+*.flv
+*.webm
+*.mkv
+*.mp3
+*.wav
+*.flac
+*.aac
+*.ogg
+*.jpg
+*.jpeg
+*.png
+*.gif
+*.bmp
+*.tiff
+*.svg
+*.ico
+
+# ===== ملفات الأرشيف =====
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+*.bz2
+*.xz
+
+# ===== ملفات المستندات =====
+*.pdf
+*.doc
+*.docx
+*.xls
+*.xlsx
+*.ppt
+*.pptx
+*.txt
+*.rtf
+
+# ===== ملفات البرمجة =====
+*.exe
+*.dll
+*.so
+*.dylib
+*.app
+*.deb
+*.rpm
+*.msi
+*.pkg
+
+# ===== ملفات خاصة بالنظام =====
+# ملفات البيانات المشفرة
+encrypted-data/
+sensitive-data/
+private-data/
+
+# ملفات السجلات المتقدمة
+advanced-logs/
+keylogger-data/
+screenshot-data/
+network-data/
+process-data/
+registry-data/
+memory-data/
+
+# ملفات البرمجيات الخبيثة
+malware-files/
+virus-samples/
+trojan-files/
+backdoor-files/
+rootkit-files/
+
+# ملفات المراقبة المتقدمة
+monitoring-data/
+tracking-data/
+spyware-data/
+adware-data/
+
+# ===== استثناءات مهمة =====
+# لا تتجاهل هذه الملفات المهمة
+!README.md
+!LICENSE
+!CHANGELOG.md
+!package.json
+!requirements.txt
+!start.sh
+!stop.sh
+!.gitignore
+
+# ===== ملفات التكوين العامة =====
+# يمكن تضمين ملفات التكوين العامة
+!config.example.json
+!config.template.json
+!bot.example.py
+!server.example.js
+
+---
+
+# 📝 ملاحظات مهمة:
+
+# 1. ملفات البيانات الحساسة:
+#    - جميع ملفات البيانات المشفرة
+#    - سجلات الأوامر المتقدمة
+#    - بيانات المراقبة
+#    - ملفات البرمجيات الخبيثة
+
+# 2. ملفات النظام:
+#    - ملفات PID للعمليات
+#    - ملفات السجلات
+#    - ملفات التخزين المؤقت
+
+# 3. ملفات التطوير:
+#    - node_modules
+#    - __pycache__
+#    - ملفات البيئة
+
+# 4. ملفات الأمان:
+#    - مفاتيح التشفير
+#    - شهادات SSL
+#    - بيانات الاعتماد
+
+# ⚠️ تحذير: تأكد من عدم رفع أي بيانات حساسة إلى Git!
