@@ -50,16 +50,56 @@ pip3 install -r requirements.txt
 ```
 
 ### 2. تشغيل النظام
+
+#### التشغيل المحلي
 ```bash
 # من المجلد الرئيسي
 cd remote-control-system
 ./start.sh
 ```
 
+#### التشغيل على Render (السحابة)
+```bash
+# 1. رفع الكود إلى GitHub
+git add .
+git commit -m "Deploy to Render"
+git push origin main
+
+# 2. ربط المشروع بـ Render
+# - اذهب إلى render.com
+# - أنشئ خدمة جديدة من GitHub
+# - اختر "Web Service"
+# - اربط المستودع
+
+# 3. إعداد متغيرات البيئة في Render
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+NODE_ENV=production
+PORT=10000
+
+# 4. تشغيل الخدمة
+# Render سيقوم بتشغيل الخدمة تلقائياً
+```
+
+#### التشغيل باستخدام Docker
+```bash
+# بناء الصورة
+docker build -t remote-control-system .
+
+# تشغيل الحاوية
+docker run -p 10000:10000 -e TELEGRAM_BOT_TOKEN=your_token remote-control-system
+```
+
 ### 3. الوصول للنظام
+
+#### المحلي
 - **واجهة الويب**: http://localhost:3000
 - **خادم الأوامر**: http://localhost:10001
 - **بوت تيليجرام**: يعمل في الخلفية
+
+#### على Render
+- **واجهة الويب**: https://your-app-name.onrender.com
+- **خادم الأوامر**: https://your-command-server.onrender.com
+- **نقطة فحص الصحة**: /health
 
 ## 🔧 الأوامر المتقدمة
 

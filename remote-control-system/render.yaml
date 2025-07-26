@@ -1,0 +1,57 @@
+# Render Configuration for Advanced Remote Control System
+# ملف تكوين Render لنظام التحكم عن بعد المتقدم
+
+services:
+  # خادم الأوامر - الخدمة الرئيسية
+  - type: web
+    name: remote-control-command-server
+    env: node
+    plan: free
+    buildCommand: cd command-server && npm install
+    startCommand: cd command-server && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
+    autoDeploy: true
+    region: oregon
+
+  # واجهة الويب
+  - type: web
+    name: remote-control-web-interface
+    env: node
+    plan: free
+    buildCommand: cd web-interface && npm install
+    startCommand: cd web-interface && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /
+    autoDeploy: true
+    region: oregon
+
+  # بوت تيليجرام
+  - type: worker
+    name: remote-control-telegram-bot
+    env: python
+    plan: free
+    buildCommand: cd telegram-bot && pip install -r requirements.txt
+    startCommand: cd telegram-bot && python3 bot.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.9
+    autoDeploy: true
+    region: oregon
+
+# متغيرات البيئة المشتركة
+envVars:
+  - key: SYSTEM_VERSION
+    value: "2.1.5"
+  - key: SECURITY_LEVEL
+    value: "high"
+  - key: LOG_LEVEL
+    value: "info"
