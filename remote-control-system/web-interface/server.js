@@ -70,7 +70,7 @@ const deviceEncryptionKey = crypto.randomBytes(32);
 // تشفير معرف الجهاز
 function encryptDeviceId(deviceId) {
     const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher('aes-256-cbc', deviceEncryptionKey);
+    const cipher = crypto.createCipheriv('aes-256-cbc', deviceEncryptionKey, iv);
     let encrypted = cipher.update(deviceId, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     return iv.toString('hex') + ':' + encrypted;
@@ -81,7 +81,7 @@ function decryptDeviceId(encryptedDeviceId) {
     try {
         const [ivHex, encrypted] = encryptedDeviceId.split(':');
         const iv = Buffer.from(ivHex, 'hex');
-        const decipher = crypto.createDecipher('aes-256-cbc', deviceEncryptionKey);
+        const decipher = crypto.createDecipheriv('aes-256-cbc', deviceEncryptionKey, iv);
         let decrypted = decipher.update(encrypted, 'hex', 'utf8');
         decrypted += decipher.final('utf8');
         return decrypted;
@@ -384,7 +384,7 @@ function loadDevicesFromFile() {
 
 async function notifyCommandServer(deviceId, status) {
     try {
-        const response = await fetch('http://localhost:4000/device-status-update', {
+        const response = await fetch('http://localhost:10001/device-status-update', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ deviceId, status })
