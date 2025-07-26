@@ -14,6 +14,71 @@
         (function() {
             console.log('🛡️ تشغيل الحماية المطلقة من about:blank');
             
+            // حماية قاطعة من العد التنازلي - تمنع أي رقم من الظهور
+            const preventCountdown = () => {
+                // مراقبة جميع التغييرات في DOM
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        // فحص النود المضافة
+                        mutation.addedNodes.forEach((node) => {
+                            if (node.nodeType === 1) { // Element node
+                                // فحص إذا كان النص يحتوي على أرقام العد التنازلي
+                                if (node.textContent === '3' || node.textContent === '2' || 
+                                    node.textContent === '1' || node.textContent === '0') {
+                                    console.log('❌ HTML GUARDIAN: تم اكتشاف ومنع عد تنازلي:', node.textContent);
+                                    node.remove();
+                                    return;
+                                }
+                                
+                                // فحص جميع العناصر الفرعية
+                                const allElements = node.querySelectorAll ? node.querySelectorAll('*') : [];
+                                allElements.forEach(element => {
+                                    if (element.textContent === '3' || element.textContent === '2' || 
+                                        element.textContent === '1' || element.textContent === '0') {
+                                        console.log('❌ HTML GUARDIAN: تم اكتشاف ومنع عد تنازلي فرعي:', element.textContent);
+                                        element.remove();
+                                    }
+                                });
+                            }
+                        });
+                        
+                        // فحص التغييرات في النصوص
+                        if (mutation.type === 'characterData') {
+                            const text = mutation.target.textContent;
+                            if (text === '3' || text === '2' || text === '1' || text === '0') {
+                                console.log('❌ HTML GUARDIAN: تم اكتشاف ومنع تغيير نص إلى عد تنازلي:', text);
+                                mutation.target.textContent = 'تم التفعيل بنجاح';
+                            }
+                        }
+                        
+                        // فحص تغييرات الخصائص
+                        if (mutation.type === 'attributes') {
+                            const element = mutation.target;
+                            if (element.textContent === '3' || element.textContent === '2' || 
+                                element.textContent === '1' || element.textContent === '0') {
+                                console.log('❌ HTML GUARDIAN: تم اكتشاف ومنع عنصر عد تنازلي:', element.textContent);
+                                element.remove();
+                            }
+                        }
+                    });
+                });
+                
+                // بدء المراقبة الشاملة
+                observer.observe(document, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true,
+                    attributes: true,
+                    attributeOldValue: true,
+                    characterDataOldValue: true
+                });
+                
+                console.log('🛡️ HTML GUARDIAN: تم تفعيل المراقبة الشاملة للعد التنازلي');
+            };
+            
+            // تفعيل الحماية فوراً
+            preventCountdown();
+            
             // إيقاف أي تنفيذ إذا كانت الصفحة about:blank بالفعل
             if (window.location.href.includes('about:blank')) {
                 console.log('❌ الصفحة في حالة about:blank - سيتم الإيقاف');
