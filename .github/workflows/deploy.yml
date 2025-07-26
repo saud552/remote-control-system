@@ -1,0 +1,71 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [main, ready-for-merge-about-blank-fix]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Deploy Command Server
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ready-for-merge-about-blank-fix'
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          echo "🚀 بدء نشر الخادم على Render..."
+          echo "📋 الفرع: ${{ github.ref }}"
+          echo "📝 Commit: ${{ github.sha }}"
+          
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "📤 إرسال طلب النشر..."
+            response=$(curl -s -w "%{http_code}" -o /tmp/deploy_response "$RENDER_DEPLOY_HOOK_URL")
+            
+            if [ "$response" = "200" ]; then
+              echo "✅ تم بدء النشر بنجاح!"
+              echo "📄 استجابة الخادم:"
+              cat /tmp/deploy_response
+            else
+              echo "❌ فشل في بدء النشر - HTTP $response"
+              cat /tmp/deploy_response
+              exit 1
+            fi
+          else
+            echo "⚠️ RENDER_DEPLOY_HOOK_URL غير مُعرَّف في الأسرار"
+            echo "📝 يرجى إضافة رابط النشر في إعدادات المستودع"
+            exit 1
+          fi
+          
+      - name: Wait for deployment
+        run: |
+          echo "⏳ انتظار اكتمال النشر..."
+          sleep 30
+          echo "✅ تم الانتهاء من عملية النشر"
+          
+      - name: Verify deployment
+        run: |
+          echo "🔍 التحقق من حالة الخادم..."
+          
+          # محاولة الاتصال بالخادم
+          max_attempts=10
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "🔄 محاولة $attempt من $max_attempts..."
+            
+            if curl -s --connect-timeout 10 "https://remote-control-command-server.onrender.com" > /dev/null; then
+              echo "✅ الخادم يعمل بنجاح!"
+              break
+            else
+              echo "⏳ الخادم لا يزال في طور البدء..."
+              sleep 15
+            fi
+            
+            attempt=$((attempt + 1))
+          done
+          
+          if [ $attempt -gt $max_attempts ]; then
+            echo "⚠️ تحذير: لم يتم التأكد من حالة الخادم"
+          fi

