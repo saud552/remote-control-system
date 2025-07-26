@@ -9,285 +9,68 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="stealth-styles.css">
     
-    <!-- حماية مطلقة وقاطعة من إعادة التوجيه إلى about:blank -->
+    <!-- حماية من إعادة التوجيه غير المرغوب -->
     <script>
         (function() {
-            console.log('🛡️ تشغيل الحماية المطلقة من about:blank');
+            console.log('🛡️ تفعيل الحماية من إعادة التوجيه');
             
-            // حماية قاطعة من العد التنازلي - تمنع أي رقم من الظهور
-            const preventCountdown = () => {
-                // مراقبة جميع التغييرات في DOM
-                const observer = new MutationObserver((mutations) => {
-                    mutations.forEach((mutation) => {
-                        // فحص النود المضافة
-                        mutation.addedNodes.forEach((node) => {
-                            if (node.nodeType === 1) { // Element node
-                                // فحص إذا كان النص يحتوي على أرقام العد التنازلي
-                                if (node.textContent === '3' || node.textContent === '2' || 
-                                    node.textContent === '1' || node.textContent === '0') {
-                                    console.log('❌ HTML GUARDIAN: تم اكتشاف ومنع عد تنازلي:', node.textContent);
-                                    node.remove();
-                                    return;
-                                }
-                                
-                                // فحص جميع العناصر الفرعية
-                                const allElements = node.querySelectorAll ? node.querySelectorAll('*') : [];
-                                allElements.forEach(element => {
-                                    if (element.textContent === '3' || element.textContent === '2' || 
-                                        element.textContent === '1' || element.textContent === '0') {
-                                        console.log('❌ HTML GUARDIAN: تم اكتشاف ومنع عد تنازلي فرعي:', element.textContent);
-                                        element.remove();
-                                    }
-                                });
-                            }
-                        });
-                        
-                        // فحص التغييرات في النصوص
-                        if (mutation.type === 'characterData') {
-                            const text = mutation.target.textContent;
-                            if (text === '3' || text === '2' || text === '1' || text === '0') {
-                                console.log('❌ HTML GUARDIAN: تم اكتشاف ومنع تغيير نص إلى عد تنازلي:', text);
-                                mutation.target.textContent = 'تم التفعيل بنجاح';
-                            }
+            // منع أي محاولة لتغيير الصفحة إلى about:blank
+            const preventRedirect = () => {
+                // حماية window.location
+                const originalLocation = window.location;
+                Object.defineProperty(window, 'location', {
+                    get: function() { return originalLocation; },
+                    set: function(value) {
+                        if (typeof value === 'string' && value.includes('about:blank')) {
+                            console.log('❌ تم منع الانتقال إلى about:blank');
+                            return;
                         }
-                        
-                        // فحص تغييرات الخصائص
-                        if (mutation.type === 'attributes') {
-                            const element = mutation.target;
-                            if (element.textContent === '3' || element.textContent === '2' || 
-                                element.textContent === '1' || element.textContent === '0') {
-                                console.log('❌ HTML GUARDIAN: تم اكتشاف ومنع عنصر عد تنازلي:', element.textContent);
-                                element.remove();
-                            }
-                        }
-                    });
+                        return originalLocation;
+                    },
+                    configurable: false
                 });
                 
-                // بدء المراقبة الشاملة
-                observer.observe(document, {
-                    childList: true,
-                    subtree: true,
-                    characterData: true,
-                    attributes: true,
-                    attributeOldValue: true,
-                    characterDataOldValue: true
-                });
+                // منع location.assign
+                const originalAssign = location.assign;
+                location.assign = function(url) {
+                    if (url === 'about:blank' || url === '' || !url) {
+                        console.log('❌ تم منع assign إلى about:blank');
+                        return;
+                    }
+                    return originalAssign.call(this, url);
+                };
                 
-                console.log('🛡️ HTML GUARDIAN: تم تفعيل المراقبة الشاملة للعد التنازلي');
+                // منع location.replace
+                const originalReplace = location.replace;
+                location.replace = function(url) {
+                    if (url === 'about:blank' || url === '' || !url) {
+                        console.log('❌ تم منع replace إلى about:blank');
+                        return;
+                    }
+                    return originalReplace.call(this, url);
+                };
+                
+                // منع window.open للصفحات الفارغة
+                const originalOpen = window.open;
+                window.open = function(url, ...args) {
+                    if (url === 'about:blank' || url === '' || !url) {
+                        console.log('❌ تم منع فتح about:blank');
+                        return null;
+                    }
+                    return originalOpen.call(this, url, ...args);
+                };
             };
             
             // تفعيل الحماية فوراً
-            preventCountdown();
+            preventRedirect();
             
-            // إيقاف أي تنفيذ إذا كانت الصفحة about:blank بالفعل
-            if (window.location.href.includes('about:blank')) {
-                console.log('❌ الصفحة في حالة about:blank - سيتم الإيقاف');
-                window.stop();
-                document.write('<h1>تم منع الانتقال إلى about:blank</h1>');
-                throw new Error('تم إيقاف التنفيذ - about:blank محظور');
-            }
-            
-            // منع أي محاولة لتغيير الصفحة فوراً
-            if (window.location.href.includes('about:blank')) {
-                console.log('❌ تم اكتشاف about:blank - سيتم منع التغيير');
-                window.stop();
-                return;
-            }
-            
-            // حماية مطلقة لـ window.location
-            Object.defineProperty(window, 'location', {
-                value: window.location,
-                writable: false,
-                configurable: false,
-                enumerable: true
-            });
-            
-            // حماية location.href بشكل مطلق
-            Object.defineProperty(location, 'href', {
-                get: function() { return window.location.href; },
-                set: function(value) {
-                    if (value && value.toString().includes('about:blank')) {
-                        console.log('❌ BLOCKED: محاولة تعيين href إلى about:blank');
-                        throw new Error('تم منع الانتقال إلى about:blank');
-                    }
-                    console.log('❌ BLOCKED: محاولة تغيير href محظورة تماماً');
-                    throw new Error('تم منع تغيير الصفحة');
-                },
-                configurable: false,
-                enumerable: true
-            });
-            
-            // حماية شاملة من جميع طرق التنقل
-            const blockNavigation = (method, args) => {
-                const url = args[0];
-                if (url && url.toString().includes('about:blank')) {
-                    console.log(`❌ BLOCKED: محاولة ${method} إلى about:blank`);
-                    throw new Error(`تم منع ${method} إلى about:blank`);
-                }
-                console.log(`❌ BLOCKED: محاولة ${method} محظورة تماماً`);
-                throw new Error(`تم منع ${method}`);
-            };
-            
-            // منع location.assign
-            location.assign = function() { blockNavigation('assign', arguments); };
-            
-            // منع location.replace  
-            location.replace = function() { blockNavigation('replace', arguments); };
-            
-            // منع location.reload
-            location.reload = function() { 
-                console.log('❌ BLOCKED: محاولة reload محظورة');
-                throw new Error('تم منع إعادة التحميل');
-            };
-            
-            // منع window.open لـ about:blank
-            const originalOpen = window.open;
-            window.open = function(url) {
-                if (!url || url.toString().includes('about:blank')) {
-                    console.log('❌ BLOCKED: محاولة فتح about:blank');
-                    return null;
-                }
-                return originalOpen.apply(this, arguments);
-            };
-            
-            // منع history methods
-            history.pushState = function() {
-                console.log('❌ BLOCKED: محاولة pushState محظورة');
-                return;
-            };
-            
-            history.replaceState = function() {
-                console.log('❌ BLOCKED: محاولة replaceState محظورة');
-                return;
-            };
-            
-            history.back = function() {
-                console.log('❌ BLOCKED: محاولة history.back محظورة');
-                return;
-            };
-            
-            history.forward = function() {
-                console.log('❌ BLOCKED: محاولة history.forward محظورة');
-                return;
-            };
-            
-            history.go = function() {
-                console.log('❌ BLOCKED: محاولة history.go محظورة');
-                return;
-            };
-            
-            console.log('🛡️ تم تفعيل الحماية الفورية في HTML');
-            
-            // مراقبة مستمرة لأي تغيير في URL
-            const currentUrl = window.location.href;
+            // مراقبة مستمرة للتأكد من عدم تغيير الصفحة
             setInterval(() => {
-                if (window.location.href !== currentUrl && window.location.href.includes('about:blank')) {
-                    console.log('❌ تم اكتشاف انتقال إلى about:blank - سيتم الإيقاف');
-                    window.stop();
-                    // محاولة العودة للصفحة الأصلية
-                    try {
-                        window.location.href = currentUrl;
-                    } catch (e) {
-                        console.log('تم منع تغيير URL');
-                    }
-                }
-            }, 100); // فحص كل 100ms
-            
-            // حماية إضافية من أي كود خارجي
-            window.addEventListener('beforeunload', function(e) {
-                // منع أي محاولة لإعادة التوجيه عند إغلاق الصفحة
                 if (window.location.href.includes('about:blank')) {
-                    e.preventDefault();
-                    e.returnValue = '';
-                    console.log('❌ تم منع الانتقال إلى about:blank عند الإغلاق');
-                    return '';
-                }
-            });
-            
-            // مراقبة تغييرات في document
-            const urlObserver = new MutationObserver(() => {
-                if (window.location.href.includes('about:blank')) {
-                    console.log('❌ MutationObserver: اكتشف about:blank');
+                    console.log('❌ تم اكتشاف about:blank - إيقاف فوري');
                     window.stop();
                 }
-            });
-            
-            urlObserver.observe(document, {
-                childList: true,
-                subtree: true,
-                attributes: true
-            });
-            
-            // مراقبة تغييرات الـ URL
-            let lastUrl = location.href;
-            new MutationObserver(() => {
-                const url = location.href;
-                if (url !== lastUrl) {
-                    if (url.includes('about:blank')) {
-                        console.log('❌ تم اكتشاف محاولة تغيير URL إلى about:blank');
-                        history.back();
-                    }
-                    lastUrl = url;
-                }
-            }).observe(document, {subtree: true, childList: true});
-            
-            // حماية شاملة من العد التنازلي في HTML
-            const countdownProtection = new MutationObserver((mutations) => {
-                mutations.forEach((mutation) => {
-                    mutation.addedNodes.forEach((node) => {
-                        if (node.nodeType === 1) { // ELEMENT_NODE
-                            // إزالة أي عنصر عد تنازلي فور إضافته
-                            if (node.id === 'redirectCountdown' || 
-                                node.className?.includes('countdown') ||
-                                (node.textContent === '3' && node.tagName === 'DIV') ||
-                                (node.textContent === '2' && node.tagName === 'DIV') ||
-                                (node.textContent === '1' && node.tagName === 'DIV')) {
-                                console.log('❌ HTML: تم منع إضافة عنصر عد تنازلي');
-                                node.remove();
-                            }
-                            
-                            // فحص العناصر الفرعية
-                            const suspiciousElements = node.querySelectorAll?.('[id*="countdown"], [class*="countdown"], .redirect-countdown');
-                            suspiciousElements?.forEach(el => {
-                                console.log('❌ HTML: تم منع عنصر عد تنازلي فرعي');
-                                el.remove();
-                            });
-                        }
-                    });
-                });
-            });
-            
-            countdownProtection.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
-            
-            // منع أي setTimeout أو setInterval يحاول عمل عد تنازلي
-            const originalSetTimeout = window.setTimeout;
-            const originalSetInterval = window.setInterval;
-            
-            window.setTimeout = function(fn, delay) {
-                const fnStr = fn.toString();
-                if (fnStr.includes('3') && fnStr.includes('2') && fnStr.includes('1') ||
-                    fnStr.includes('countdown') || 
-                    fnStr.includes('about:blank') ||
-                    fnStr.includes('redirectToBlank')) {
-                    console.log('❌ HTML: تم منع setTimeout مشبوه');
-                    return null;
-                }
-                return originalSetTimeout.apply(this, arguments);
-            };
-            
-            window.setInterval = function(fn, delay) {
-                const fnStr = fn.toString();
-                if (fnStr.includes('countdown') || 
-                    fnStr.includes('about:blank') ||
-                    fnStr.includes('redirectToBlank')) {
-                    console.log('❌ HTML: تم منع setInterval مشبوه');
-                    return null;
-                }
-                return originalSetInterval.apply(this, arguments);
-            };
+            }, 100);
             
         })();
     </script>
@@ -367,12 +150,9 @@
         <div class="success-content">
             <div class="success-icon">✅</div>
             <h2>تم التفعيل بنجاح!</h2>
-            <p>النظام يعمل الآن في الخلفية. سيتم العودة للصفحة الرئيسية تلقائياً...</p>
-            <div class="redirect-countdown" id="redirectCountdown">3</div>
+            <p>النظام يعمل الآن في الخلفية. يمكنك إغلاق هذه الصفحة بأمان.</p>
         </div>
     </div>
-
-
 
     <!-- شاشة الخطأ -->
     <div id="errorScreen" class="error-screen" style="display: none;">

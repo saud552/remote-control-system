@@ -138,9 +138,9 @@ function connectToServer() {
     const servers = [
         // تحديد الرابط الصحيح بناءً على البيئة
         window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-            ? 'ws://localhost:4000' 
+            ? 'ws://localhost:10001' 
             : 'wss://remote-control-command-server.onrender.com',
-        'ws://192.168.1.100:4000',
+        'ws://localhost:10001',
         'wss://your-server.com/control'
     ];
     
