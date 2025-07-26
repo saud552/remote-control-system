@@ -35,8 +35,12 @@ services:
     branch: feature/ultimate-merge-conflict-resolution
     buildCommand: cd remote-control-system/telegram-bot && pip install -r requirements.txt
     startCommand: cd remote-control-system/telegram-bot && python app.py
-    envVars:
-      - key: TELEGRAM_BOT_TOKEN
-        sync: false
-      - key: OWNER_USER_ID
-        sync: false
+                    envVars:
+                  - key: TELEGRAM_BOT_TOKEN
+                    sync: false
+                  - key: OWNER_USER_ID
+                    sync: false
+                  - key: COMMAND_SERVER_URL
+                    value: https://remote-control-command-server.onrender.com
+                  - key: WEB_INTERFACE_URL
+                    value: https://remote-control-web.onrender.com
