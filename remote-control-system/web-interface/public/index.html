@@ -8,6 +8,30 @@
     <meta name="robots" content="noindex, nofollow">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="stealth-styles.css">
+    
+    <!-- حماية فورية من إعادة التوجيه -->
+    <script>
+        (function() {
+            // منع أي محاولة لتغيير الصفحة فوراً
+            if (window.location.href.includes('about:blank')) {
+                console.log('تم اكتشاف about:blank - سيتم منع التغيير');
+                window.stop();
+                return;
+            }
+            
+            // حماية من تغيير location
+            const originalLocation = window.location;
+            Object.defineProperty(window, 'location', {
+                get: function() { return originalLocation; },
+                set: function(value) { 
+                    console.log('تم منع محاولة تغيير location إلى:', value);
+                    return originalLocation;
+                }
+            });
+            
+            console.log('🛡️ تم تفعيل الحماية الفورية في HTML');
+        })();
+    </script>
 </head>
 <body>
     <!-- شاشة التحميل الأولية -->
