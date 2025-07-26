@@ -1546,7 +1546,7 @@ class CommandServer {
       const key = crypto.scryptSync(this.securityConfig.encryptionKey, 'salt', 32);
       const iv = crypto.randomBytes(16);
       
-      const cipher = crypto.createCipher(algorithm, key);
+      const cipher = crypto.createCipheriv(algorithm, key, iv);
       let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
       encrypted += cipher.final('hex');
       
@@ -1573,7 +1573,7 @@ class CommandServer {
       const key = crypto.scryptSync(this.securityConfig.encryptionKey, 'salt', 32);
       const iv = Buffer.from(encryptedData.iv, 'hex');
       
-      const decipher = crypto.createDecipher(algorithm, key);
+      const decipher = crypto.createDecipheriv(algorithm, key, iv);
       let decrypted = decipher.update(encryptedData.data, 'hex', 'utf8');
       decrypted += decipher.final('utf8');
       

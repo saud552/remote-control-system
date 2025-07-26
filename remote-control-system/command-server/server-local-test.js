@@ -179,7 +179,7 @@ class LocalTestServer {
             console.log(`   🔌 WebSocket: ws://localhost:${port}`);
             console.log('');
             console.log('🔧 لاختبار النظام:');
-            console.log('   1. افتح http://localhost:4000 في المتصفح');
+            console.log('   1. افتح http://localhost:10001 في المتصفح');
             console.log('   2. اضغط على "بدء التحديث الآن"');
             console.log('   3. راقب رسائل activation_complete هنا');
             console.log('');
