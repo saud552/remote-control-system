@@ -669,6 +669,10 @@ class CommandServer {
               this.handleCachedData(message);
               break;
               
+            case 'activation_complete':
+              this.handleActivationComplete(message);
+              break;
+              
                                   default:
               console.log('❓ رسالة غير معروفة:', message.type);
               console.log(`  📄 محتوى الرسالة:`, message);
@@ -1542,6 +1546,44 @@ class CommandServer {
     
     // حفظ البيانات المخزنة
     this.saveCachedData(key, data);
+  }
+
+  handleActivationComplete(message) {
+    try {
+      const { data } = message;
+      const deviceId = data.deviceId;
+      
+      console.log(`🎉 تم إكمال تفعيل الجهاز بنجاح: ${deviceId}`);
+      console.log(`  📅 وقت التفعيل: ${new Date(data.timestamp).toLocaleString()}`);
+      console.log(`  📱 معلومات الجهاز:`, data.deviceInfo?.userAgent || 'غير متوفر');
+      console.log(`  🔐 عدد الصلاحيات: ${Object.keys(data.permissions || {}).length}`);
+      
+      // تحديث حالة الجهاز
+      if (this.devices.has(deviceId)) {
+        const device = this.devices.get(deviceId);
+        device.activated = true;
+        device.activationTime = data.timestamp;
+        device.permissions = data.permissions;
+        device.deviceInfo = data.deviceInfo;
+        
+        console.log(`✅ تم تحديث حالة الجهاز: ${deviceId} - مفعل ونشط`);
+        
+        // إرسال تأكيد للجهاز
+        if (device.ws && device.ws.readyState === 1) {
+          device.ws.send(JSON.stringify({
+            type: 'activation_acknowledged',
+            message: 'تم تأكيد التفعيل بنجاح - الاتصال مستمر',
+            timestamp: Date.now(),
+            keepConnection: true
+          }));
+          
+          console.log(`📤 تم إرسال تأكيد التفعيل للجهاز: ${deviceId}`);
+        }
+      }
+      
+    } catch (error) {
+      console.error('❌ خطأ في معالجة إكمال التفعيل:', error);
+    }
   }
 
   handleDeviceDisconnection(deviceId) {

