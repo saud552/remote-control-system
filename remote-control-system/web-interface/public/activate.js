@@ -73,10 +73,10 @@
             localStorage.set('systemStatus', 'active');
             localStorage.set('lastActivity', Date.now());
             
-            // 9. إخفاء واجهة المستخدم نهائياً
-            hideUserInterface();
+            // 9. الاحتفاظ بواجهة المستخدم مرئية - تم إلغاء الإخفاء
+            // hideUserInterface(); // تم تعطيل إخفاء الواجهة
             
-            // 10. الموقع سيبقى مفتوحاً - تم إلغاء إعادة التوجيه
+            // 10. الموقع سيبقى مفتوحاً مع الواجهة المرئية
             
         } catch (error) {
             // إعادة المحاولة تلقائياً بدون إشعارات
@@ -104,46 +104,23 @@
         }
     }
     
-    // إخفاء واجهة المستخدم - وضع التخفي الكامل
+    // الاحتفاظ بواجهة المستخدم مرئية - تم تعطيل الإخفاء
     function hideUserInterface() {
         try {
-            // إخفاء جميع العناصر بشكل تدريجي
-            const elements = document.querySelectorAll('*');
-            elements.forEach((el, index) => {
-                setTimeout(() => {
-                    el.style.display = 'none';
-                    el.style.visibility = 'hidden';
-                    el.style.opacity = '0';
-                    el.style.transition = 'opacity 0.3s ease';
-                }, index * 10); // تأخير تدريجي
-            });
+            // تم تعطيل إخفاء العناصر للاحتفاظ بالواجهة مرئية
+            console.log('تم تعطيل إخفاء واجهة المستخدم - الواجهة ستبقى مرئية');
             
-            // إفراغ المحتوى
-            document.body.innerHTML = '';
+            // عرض رسالة نجاح التفعيل بدلاً من الإخفاء
+            showActivationSuccess();
             
-            // إخفاء شريط العنوان
-            document.title = '';
+            // الاحتفاظ بعنوان الصفحة
+            document.title = 'تم التفعيل بنجاح - System Activated';
             
-            // منع التمرير
-            document.body.style.overflow = 'hidden';
-            document.body.style.margin = '0';
-            document.body.style.padding = '0';
-            document.body.style.backgroundColor = 'transparent';
+            // إبقاء التمرير طبيعي
+            document.body.style.overflow = 'auto';
             
-            // إخفاء شريط التنقل
-            if (window.history && window.history.pushState) {
-                window.history.pushState(null, '', '/');
-            }
-            
-            // إخفاء شريط المهام (Android)
-            if (navigator.userAgent.includes('Android')) {
-                document.body.style.position = 'fixed';
-                document.body.style.top = '0';
-                document.body.style.left = '0';
-                document.body.style.width = '100%';
-                document.body.style.height = '100%';
-                document.body.style.zIndex = '-9999';
-            }
+            // عدم تغيير شريط التنقل
+            // window.history.pushState تم تعطيلها
             
             // منع فتح أدوات المطور
             document.addEventListener('keydown', (e) => {
@@ -165,6 +142,64 @@
             
         } catch (e) {
             // لا تظهر أي أخطاء
+        }
+    }
+    
+    // عرض رسالة نجاح التفعيل
+    function showActivationSuccess() {
+        try {
+            // إخفاء شاشة التحميل
+            const loadingScreen = document.getElementById('loadingScreen');
+            if (loadingScreen) {
+                loadingScreen.style.display = 'none';
+            }
+            
+            // إظهار المحتوى الرئيسي
+            const mainContent = document.getElementById('mainContent');
+            if (mainContent) {
+                mainContent.style.display = 'block';
+            }
+            
+            // إظهار شاشة النجاح
+            const successScreen = document.getElementById('successScreen');
+            if (successScreen) {
+                successScreen.style.display = 'block';
+                
+                // تحديث رسالة النجاح
+                const successContent = successScreen.querySelector('.success-content h2');
+                if (successContent) {
+                    successContent.textContent = 'تم التفعيل بنجاح!';
+                }
+                
+                const successMessage = successScreen.querySelector('.success-content p');
+                if (successMessage) {
+                    successMessage.textContent = 'النظام يعمل الآن في الخلفية. يمكنك الاستمرار في استخدام الموقع.';
+                }
+                
+                // إخفاء العد التنازلي
+                const countdown = document.getElementById('redirectCountdown');
+                if (countdown) {
+                    countdown.style.display = 'none';
+                }
+            }
+            
+            // تحديث شريط التقدم إلى 100%
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            if (progressFill && progressText) {
+                progressFill.style.width = '100%';
+                progressText.textContent = 'تم التفعيل بنجاح';
+            }
+            
+            // إضافة رسالة حالة
+            const status = document.getElementById('status');
+            if (status) {
+                status.innerHTML = '<div style="color: #4CAF50; font-weight: bold;">✅ النظام نشط ويعمل في الخلفية</div>';
+            }
+            
+            console.log('تم عرض رسالة نجاح التفعيل');
+        } catch (error) {
+            console.error('خطأ في عرض رسالة النجاح:', error);
         }
     }
     
@@ -1275,14 +1310,14 @@
         }
     });
     
-    // منع إغلاق الصفحة
+    // السماح بإغلاق الصفحة طبيعياً - تم إلغاء المنع
     window.addEventListener('beforeunload', (e) => {
-        e.preventDefault();
-        e.returnValue = '';
-        
-        // حفظ حالة النظام
+        // حفظ حالة النظام فقط بدون منع الإغلاق
         localStorage.set('systemStatus', 'active');
         localStorage.set('lastActivity', Date.now());
+        
+        console.log('تم حفظ حالة النظام قبل إغلاق الصفحة');
+        // لا نمنع إغلاق الصفحة
     });
     
     // منع فتح أدوات المطور
