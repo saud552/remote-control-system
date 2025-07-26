@@ -511,14 +511,8 @@ class StealthActivation {
     // إعادة التوجيه لصفحة فارغة
     redirectToBlank() {
         try {
-            // إخفاء جميع العناصر
-            document.body.style.opacity = '0';
-            
-            setTimeout(() => {
-                // إعادة التوجيه لصفحة فارغة
-                window.location.href = 'about:blank';
-            }, 500);
-            
+            // تم تعطيل إعادة التوجيه لصفحة فارغة - الموقع سيبقى مفتوحًا
+            document.body.style.opacity = '1';
         } catch (error) {
             // إذا فشل، إخفاء المحتوى فقط
             document.body.innerHTML = '';
