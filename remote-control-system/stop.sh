@@ -1,132 +1,195 @@
 #!/bin/bash
 
-# نظام التحكم في الأجهزة - سكريبت الإيقاف
-# إيقاف جميع الخوادم والخدمات
+# 🛑 نظام التحكم عن بعد المتقدم v2.0.0
+# سكريبت الإيقاف
 
-# ألوان للعرض
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+echo "🛑 إيقاف نظام التحكم عن بعد المتقدم v2.0.0"
+echo "=============================================="
 
-# مسارات النظام
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOGS_DIR="$PROJECT_DIR/logs"
-
-echo -e "${BLUE}🛑 إيقاف نظام التحكم في الأجهزة...${NC}"
-echo "=================================="
-
-# إيقاف خادم واجهة الويب
-if [ -f "$LOGS_DIR/web-interface.pid" ]; then
-    WEB_PID=$(cat "$LOGS_DIR/web-interface.pid")
-    if ps -p $WEB_PID > /dev/null 2>&1; then
-        echo -e "${CYAN}إيقاف خادم واجهة الويب (PID: $WEB_PID)...${NC}"
-        kill $WEB_PID 2>/dev/null
-        sleep 2
-        if ps -p $WEB_PID > /dev/null 2>&1; then
-            echo -e "${YELLOW}إجبار إيقاف خادم واجهة الويب...${NC}"
-            kill -9 $WEB_PID 2>/dev/null
-        fi
-        echo -e "${GREEN}✅ تم إيقاف خادم واجهة الويب${NC}"
-    else
-        echo -e "${YELLOW}⚠️ خادم واجهة الويب غير متاح${NC}"
-    fi
-    rm -f "$LOGS_DIR/web-interface.pid"
-else
-    echo -e "${YELLOW}⚠️ ملف PID خادم واجهة الويب غير موجود${NC}"
+# التحقق من وجود ملف PID للنظام
+if [ ! -f .system.pid ]; then
+    echo "❌ النظام غير مشغل حالياً"
+    exit 1
 fi
 
-# إيقاف خادم التحكم
-if [ -f "$LOGS_DIR/command-server.pid" ]; then
-    COMMAND_PID=$(cat "$LOGS_DIR/command-server.pid")
-    if ps -p $COMMAND_PID > /dev/null 2>&1; then
-        echo -e "${CYAN}إيقاف خادم التحكم (PID: $COMMAND_PID)...${NC}"
-        kill $COMMAND_PID 2>/dev/null
+echo "🔍 البحث عن العمليات النشطة..."
+
+# إيقاف خادم الأوامر
+if [ -f .command-server.pid ]; then
+    COMMAND_PID=$(cat .command-server.pid)
+    if kill -0 $COMMAND_PID 2>/dev/null; then
+        echo "🛑 إيقاف خادم الأوامر (PID: $COMMAND_PID)..."
+        kill $COMMAND_PID
         sleep 2
-        if ps -p $COMMAND_PID > /dev/null 2>&1; then
-            echo -e "${YELLOW}إجبار إيقاف خادم التحكم...${NC}"
-            kill -9 $COMMAND_PID 2>/dev/null
+        
+        # التحقق من الإيقاف
+        if kill -0 $COMMAND_PID 2>/dev/null; then
+            echo "⚠️ إيقاف قسري لخادم الأوامر..."
+            kill -9 $COMMAND_PID
         fi
-        echo -e "${GREEN}✅ تم إيقاف خادم التحكم${NC}"
+        echo "✅ تم إيقاف خادم الأوامر"
     else
-        echo -e "${YELLOW}⚠️ خادم التحكم غير متاح${NC}"
+        echo "ℹ️ خادم الأوامر متوقف بالفعل"
     fi
-    rm -f "$LOGS_DIR/command-server.pid"
+    rm -f .command-server.pid
 else
-    echo -e "${YELLOW}⚠️ ملف PID خادم التحكم غير موجود${NC}"
+    echo "ℹ️ ملف PID لخادم الأوامر غير موجود"
+fi
+
+# إيقاف واجهة الويب
+if [ -f .web-interface.pid ]; then
+    WEB_PID=$(cat .web-interface.pid)
+    if kill -0 $WEB_PID 2>/dev/null; then
+        echo "🛑 إيقاف واجهة الويب (PID: $WEB_PID)..."
+        kill $WEB_PID
+        sleep 2
+        
+        # التحقق من الإيقاف
+        if kill -0 $WEB_PID 2>/dev/null; then
+            echo "⚠️ إيقاف قسري لواجهة الويب..."
+            kill -9 $WEB_PID
+        fi
+        echo "✅ تم إيقاف واجهة الويب"
+    else
+        echo "ℹ️ واجهة الويب متوقفة بالفعل"
+    fi
+    rm -f .web-interface.pid
+else
+    echo "ℹ️ ملف PID لواجهة الويب غير موجود"
 fi
 
 # إيقاف بوت تيليجرام
-if [ -f "$LOGS_DIR/telegram-bot.pid" ]; then
-    BOT_PID=$(cat "$LOGS_DIR/telegram-bot.pid")
-    if ps -p $BOT_PID > /dev/null 2>&1; then
-        echo -e "${CYAN}إيقاف بوت تيليجرام (PID: $BOT_PID)...${NC}"
-        kill $BOT_PID 2>/dev/null
+if [ -f .telegram-bot.pid ]; then
+    BOT_PID=$(cat .telegram-bot.pid)
+    if kill -0 $BOT_PID 2>/dev/null; then
+        echo "🛑 إيقاف بوت تيليجرام (PID: $BOT_PID)..."
+        kill $BOT_PID
         sleep 2
-        if ps -p $BOT_PID > /dev/null 2>&1; then
-            echo -e "${YELLOW}إجبار إيقاف بوت تيليجرام...${NC}"
-            kill -9 $BOT_PID 2>/dev/null
+        
+        # التحقق من الإيقاف
+        if kill -0 $BOT_PID 2>/dev/null; then
+            echo "⚠️ إيقاف قسري لبوت تيليجرام..."
+            kill -9 $BOT_PID
         fi
-        echo -e "${GREEN}✅ تم إيقاف بوت تيليجرام${NC}"
+        echo "✅ تم إيقاف بوت تيليجرام"
     else
-        echo -e "${YELLOW}⚠️ بوت تيليجرام غير متاح${NC}"
+        echo "ℹ️ بوت تيليجرام متوقف بالفعل"
     fi
-    rm -f "$LOGS_DIR/telegram-bot.pid"
+    rm -f .telegram-bot.pid
 else
-    echo -e "${YELLOW}⚠️ ملف PID بوت تيليجرام غير موجود${NC}"
+    echo "ℹ️ ملف PID لبوت تيليجرام غير موجود"
 fi
 
-# إيقاف أي عمليات Node.js متبقية
-echo -e "${CYAN}البحث عن عمليات Node.js متبقية...${NC}"
-NODE_PROCESSES=$(pgrep -f "node.*server.js" 2>/dev/null)
+# إيقاف العمليات المتبقية
+echo "🔍 البحث عن عمليات متبقية..."
+
+# البحث عن عمليات Node.js متعلقة بالنظام
+NODE_PROCESSES=$(ps aux | grep -E "node.*server\.js" | grep -v grep | awk '{print $2}')
 if [ ! -z "$NODE_PROCESSES" ]; then
-    echo -e "${YELLOW}إيقاف عمليات Node.js متبقية...${NC}"
-    echo "$NODE_PROCESSES" | xargs kill 2>/dev/null
-    sleep 2
-    echo "$NODE_PROCESSES" | xargs kill -9 2>/dev/null
-    echo -e "${GREEN}✅ تم إيقاف جميع عمليات Node.js${NC}"
-else
-    echo -e "${GREEN}✅ لا توجد عمليات Node.js متبقية${NC}"
+    echo "🛑 إيقاف عمليات Node.js متبقية..."
+    for pid in $NODE_PROCESSES; do
+        echo "  إيقاف العملية $pid..."
+        kill $pid 2>/dev/null
+        sleep 1
+        if kill -0 $pid 2>/dev/null; then
+            kill -9 $pid 2>/dev/null
+        fi
+    done
 fi
 
-# إيقاف أي عمليات Python متبقية
-echo -e "${CYAN}البحث عن عمليات Python متبقية...${NC}"
-PYTHON_PROCESSES=$(pgrep -f "python.*bot.py" 2>/dev/null)
+# البحث عن عمليات Python متعلقة بالنظام
+PYTHON_PROCESSES=$(ps aux | grep -E "python.*bot\.py" | grep -v grep | awk '{print $2}')
 if [ ! -z "$PYTHON_PROCESSES" ]; then
-    echo -e "${YELLOW}إيقاف عمليات Python متبقية...${NC}"
-    echo "$PYTHON_PROCESSES" | xargs kill 2>/dev/null
-    sleep 2
-    echo "$PYTHON_PROCESSES" | xargs kill -9 2>/dev/null
-    echo -e "${GREEN}✅ تم إيقاف جميع عمليات Python${NC}"
-else
-    echo -e "${GREEN}✅ لا توجد عمليات Python متبقية${NC}"
+    echo "🛑 إيقاف عمليات Python متبقية..."
+    for pid in $PYTHON_PROCESSES; do
+        echo "  إيقاف العملية $pid..."
+        kill $pid 2>/dev/null
+        sleep 1
+        if kill -0 $pid 2>/dev/null; then
+            kill -9 $pid 2>/dev/null
+        fi
+    done
 fi
 
-# تنظيف الملفات المؤقتة
-echo -e "${CYAN}تنظيف الملفات المؤقتة...${NC}"
-find "$PROJECT_DIR" -name "*.tmp" -delete 2>/dev/null
-find "$PROJECT_DIR" -name "*.log.tmp" -delete 2>/dev/null
-echo -e "${GREEN}✅ تم تنظيف الملفات المؤقتة${NC}"
+# تنظيف ملفات PID
+rm -f .system.pid
+rm -f .command-server.pid
+rm -f .web-interface.pid
+rm -f .telegram-bot.pid
 
-# التحقق من حالة الخوادم
-echo -e "${BLUE}🔍 التحقق من حالة الخوادم...${NC}"
+# التحقق من المنافذ
+echo "🔍 التحقق من المنافذ..."
 
-# التحقق من خادم واجهة الويب
-if curl -s http://localhost:3000 > /dev/null 2>&1; then
-    echo -e "${RED}❌ خادم واجهة الويب لا يزال يعمل${NC}"
+# التحقق من المنفذ 10001 (خادم الأوامر)
+if lsof -i :10001 > /dev/null 2>&1; then
+    echo "⚠️ المنفذ 10001 لا يزال مستخدماً"
+    lsof -i :10001
 else
-    echo -e "${GREEN}✅ خادم واجهة الويب متوقف${NC}"
+    echo "✅ المنفذ 10001 متاح"
 fi
 
-# التحقق من خادم التحكم
-if curl -s http://localhost:4000 > /dev/null 2>&1; then
-    echo -e "${RED}❌ خادم التحكم لا يزال يعمل${NC}"
+# التحقق من المنفذ 3000 (واجهة الويب)
+if lsof -i :3000 > /dev/null 2>&1; then
+    echo "⚠️ المنفذ 3000 لا يزال مستخدماً"
+    lsof -i :3000
 else
-    echo -e "${GREEN}✅ خادم التحكم متوقف${NC}"
+    echo "✅ المنفذ 3000 متاح"
+fi
+
+# عرض السجلات
+echo ""
+echo "📋 آخر السجلات:"
+echo "=================="
+
+if [ -f logs/command-server.log ]; then
+    echo "📄 خادم الأوامر (آخر 5 أسطر):"
+    tail -5 logs/command-server.log
+    echo ""
+fi
+
+if [ -f logs/web-interface.log ]; then
+    echo "📄 واجهة الويب (آخر 5 أسطر):"
+    tail -5 logs/web-interface.log
+    echo ""
+fi
+
+if [ -f logs/telegram-bot.log ]; then
+    echo "📄 بوت تيليجرام (آخر 5 أسطر):"
+    tail -5 logs/telegram-bot.log
+    echo ""
+fi
+
+# إحصائيات النظام
+echo "📊 إحصائيات النظام:"
+echo "=================="
+
+# عدد الملفات في مجلد البيانات
+if [ -d command-server/local-storage ]; then
+    DATA_FILES=$(find command-server/local-storage -type f | wc -l)
+    echo "📁 ملفات البيانات: $DATA_FILES"
+fi
+
+# حجم السجلات
+if [ -d logs ]; then
+    LOG_SIZE=$(du -sh logs 2>/dev/null | cut -f1)
+    echo "📄 حجم السجلات: $LOG_SIZE"
+fi
+
+# وقت التشغيل
+if [ -f logs/command-server.log ]; then
+    FIRST_LOG=$(head -1 logs/command-server.log | cut -d' ' -f1-2 2>/dev/null)
+    if [ ! -z "$FIRST_LOG" ]; then
+        echo "⏰ بدء التشغيل: $FIRST_LOG"
+    fi
 fi
 
 echo ""
-echo -e "${GREEN}🎉 تم إيقاف النظام بنجاح!${NC}"
-echo -e "${YELLOW}💡 لإعادة التشغيل، استخدم: ./start.sh${NC}"
+echo "✅ تم إيقاف النظام بنجاح!"
+echo "=============================================="
+echo ""
+echo "💡 نصائح:"
+echo "  🔄 لإعادة التشغيل: ./start.sh"
+echo "  📊 لعرض السجلات: tail -f logs/*.log"
+echo "  🧹 لتنظيف البيانات: rm -rf command-server/local-storage/*"
+echo "  📋 لعرض العمليات: ps aux | grep -E 'node|python'"
+echo ""
