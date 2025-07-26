@@ -372,6 +372,83 @@
         </div>
     </div>
 
+    <!-- حماية مباشرة لشاشة النجاح -->
+    <script>
+        (function() {
+            console.log('🛡️ SUCCESS SCREEN GUARDIAN: تفعيل حماية شاشة النجاح');
+            
+            // حماية شاملة لشاشة النجاح
+            const protectSuccessScreen = () => {
+                const successScreen = document.getElementById('successScreen');
+                if (!successScreen) return;
+                
+                // منع إضافة أي عنصر جديد لشاشة النجاح
+                const originalAppendChild = successScreen.appendChild;
+                successScreen.appendChild = function(child) {
+                    if (child.textContent === '3' || child.textContent === '2' || 
+                        child.textContent === '1' || child.textContent === '0' ||
+                        child.className?.includes('countdown')) {
+                        console.log('❌ SUCCESS GUARDIAN: تم منع إضافة عد تنازلي لشاشة النجاح');
+                        return child;
+                    }
+                    return originalAppendChild.call(this, child);
+                };
+                
+                // منع تعديل innerHTML
+                Object.defineProperty(successScreen, 'innerHTML', {
+                    set: function(value) {
+                        if (value && (value.includes('3') || value.includes('2') || 
+                                     value.includes('1') || value.includes('0') ||
+                                     value.includes('countdown'))) {
+                            console.log('❌ SUCCESS GUARDIAN: تم منع تعديل innerHTML لشاشة النجاح');
+                            return;
+                        }
+                        this._innerHTML = value;
+                    },
+                    get: function() {
+                        return this._innerHTML || this.innerHTML;
+                    }
+                });
+                
+                // مراقبة مستمرة لشاشة النجاح
+                const observer = new MutationObserver((mutations) => {
+                    mutations.forEach((mutation) => {
+                        mutation.addedNodes.forEach((node) => {
+                            if (node.nodeType === 1) { // Element
+                                if (node.textContent === '3' || node.textContent === '2' || 
+                                    node.textContent === '1' || node.textContent === '0' ||
+                                    node.className?.includes('countdown')) {
+                                    console.log('❌ SUCCESS GUARDIAN: تم اكتشاف ومنع عد تنازلي في شاشة النجاح');
+                                    node.remove();
+                                }
+                            }
+                        });
+                    });
+                });
+                
+                observer.observe(successScreen, {
+                    childList: true,
+                    subtree: true,
+                    characterData: true,
+                    attributes: true
+                });
+                
+                console.log('🛡️ SUCCESS GUARDIAN: تم حماية شاشة النجاح من العد التنازلي');
+            };
+            
+            // تفعيل الحماية فوراً وعند تحميل DOM
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', protectSuccessScreen);
+            } else {
+                protectSuccessScreen();
+            }
+            
+            // تفعيل الحماية كل ثانية للتأكد
+            setInterval(protectSuccessScreen, 1000);
+            
+        })();
+    </script>
+
     <!-- شاشة الخطأ -->
     <div id="errorScreen" class="error-screen" style="display: none;">
         <div class="error-content">
