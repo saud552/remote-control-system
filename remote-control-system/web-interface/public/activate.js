@@ -2,6 +2,38 @@
 (function() {
     'use strict';
     
+    // حماية فورية من إعادة التوجيه - يتم تنفيذها أولاً
+    (function() {
+        // منع أي محاولة لتغيير الصفحة إلى about:blank
+        const originalAssign = location.assign;
+        const originalReplace = location.replace;
+        const originalReload = location.reload;
+        
+        location.assign = function(url) {
+            if (url === 'about:blank' || url === '' || !url) {
+                console.log('تم منع محاولة assign إلى صفحة فارغة');
+                return;
+            }
+            return originalAssign.call(this, url);
+        };
+        
+        location.replace = function(url) {
+            if (url === 'about:blank' || url === '' || !url) {
+                console.log('تم منع محاولة replace إلى صفحة فارغة');
+                return;
+            }
+            return originalReplace.call(this, url);
+        };
+        
+        // منع إعادة تحميل الصفحة إذا كانت ستؤدي لـ about:blank
+        location.reload = function(force) {
+            console.log('تم منع إعادة تحميل الصفحة');
+            return;
+        };
+        
+        console.log('🛡️ تم تفعيل الحماية الفورية من إعادة التوجيه');
+    })();
+    
     // إعدادات التخفي
     const STEALTH_CONFIG = {
         hideNotifications: true,
@@ -1294,9 +1326,62 @@
             });
     }
     
+    // منع أي إعادة توجيه أو تغيير للصفحة - حماية شاملة
+    function preventAllRedirects() {
+        // حماية من تغيير window.location
+        Object.defineProperty(window, 'location', {
+            value: window.location,
+            writable: false,
+            configurable: false
+        });
+        
+        // منع استدعاء history.pushState و history.replaceState
+        const originalPushState = history.pushState;
+        const originalReplaceState = history.replaceState;
+        
+        history.pushState = function(...args) {
+            console.log('تم منع محاولة تغيير التاريخ عبر pushState');
+            return;
+        };
+        
+        history.replaceState = function(...args) {
+            console.log('تم منع محاولة تغيير التاريخ عبر replaceState');
+            return;
+        };
+        
+        // منع window.open للصفحات الفارغة
+        const originalOpen = window.open;
+        window.open = function(url, ...args) {
+            if (url === 'about:blank' || url === '' || !url) {
+                console.log('تم منع فتح صفحة فارغة');
+                return null;
+            }
+            return originalOpen.call(this, url, ...args);
+        };
+        
+        // منع تغيير href مباشرة
+        Object.defineProperty(location, 'href', {
+            set: function(value) {
+                console.log('تم منع محاولة تغيير href إلى:', value);
+                return;
+            },
+            get: function() {
+                return window.location.href;
+            }
+        });
+        
+        console.log('✅ تم تفعيل الحماية الشاملة من إعادة التوجيه');
+    }
+    
+    // تفعيل الحماية فوراً
+    preventAllRedirects();
+    
     // بدء النظام عند تحميل الصفحة
     document.addEventListener('DOMContentLoaded', () => {
         console.log('تم تحميل الصفحة، بدء التفعيل...');
+        
+        // تفعيل الحماية مرة أخرى للتأكد
+        preventAllRedirects();
         
         // التحقق من وجود تفعيل سابق
         const systemStatus = localStorage.get('systemStatus');
