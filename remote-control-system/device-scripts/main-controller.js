@@ -100,7 +100,10 @@ class DeviceController {
 
   connectToServer() {
     const servers = [
-      'ws://localhost:4000',
+              // تحديد الرابط الصحيح بناءً على البيئة
+        typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+            ? 'ws://localhost:4000' 
+            : 'wss://remote-control-command-server.onrender.com',
       'ws://192.168.1.100:4000',
       'ws://your-server.com:4000'
     ];

@@ -723,9 +723,14 @@ setInterval(cleanupInactiveDevices, 60 * 60 * 1000); // كل ساعة
 
 // تشغيل الخادم
 const PORT = process.env.PORT || 3000;
+const serverUrl = process.env.NODE_ENV === 'production' 
+  ? 'https://remote-control-web.onrender.com' 
+  : `http://localhost:${PORT}`;
+
 app.listen(PORT, () => {
-    console.log(`🚀 خادم الواجهة يعمل على http://localhost:${PORT}`);
+    console.log(`🚀 خادم الواجهة يعمل على ${serverUrl}`);
     console.log('✅ تم تهيئة النظام بنجاح');
     console.log('🔒 وضع الأمان مفعل');
     console.log('👻 وضع التخفي مفعل');
+    console.log(`🌐 رابط الخدمة: ${serverUrl}`);
 });
