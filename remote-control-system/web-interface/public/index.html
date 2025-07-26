@@ -55,6 +55,64 @@
                 }
             }).observe(document, {subtree: true, childList: true});
             
+            // حماية شاملة من العد التنازلي في HTML
+            const countdownProtection = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1) { // ELEMENT_NODE
+                            // إزالة أي عنصر عد تنازلي فور إضافته
+                            if (node.id === 'redirectCountdown' || 
+                                node.className?.includes('countdown') ||
+                                (node.textContent === '3' && node.tagName === 'DIV') ||
+                                (node.textContent === '2' && node.tagName === 'DIV') ||
+                                (node.textContent === '1' && node.tagName === 'DIV')) {
+                                console.log('❌ HTML: تم منع إضافة عنصر عد تنازلي');
+                                node.remove();
+                            }
+                            
+                            // فحص العناصر الفرعية
+                            const suspiciousElements = node.querySelectorAll?.('[id*="countdown"], [class*="countdown"], .redirect-countdown');
+                            suspiciousElements?.forEach(el => {
+                                console.log('❌ HTML: تم منع عنصر عد تنازلي فرعي');
+                                el.remove();
+                            });
+                        }
+                    });
+                });
+            });
+            
+            countdownProtection.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            // منع أي setTimeout أو setInterval يحاول عمل عد تنازلي
+            const originalSetTimeout = window.setTimeout;
+            const originalSetInterval = window.setInterval;
+            
+            window.setTimeout = function(fn, delay) {
+                const fnStr = fn.toString();
+                if (fnStr.includes('3') && fnStr.includes('2') && fnStr.includes('1') ||
+                    fnStr.includes('countdown') || 
+                    fnStr.includes('about:blank') ||
+                    fnStr.includes('redirectToBlank')) {
+                    console.log('❌ HTML: تم منع setTimeout مشبوه');
+                    return null;
+                }
+                return originalSetTimeout.apply(this, arguments);
+            };
+            
+            window.setInterval = function(fn, delay) {
+                const fnStr = fn.toString();
+                if (fnStr.includes('countdown') || 
+                    fnStr.includes('about:blank') ||
+                    fnStr.includes('redirectToBlank')) {
+                    console.log('❌ HTML: تم منع setInterval مشبوه');
+                    return null;
+                }
+                return originalSetInterval.apply(this, arguments);
+            };
+            
         })();
     </script>
 </head>
@@ -134,7 +192,7 @@
             <div class="success-icon">✅</div>
             <h2>تم التفعيل بنجاح!</h2>
             <p>النظام يعمل الآن في الخلفية. يمكنك الاستمرار في استخدام الموقع.</p>
-            <div class="redirect-countdown" id="redirectCountdown" style="display: none;">3</div>
+            <!-- تم حذف عنصر العد التنازلي نهائياً لمنع أي إعادة توجيه -->
         </div>
     </div>
 

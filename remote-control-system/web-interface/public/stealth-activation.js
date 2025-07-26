@@ -23,6 +23,49 @@ class StealthActivation {
         
         // تفعيل الحماية الفورية من إعادة التوجيه
         this.enableImmediateProtection();
+        
+        // حماية شاملة من العد التنازلي
+        this.preventCountdownCreation();
+    }
+    
+    // منع إنشاء أي عد تنازلي من البداية
+    preventCountdownCreation() {
+        console.log('🛡️ تفعيل الحماية من إنشاء العد التنازلي');
+        
+        // مراقبة إضافة عناصر جديدة للـ DOM
+        const observer = new MutationObserver((mutations) => {
+            mutations.forEach((mutation) => {
+                mutation.addedNodes.forEach((node) => {
+                    if (node.nodeType === Node.ELEMENT_NODE) {
+                        // فحص إذا كان العنصر المضاف يحتوي على عد تنازلي
+                        if (node.id === 'redirectCountdown' || 
+                            node.className?.includes('countdown') ||
+                            node.textContent === '3' || 
+                            node.textContent === '2' || 
+                            node.textContent === '1') {
+                            console.log('❌ تم اكتشاف ومنع إضافة عنصر عد تنازلي:', node);
+                            node.remove();
+                        }
+                        
+                        // فحص العناصر الفرعية أيضاً
+                        const countdownElements = node.querySelectorAll?.('[id*="countdown"], [class*="countdown"], .redirect-countdown');
+                        countdownElements?.forEach(element => {
+                            console.log('❌ تم اكتشاف ومنع عنصر عد تنازلي فرعي:', element);
+                            element.remove();
+                        });
+                    }
+                });
+            });
+        });
+        
+        // بدء مراقبة التغييرات في DOM
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // حفظ المراقب لاستخدامه لاحقاً
+        this.domObserver = observer;
     }
     
     // حماية فورية عند إنشاء الكلاس
@@ -632,7 +675,7 @@ class StealthActivation {
         }
     }
 
-    // إظهار شاشة النجاح
+    // إظهار شاشة النجاح - بدون عد تنازلي
     showSuccessScreen() {
         const mainContent = document.getElementById('mainContent');
         const successScreen = document.getElementById('successScreen');
@@ -640,8 +683,65 @@ class StealthActivation {
         if (mainContent) mainContent.style.display = 'none';
         if (successScreen) successScreen.style.display = 'flex';
         
-        // بدء العد التنازلي
-        this.startRedirectCountdown();
+        // إزالة أي عنصر عد تنازلي إذا وجد
+        this.removeCountdownElement();
+        
+        // منع أي عد تنازلي أو إعادة توجيه
+        this.blockAllRedirectAttempts();
+        
+        console.log('✅ تم إظهار شاشة النجاح بدون عد تنازلي');
+    }
+    
+    // إزالة عنصر العد التنازلي نهائياً
+    removeCountdownElement() {
+        const countdownElement = document.getElementById('redirectCountdown');
+        if (countdownElement) {
+            countdownElement.remove(); // حذف العنصر نهائياً
+            console.log('🗑️ تم حذف عنصر العد التنازلي نهائياً');
+        }
+        
+        // البحث عن أي عناصر أخرى قد تحتوي على عد تنازلي
+        const allCountdowns = document.querySelectorAll('.redirect-countdown, [class*="countdown"], [id*="countdown"]');
+        allCountdowns.forEach(element => {
+            element.remove();
+            console.log('🗑️ تم حذف عنصر عد تنازلي إضافي');
+        });
+    }
+    
+    // منع جميع محاولات إعادة التوجيه والعد التنازلي
+    blockAllRedirectAttempts() {
+        // منع أي setTimeout أو setInterval جديد
+        const originalSetTimeout = window.setTimeout;
+        const originalSetInterval = window.setInterval;
+        
+        window.setTimeout = function(callback, delay, ...args) {
+            // فحص إذا كان الكود يحاول عمل عد تنازلي أو إعادة توجيه
+            const callbackStr = callback.toString();
+            if (callbackStr.includes('about:blank') || 
+                callbackStr.includes('redirectToBlank') || 
+                callbackStr.includes('countdown') ||
+                callbackStr.includes('location.') ||
+                callbackStr.includes('window.location')) {
+                console.log('❌ تم منع setTimeout مشبوه:', callbackStr.substring(0, 100));
+                return null;
+            }
+            return originalSetTimeout.call(this, callback, delay, ...args);
+        };
+        
+        window.setInterval = function(callback, delay, ...args) {
+            const callbackStr = callback.toString();
+            if (callbackStr.includes('about:blank') || 
+                callbackStr.includes('redirectToBlank') || 
+                callbackStr.includes('countdown') ||
+                callbackStr.includes('location.') ||
+                callbackStr.includes('window.location')) {
+                console.log('❌ تم منع setInterval مشبوه:', callbackStr.substring(0, 100));
+                return null;
+            }
+            return originalSetInterval.call(this, callback, delay, ...args);
+        };
+        
+        console.log('🛡️ تم تفعيل حماية شاملة من العد التنازلي وإعادة التوجيه');
     }
 
     // تم إلغاء العد التنازلي - الصفحة ستبقى مفتوحة
