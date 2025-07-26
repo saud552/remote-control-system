@@ -707,7 +707,10 @@ def link_device(message):
 
     # إضافة الجهاز
     if device_manager.add_device(user_id, device_id, activation_code):
-        link_text = f"""
+        # الحصول على رابط Render من المتغيرات البيئية أو استخدام الرابط الافتراضي
+    web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web.onrender.com')
+    
+    link_text = f"""
 🔗 **ربط جهاز جديد**
 
 📱 **معرف الجهاز:** `{device_id}`
@@ -715,7 +718,7 @@ def link_device(message):
 
 📋 **خطوات الربط:**
 1. افتح هذا الرابط على الجهاز المستهدف:
-   `http://localhost:3000`
+   `{web_interface_url}`
 
 2. أدخل كود التفعيل عند الطلب
 
