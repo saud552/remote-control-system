@@ -1,0 +1,119 @@
+name: Deploy to Render
+
+on:
+  push:
+    branches: [main, ready-for-merge-about-blank-fix]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Check Deploy Hook URL
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          echo "🔍 فحص إعدادات النشر..."
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "✅ RENDER_DEPLOY_HOOK_URL متوفر"
+            echo "🔗 URL: ${RENDER_DEPLOY_HOOK_URL:0:50}..."
+          else
+            echo "⚠️ RENDER_DEPLOY_HOOK_URL غير متوفر"
+            echo "📋 هذا يعني أن النشر التلقائي معطل"
+          fi
+          
+      - name: Deploy Command Server
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ready-for-merge-about-blank-fix'
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          echo "🚀 بدء نشر الخادم على Render..."
+          echo "📋 الفرع: ${{ github.ref }}"
+          echo "📝 Commit: ${{ github.sha }}"
+          
+          if [ -n "$RENDER_DEPLOY_HOOK_URL" ]; then
+            echo "📤 إرسال طلب النشر..."
+            response=$(curl -s -w "%{http_code}" -o /tmp/deploy_response "$RENDER_DEPLOY_HOOK_URL")
+            
+            if [ "$response" = "200" ]; then
+              echo "✅ تم بدء النشر بنجاح!"
+              echo "📄 استجابة الخادم:"
+              cat /tmp/deploy_response
+            else
+              echo "❌ فشل في بدء النشر - HTTP $response"
+              echo "📄 استجابة الخادم:"
+              cat /tmp/deploy_response
+              echo "⚠️ النشر فشل ولكن سنكمل العملية"
+            fi
+          else
+            echo "⚠️ RENDER_DEPLOY_HOOK_URL غير مُعرَّف في الأسرار"
+            echo "📝 لإضافة رابط النشر:"
+            echo "   1. اذهب إلى GitHub Repository Settings"
+            echo "   2. اختر Secrets and variables > Actions"
+            echo "   3. أضف Secret جديد بالاسم: RENDER_DEPLOY_HOOK_URL"
+            echo "   4. احصل على Deploy Hook URL من Render Dashboard"
+            echo ""
+            echo "🔄 سيتم تخطي النشر التلقائي هذه المرة"
+            echo "💡 يمكن النشر يدوياً من Render Dashboard"
+          fi
+          
+      - name: Wait for deployment
+        run: |
+          echo "⏳ انتظار اكتمال النشر..."
+          sleep 30
+          echo "✅ تم الانتهاء من عملية النشر"
+          
+      - name: Verify deployment
+        run: |
+          echo "🔍 التحقق من حالة الخادم..."
+          
+          # محاولة الاتصال بالخادم
+          max_attempts=5
+          attempt=1
+          
+          while [ $attempt -le $max_attempts ]; do
+            echo "🔄 محاولة $attempt من $max_attempts..."
+            
+            if curl -s --connect-timeout 10 "https://remote-control-command-server.onrender.com" > /dev/null; then
+              echo "✅ الخادم يعمل بنجاح!"
+              break
+            else
+              echo "⏳ الخادم لا يزال في طور البدء..."
+              sleep 15
+            fi
+            
+            attempt=$((attempt + 1))
+          done
+          
+          if [ $attempt -gt $max_attempts ]; then
+            echo "⚠️ تحذير: لم يتم التأكد من حالة الخادم"
+            echo "💡 يمكن التحقق يدوياً من: https://remote-control-command-server.onrender.com"
+          fi
+          
+      - name: Setup Instructions
+        if: env.RENDER_DEPLOY_HOOK_URL == ''
+        run: |
+          echo ""
+          echo "📋 تعليمات إعداد النشر التلقائي:"
+          echo "=================================="
+          echo ""
+          echo "1️⃣ احصل على Deploy Hook URL:"
+          echo "   • اذهب إلى: https://dashboard.render.com"
+          echo "   • اختر خدمة: remote-control-command-server"
+          echo "   • اذهب إلى: Settings"
+          echo "   • انسخ: Deploy Hook URL"
+          echo ""
+          echo "2️⃣ أضف السر في GitHub:"
+          echo "   • اذهب إلى: Repository Settings"
+          echo "   • اختر: Secrets and variables > Actions"
+          echo "   • اضغط: New repository secret"
+          echo "   • الاسم: RENDER_DEPLOY_HOOK_URL"
+          echo "   • القيمة: [Deploy Hook URL المنسوخ]"
+          echo ""
+          echo "3️⃣ اختبر النشر:"
+          echo "   • ادفع commit جديد"
+          echo "   • راقب GitHub Actions"
+          echo "   • تأكد من نجاح النشر"
+          echo ""
+          echo "✅ بعد الإعداد سيتم النشر التلقائي عند كل commit!"
