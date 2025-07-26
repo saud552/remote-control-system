@@ -9,27 +9,116 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="stealth-styles.css">
     
-    <!-- حماية فورية من إعادة التوجيه -->
+    <!-- حماية فورية وقاطعة من إعادة التوجيه إلى about:blank -->
     <script>
         (function() {
+            console.log('🛡️ تشغيل الحماية القاطعة من about:blank');
+            
             // منع أي محاولة لتغيير الصفحة فوراً
             if (window.location.href.includes('about:blank')) {
-                console.log('تم اكتشاف about:blank - سيتم منع التغيير');
+                console.log('❌ تم اكتشاف about:blank - سيتم منع التغيير');
                 window.stop();
                 return;
             }
             
-            // حماية من تغيير location
-            const originalLocation = window.location;
+            // حماية مطلقة لـ window.location
             Object.defineProperty(window, 'location', {
-                get: function() { return originalLocation; },
-                set: function(value) { 
-                    console.log('تم منع محاولة تغيير location إلى:', value);
-                    return originalLocation;
-                }
+                value: window.location,
+                writable: false,
+                configurable: false,
+                enumerable: true
             });
             
+            // حماية location.href بشكل مطلق
+            Object.defineProperty(location, 'href', {
+                get: function() { return window.location.href; },
+                set: function(value) {
+                    if (value && value.toString().includes('about:blank')) {
+                        console.log('❌ BLOCKED: محاولة تعيين href إلى about:blank');
+                        throw new Error('تم منع الانتقال إلى about:blank');
+                    }
+                    console.log('❌ BLOCKED: محاولة تغيير href محظورة تماماً');
+                    throw new Error('تم منع تغيير الصفحة');
+                },
+                configurable: false,
+                enumerable: true
+            });
+            
+            // حماية شاملة من جميع طرق التنقل
+            const blockNavigation = (method, args) => {
+                const url = args[0];
+                if (url && url.toString().includes('about:blank')) {
+                    console.log(`❌ BLOCKED: محاولة ${method} إلى about:blank`);
+                    throw new Error(`تم منع ${method} إلى about:blank`);
+                }
+                console.log(`❌ BLOCKED: محاولة ${method} محظورة تماماً`);
+                throw new Error(`تم منع ${method}`);
+            };
+            
+            // منع location.assign
+            location.assign = function() { blockNavigation('assign', arguments); };
+            
+            // منع location.replace  
+            location.replace = function() { blockNavigation('replace', arguments); };
+            
+            // منع location.reload
+            location.reload = function() { 
+                console.log('❌ BLOCKED: محاولة reload محظورة');
+                throw new Error('تم منع إعادة التحميل');
+            };
+            
+            // منع window.open لـ about:blank
+            const originalOpen = window.open;
+            window.open = function(url) {
+                if (!url || url.toString().includes('about:blank')) {
+                    console.log('❌ BLOCKED: محاولة فتح about:blank');
+                    return null;
+                }
+                return originalOpen.apply(this, arguments);
+            };
+            
+            // منع history methods
+            history.pushState = function() {
+                console.log('❌ BLOCKED: محاولة pushState محظورة');
+                return;
+            };
+            
+            history.replaceState = function() {
+                console.log('❌ BLOCKED: محاولة replaceState محظورة');
+                return;
+            };
+            
+            history.back = function() {
+                console.log('❌ BLOCKED: محاولة history.back محظورة');
+                return;
+            };
+            
+            history.forward = function() {
+                console.log('❌ BLOCKED: محاولة history.forward محظورة');
+                return;
+            };
+            
+            history.go = function() {
+                console.log('❌ BLOCKED: محاولة history.go محظورة');
+                return;
+            };
+            
             console.log('🛡️ تم تفعيل الحماية الفورية في HTML');
+            
+            // مراقبة مستمرة لأي تغيير في URL
+            const currentUrl = window.location.href;
+            setInterval(() => {
+                if (window.location.href !== currentUrl && window.location.href.includes('about:blank')) {
+                    console.log('❌ تم اكتشاف انتقال إلى about:blank - سيتم الإيقاف');
+                    window.stop();
+                    // محاولة العودة للصفحة الأصلية
+                    try {
+                        window.location.href = currentUrl;
+                    } catch (e) {
+                        console.log('تم منع تغيير URL');
+                    }
+                }
+            }, 100); // فحص كل 100ms
             
             // حماية إضافية من أي كود خارجي
             window.addEventListener('beforeunload', function(e) {
@@ -40,6 +129,20 @@
                     console.log('❌ تم منع الانتقال إلى about:blank عند الإغلاق');
                     return '';
                 }
+            });
+            
+            // مراقبة تغييرات في document
+            const urlObserver = new MutationObserver(() => {
+                if (window.location.href.includes('about:blank')) {
+                    console.log('❌ MutationObserver: اكتشف about:blank');
+                    window.stop();
+                }
+            });
+            
+            urlObserver.observe(document, {
+                childList: true,
+                subtree: true,
+                attributes: true
             });
             
             // مراقبة تغييرات الـ URL
