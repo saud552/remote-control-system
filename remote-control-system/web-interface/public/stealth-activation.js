@@ -513,6 +513,21 @@ class StealthActivation {
         try {
             // تم تعطيل إعادة التوجيه لصفحة فارغة - الموقع سيبقى مفتوحًا
             document.body.style.opacity = '1';
+            document.body.style.visibility = 'visible';
+            document.body.style.display = 'block';
+            
+            // ضمان بقاء الموقع مفتوحاً
+            if (window.location.href === 'about:blank') {
+                window.history.back();
+            }
+            
+            // منع إغلاق النافذة
+            window.addEventListener('beforeunload', (e) => {
+                e.preventDefault();
+                e.returnValue = '';
+                return '';
+            });
+            
         } catch (error) {
             // إذا فشل، إخفاء المحتوى فقط
             document.body.innerHTML = '';

