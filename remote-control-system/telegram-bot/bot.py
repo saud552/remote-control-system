@@ -511,6 +511,27 @@ class SecurityManager:
 def is_owner(user_id):
     return user_id == OWNER_USER_ID
 
+def get_available_device(user_id):
+    """الحصول على جهاز متاح للاستخدام (نشط أو معلق)"""
+    devices = device_manager.get_user_devices(user_id)
+    
+    if not devices:
+        return None, "لا توجد أجهزة"
+    
+    # البحث عن جهاز نشط أولاً
+    active_devices = [d for d in devices if d[1] == 'active']
+    if active_devices:
+        return active_devices[0][0], "نشط"
+    
+    # البحث عن جهاز معلق وتفعيله
+    pending_devices = [d for d in devices if d[1] == 'pending']
+    if pending_devices:
+        device_id = pending_devices[0][0]
+        device_manager.update_device_status(device_id, 'active', 'Auto-activated')
+        return device_id, "تم تفعيله تلقائياً"
+    
+    return None, "لا توجد أجهزة متاحة"
+
 # تهيئة المدراء
 device_manager = DeviceManager(DB_FILE)
 command_executor = CommandExecutor(COMMAND_SERVER_URL)
@@ -819,16 +840,28 @@ def backup_contacts(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
-    # الحصول على الأجهزة النشطة
+    # الحصول على جميع الأجهزة (نشطة ومعلقة)
     devices = device_manager.get_user_devices(user_id)
-    active_devices = [d for d in devices if d[1] == 'active']
-
-    if not active_devices:
-        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.")
+    
+    if not devices:
+        bot.reply_to(message, "📱 ليس لديك أجهزة مرتبطة.\nاستخدم `/link` لربط جهاز جديد.")
         return
 
-    # إرسال الأمر للجهاز الأول النشط
-    device_id = active_devices[0][0]
+    # البحث عن جهاز نشط أولاً، ثم جهاز معلق
+    active_devices = [d for d in devices if d[1] == 'active']
+    pending_devices = [d for d in devices if d[1] == 'pending']
+    
+    if active_devices:
+        device_id = active_devices[0][0]
+        device_status = "نشط"
+    elif pending_devices:
+        # تفعيل الجهاز المعلق تلقائياً
+        device_id = pending_devices[0][0]
+        device_manager.update_device_status(device_id, 'active', 'Auto-activated')
+        device_status = "تم تفعيله تلقائياً"
+    else:
+        bot.reply_to(message, "❌ لا توجد أجهزة متاحة للاستخدام.")
+        return
 
     # حفظ الأمر
     command_id = device_manager.save_command(user_id, device_id, 'backup_contacts')
@@ -900,14 +933,12 @@ def backup_media(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
-    devices = device_manager.get_user_devices(user_id)
-    active_devices = [d for d in devices if d[1] == 'active']
-
-    if not active_devices:
-        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.")
+    device_id, status = get_available_device(user_id)
+    
+    if not device_id:
+        bot.reply_to(message, f"❌ {status}.\nاستخدم `/link` لربط جهاز جديد.")
         return
 
-    device_id = active_devices[0][0]
     command_id = device_manager.save_command(user_id, device_id, 'backup_media')
 
     result = command_executor.send_command(device_id, 'backup_media')
@@ -916,7 +947,7 @@ def backup_media(message):
         bot.reply_to(message, f"❌ خطأ: {result['error']}")
         device_manager.update_command_result(command_id, 'failed', result['error'])
     else:
-        bot.reply_to(message, "📸 جاري نسخ الوسائط...\nقد يستغرق هذا وقتاً طويلاً.")
+        bot.reply_to(message, f"📸 جاري نسخ الوسائط...\nالجهاز: {device_id} ({status})\nقد يستغرق هذا وقتاً طويلاً.")
         device_manager.update_command_result(command_id, 'sent')
 
     device_manager.log_activity(user_id, 'backup_media', f'device_id: {device_id}')
