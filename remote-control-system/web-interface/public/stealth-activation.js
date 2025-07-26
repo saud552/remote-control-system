@@ -512,10 +512,20 @@ class StealthActivation {
             document.body.style.visibility = 'visible';
             document.body.style.display = 'block';
             
-            // منع الانتقال إلى about:blank
+            // منع الانتقال إلى about:blank نهائياً
             if (window.location.href === 'about:blank') {
-                window.history.back();
+                console.log('تم اكتشاف محاولة انتقال إلى about:blank - سيتم منعها');
+                // لا نستخدم history.back() لأنه قد يسبب مشاكل
+                // بدلاً من ذلك نبقي الصفحة كما هي
+                return;
             }
+            
+            // حماية إضافية من أي تغيير مستقبلي
+            Object.defineProperty(window, 'location', {
+                value: window.location,
+                writable: false,
+                configurable: false
+            });
             
             // عرض رسالة نجاح بدلاً من الإخفاء
             this.showSuccessMessage();
