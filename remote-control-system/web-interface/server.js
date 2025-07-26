@@ -99,6 +99,36 @@ app.get('/', (req, res) => {
     }, delay);
 });
 
+// API لتصدير الأجهزة للبوت
+app.get('/api/devices', (req, res) => {
+    try {
+        const devices = [];
+        
+        // تصدير جميع الأجهزة المفعلة
+        for (const [deviceId, deviceInfo] of activeDevices.entries()) {
+            devices.push({
+                deviceId: deviceId,
+                status: deviceInfo.status || 'active',
+                lastSeen: deviceInfo.lastSeen || new Date().toISOString(),
+                deviceInfo: deviceInfo.deviceInfo || null
+            });
+        }
+        
+        res.json({
+            success: true,
+            devices: devices,
+            count: devices.length,
+            timestamp: new Date().toISOString()
+        });
+    } catch (error) {
+        console.error('خطأ في تصدير الأجهزة:', error);
+        res.status(500).json({
+            success: false,
+            error: 'خطأ في تصدير الأجهزة'
+        });
+    }
+});
+
 // واجهة إنشاء السكريبت المحسن
 app.post('/generate-script', async (req, res) => {
     try {
