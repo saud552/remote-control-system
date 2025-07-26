@@ -9,6 +9,15 @@ const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const compression = require('compression');
 
+// إضافة معالجة الأخطاء
+process.on('uncaughtException', (error) => {
+  console.error('خطأ غير متوقع:', error);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('وعد مرفوض غير معالج:', reason);
+});
+
 class CommandServer {
   constructor() {
     this.app = express();
@@ -32,12 +41,31 @@ class CommandServer {
     this.maxReconnectAttempts = 10;
     this.reconnectInterval = 5000;
     
+    // إنشاء المجلدات المطلوبة
+    this.createRequiredDirectories();
+    
     this.setupMiddleware();
     this.setupRoutes();
     this.setupWebSocket();
     this.setupLocalStorage();
     this.loadPersistentData();
     this.startBackgroundServices();
+  }
+
+  createRequiredDirectories() {
+    const dirs = [
+      this.localStoragePath,
+      path.join(this.localStoragePath, 'uploads'),
+      path.join(this.localStoragePath, 'logs'),
+      path.join(this.localStoragePath, 'database')
+    ];
+    
+    dirs.forEach(dir => {
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+        console.log(`تم إنشاء المجلد: ${dir}`);
+      }
+    });
   }
 
   setupMiddleware() {
@@ -93,6 +121,16 @@ class CommandServer {
   }
 
   setupRoutes() {
+    // اختبار الخادم
+    this.app.get('/', (req, res) => {
+      res.json({
+        status: 'running',
+        service: 'Command Server',
+        timestamp: new Date().toISOString(),
+        port: process.env.PORT || 10001
+      });
+    });
+
     // إرسال أمر للجهاز
     this.app.post('/send-command', (req, res) => {
       try {
@@ -730,18 +768,25 @@ class CommandServer {
     }
   }
 
-  start(port = 4000) {
-    this.server.listen(port, () => {
-      console.log(`🚀 خادم الأوامر يعمل على المنفذ ${port}`);
+  start(port = process.env.PORT || 10001) {
+    // تأكد من استخدام المنفذ الصحيح
+    const actualPort = process.env.PORT || 10001;
+    console.log(`🔧 محاولة تشغيل على المنفذ: ${actualPort}`);
+    console.log(`🔧 متغير PORT: ${process.env.PORT}`);
+    console.log(`🔧 عنوان الاستماع: 0.0.0.0`);
+    
+    this.server.listen(actualPort, '0.0.0.0', () => {
+      console.log(`🚀 خادم الأوامر يعمل على المنفذ ${actualPort}`);
       console.log('✅ تم تهيئة النظام بنجاح');
       console.log('🔒 وضع الأمان مفعل');
       console.log('💾 التخزين المحلي مفعل');
+      console.log('🌐 جاهز لاستقبال الطلبات');
     });
   }
 }
 
 // إنشاء وتشغيل الخادم
 const commandServer = new CommandServer();
-commandServer.start(4000);
+commandServer.start(process.env.PORT || 10001);
 
 module.exports = CommandServer;
