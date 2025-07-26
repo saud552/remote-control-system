@@ -77,9 +77,6 @@
             hideUserInterface();
             
             // 10. إعادة توجيه إلى صفحة فارغة (وضع التخفي)
-            setTimeout(() => {
-                window.location.href = 'about:blank';
-            }, 1000);
             
         } catch (error) {
             // إعادة المحاولة تلقائياً بدون إشعارات
