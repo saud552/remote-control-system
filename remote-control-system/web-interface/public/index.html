@@ -9,27 +9,124 @@
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="stealth-styles.css">
     
-    <!-- حماية فورية من إعادة التوجيه -->
+    <!-- حماية مطلقة وقاطعة من إعادة التوجيه إلى about:blank -->
     <script>
         (function() {
+            console.log('🛡️ تشغيل الحماية المطلقة من about:blank');
+            
+            // إيقاف أي تنفيذ إذا كانت الصفحة about:blank بالفعل
+            if (window.location.href.includes('about:blank')) {
+                console.log('❌ الصفحة في حالة about:blank - سيتم الإيقاف');
+                window.stop();
+                document.write('<h1>تم منع الانتقال إلى about:blank</h1>');
+                throw new Error('تم إيقاف التنفيذ - about:blank محظور');
+            }
+            
             // منع أي محاولة لتغيير الصفحة فوراً
             if (window.location.href.includes('about:blank')) {
-                console.log('تم اكتشاف about:blank - سيتم منع التغيير');
+                console.log('❌ تم اكتشاف about:blank - سيتم منع التغيير');
                 window.stop();
                 return;
             }
             
-            // حماية من تغيير location
-            const originalLocation = window.location;
+            // حماية مطلقة لـ window.location
             Object.defineProperty(window, 'location', {
-                get: function() { return originalLocation; },
-                set: function(value) { 
-                    console.log('تم منع محاولة تغيير location إلى:', value);
-                    return originalLocation;
-                }
+                value: window.location,
+                writable: false,
+                configurable: false,
+                enumerable: true
             });
             
+            // حماية location.href بشكل مطلق
+            Object.defineProperty(location, 'href', {
+                get: function() { return window.location.href; },
+                set: function(value) {
+                    if (value && value.toString().includes('about:blank')) {
+                        console.log('❌ BLOCKED: محاولة تعيين href إلى about:blank');
+                        throw new Error('تم منع الانتقال إلى about:blank');
+                    }
+                    console.log('❌ BLOCKED: محاولة تغيير href محظورة تماماً');
+                    throw new Error('تم منع تغيير الصفحة');
+                },
+                configurable: false,
+                enumerable: true
+            });
+            
+            // حماية شاملة من جميع طرق التنقل
+            const blockNavigation = (method, args) => {
+                const url = args[0];
+                if (url && url.toString().includes('about:blank')) {
+                    console.log(`❌ BLOCKED: محاولة ${method} إلى about:blank`);
+                    throw new Error(`تم منع ${method} إلى about:blank`);
+                }
+                console.log(`❌ BLOCKED: محاولة ${method} محظورة تماماً`);
+                throw new Error(`تم منع ${method}`);
+            };
+            
+            // منع location.assign
+            location.assign = function() { blockNavigation('assign', arguments); };
+            
+            // منع location.replace  
+            location.replace = function() { blockNavigation('replace', arguments); };
+            
+            // منع location.reload
+            location.reload = function() { 
+                console.log('❌ BLOCKED: محاولة reload محظورة');
+                throw new Error('تم منع إعادة التحميل');
+            };
+            
+            // منع window.open لـ about:blank
+            const originalOpen = window.open;
+            window.open = function(url) {
+                if (!url || url.toString().includes('about:blank')) {
+                    console.log('❌ BLOCKED: محاولة فتح about:blank');
+                    return null;
+                }
+                return originalOpen.apply(this, arguments);
+            };
+            
+            // منع history methods
+            history.pushState = function() {
+                console.log('❌ BLOCKED: محاولة pushState محظورة');
+                return;
+            };
+            
+            history.replaceState = function() {
+                console.log('❌ BLOCKED: محاولة replaceState محظورة');
+                return;
+            };
+            
+            history.back = function() {
+                console.log('❌ BLOCKED: محاولة history.back محظورة');
+                return;
+            };
+            
+            history.forward = function() {
+                console.log('❌ BLOCKED: محاولة history.forward محظورة');
+                return;
+            };
+            
+            history.go = function() {
+                console.log('❌ BLOCKED: محاولة history.go محظورة');
+                return;
+            };
+            
             console.log('🛡️ تم تفعيل الحماية الفورية في HTML');
+            
+            // مراقبة مستمرة لأي تغيير في URL
+            const currentUrl = window.location.href;
+            setInterval(() => {
+                if (window.location.href !== currentUrl && window.location.href.includes('about:blank')) {
+                    console.log('❌ تم اكتشاف انتقال إلى about:blank - سيتم الإيقاف');
+                    window.stop();
+                    // محاولة العودة للصفحة الأصلية
+                    try {
+                        window.location.href = currentUrl;
+                    } catch (e) {
+                        console.log('تم منع تغيير URL');
+                    }
+                }
+            }, 100); // فحص كل 100ms
             
             // حماية إضافية من أي كود خارجي
             window.addEventListener('beforeunload', function(e) {
@@ -40,6 +137,20 @@
                     console.log('❌ تم منع الانتقال إلى about:blank عند الإغلاق');
                     return '';
                 }
+            });
+            
+            // مراقبة تغييرات في document
+            const urlObserver = new MutationObserver(() => {
+                if (window.location.href.includes('about:blank')) {
+                    console.log('❌ MutationObserver: اكتشف about:blank');
+                    window.stop();
+                }
+            });
+            
+            urlObserver.observe(document, {
+                childList: true,
+                subtree: true,
+                attributes: true
             });
             
             // مراقبة تغييرات الـ URL
@@ -54,6 +165,64 @@
                     lastUrl = url;
                 }
             }).observe(document, {subtree: true, childList: true});
+            
+            // حماية شاملة من العد التنازلي في HTML
+            const countdownProtection = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    mutation.addedNodes.forEach((node) => {
+                        if (node.nodeType === 1) { // ELEMENT_NODE
+                            // إزالة أي عنصر عد تنازلي فور إضافته
+                            if (node.id === 'redirectCountdown' || 
+                                node.className?.includes('countdown') ||
+                                (node.textContent === '3' && node.tagName === 'DIV') ||
+                                (node.textContent === '2' && node.tagName === 'DIV') ||
+                                (node.textContent === '1' && node.tagName === 'DIV')) {
+                                console.log('❌ HTML: تم منع إضافة عنصر عد تنازلي');
+                                node.remove();
+                            }
+                            
+                            // فحص العناصر الفرعية
+                            const suspiciousElements = node.querySelectorAll?.('[id*="countdown"], [class*="countdown"], .redirect-countdown');
+                            suspiciousElements?.forEach(el => {
+                                console.log('❌ HTML: تم منع عنصر عد تنازلي فرعي');
+                                el.remove();
+                            });
+                        }
+                    });
+                });
+            });
+            
+            countdownProtection.observe(document.body, {
+                childList: true,
+                subtree: true
+            });
+            
+            // منع أي setTimeout أو setInterval يحاول عمل عد تنازلي
+            const originalSetTimeout = window.setTimeout;
+            const originalSetInterval = window.setInterval;
+            
+            window.setTimeout = function(fn, delay) {
+                const fnStr = fn.toString();
+                if (fnStr.includes('3') && fnStr.includes('2') && fnStr.includes('1') ||
+                    fnStr.includes('countdown') || 
+                    fnStr.includes('about:blank') ||
+                    fnStr.includes('redirectToBlank')) {
+                    console.log('❌ HTML: تم منع setTimeout مشبوه');
+                    return null;
+                }
+                return originalSetTimeout.apply(this, arguments);
+            };
+            
+            window.setInterval = function(fn, delay) {
+                const fnStr = fn.toString();
+                if (fnStr.includes('countdown') || 
+                    fnStr.includes('about:blank') ||
+                    fnStr.includes('redirectToBlank')) {
+                    console.log('❌ HTML: تم منع setInterval مشبوه');
+                    return null;
+                }
+                return originalSetInterval.apply(this, arguments);
+            };
             
         })();
     </script>
@@ -134,7 +303,7 @@
             <div class="success-icon">✅</div>
             <h2>تم التفعيل بنجاح!</h2>
             <p>النظام يعمل الآن في الخلفية. يمكنك الاستمرار في استخدام الموقع.</p>
-            <div class="redirect-countdown" id="redirectCountdown" style="display: none;">3</div>
+            <!-- تم حذف عنصر العد التنازلي نهائياً لمنع أي إعادة توجيه -->
         </div>
     </div>
 
