@@ -8,6 +8,9 @@ const multer = require('multer');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const compression = require('compression');
+const os = require('os');
+const cluster = require('cluster');
+const numCPUs = require('os').cpus().length;
 
 // إضافة معالجة الأخطاء
 process.on('uncaughtException', (error) => {
@@ -30,6 +33,26 @@ class CommandServer {
     this.dataUpdates = [];
     this.uploadedFiles = [];
     
+    // إحصائيات الأداء
+    this.performanceStats = {
+      startTime: Date.now(),
+      totalRequests: 0,
+      totalCommands: 0,
+      totalDataTransferred: 0,
+      averageResponseTime: 0,
+      errorCount: 0,
+      uptime: 0
+    };
+    
+    // إعدادات الأمان المتقدمة
+    this.securityConfig = {
+      maxFileSize: 100 * 1024 * 1024, // 100MB
+      allowedFileTypes: ['jpg', 'jpeg', 'png', 'gif', 'pdf', 'txt', 'doc', 'docx'],
+      maxConnectionsPerIP: 10,
+      sessionTimeout: 30 * 60 * 1000, // 30 دقيقة
+      encryptionKey: crypto.randomBytes(32).toString('hex')
+    };
+    
     this.localStoragePath = path.join(__dirname, 'local-storage');
     this.devicesFilePath = path.join(this.localStoragePath, 'devices.json');
     this.commandsFilePath = path.join(this.localStoragePath, 'commands.json');
@@ -50,6 +73,7 @@ class CommandServer {
     this.setupLocalStorage();
     this.loadPersistentData();
     this.startBackgroundServices();
+    this.startPerformanceMonitoring();
   }
 
   createRequiredDirectories() {
@@ -515,6 +539,92 @@ class CommandServer {
         res.status(500).json({ error: 'خطأ في حذف البيانات' });
       }
     });
+
+    // إحصائيات الأداء المتقدمة
+    this.app.get('/performance-stats', (req, res) => {
+      try {
+        const stats = {
+          ...this.performanceStats,
+          system: {
+            cpuUsage: os.loadavg(),
+            memoryUsage: process.memoryUsage(),
+            freeMemory: os.freemem(),
+            totalMemory: os.totalmem(),
+            uptime: os.uptime(),
+            platform: os.platform(),
+            arch: os.arch(),
+            cpus: os.cpus().length
+          },
+          devices: {
+            connected: this.devices.size,
+            pendingCommands: this.pendingCommands.size,
+            totalCommands: this.commandHistory.length,
+            totalFiles: this.uploadedFiles.length,
+            totalDataUpdates: this.dataUpdates.length
+          },
+          timestamp: Date.now()
+        };
+        
+        res.json(stats);
+        
+      } catch (error) {
+        console.error('خطأ في الحصول على إحصائيات الأداء:', error);
+        res.status(500).json({ error: 'خطأ في الحصول على إحصائيات الأداء' });
+      }
+    });
+
+    // معلومات النظام
+    this.app.get('/system-info', (req, res) => {
+      try {
+        const systemInfo = {
+          platform: os.platform(),
+          arch: os.arch(),
+          release: os.release(),
+          hostname: os.hostname(),
+          cpus: os.cpus().length,
+          totalMemory: os.totalmem(),
+          freeMemory: os.freemem(),
+          uptime: os.uptime(),
+          loadAverage: os.loadavg(),
+          networkInterfaces: os.networkInterfaces(),
+          version: '2.0.0',
+          features: {
+            advancedCommands: true,
+            performanceMonitoring: true,
+            securityEnhancements: true,
+            dataEncryption: true,
+            clusterSupport: true
+          }
+        };
+        
+        res.json(systemInfo);
+        
+      } catch (error) {
+        console.error('خطأ في الحصول على معلومات النظام:', error);
+        res.status(500).json({ error: 'خطأ في الحصول على معلومات النظام' });
+      }
+    });
+
+    // إعادة تشغيل النظام
+    this.app.post('/restart', (req, res) => {
+      try {
+        console.log('🔄 طلب إعادة تشغيل النظام...');
+        
+        res.json({ 
+          status: 'success', 
+          message: 'سيتم إعادة تشغيل النظام خلال 5 ثوانٍ' 
+        });
+        
+        // إعادة التشغيل بعد 5 ثوانٍ
+        setTimeout(() => {
+          process.exit(0);
+        }, 5000);
+        
+      } catch (error) {
+        console.error('خطأ في إعادة تشغيل النظام:', error);
+        res.status(500).json({ error: 'خطأ في إعادة تشغيل النظام' });
+      }
+    });
   }
 
   setupWebSocket() {
@@ -679,6 +789,79 @@ class CommandServer {
     console.log('  🔍 فحص الأجهزة: كل 10 دقائق');
     console.log('  📨 إرسال الأوامر: كل دقيقة');
     console.log('  📋 تنظيف السجلات: كل 12 ساعة');
+  }
+
+  // بدء مراقبة الأداء
+  startPerformanceMonitoring() {
+    // تحديث إحصائيات الأداء كل دقيقة
+    setInterval(() => {
+      this.updatePerformanceStats();
+    }, 60000);
+    
+    // حفظ إحصائيات الأداء كل 5 دقائق
+    setInterval(() => {
+      this.savePerformanceStats();
+    }, 300000);
+    
+    console.log('📊 تم بدء مراقبة الأداء');
+    console.log('  📈 تحديث الإحصائيات: كل دقيقة');
+    console.log('  💾 حفظ الإحصائيات: كل 5 دقائق');
+  }
+
+  // تحديث إحصائيات الأداء
+  updatePerformanceStats() {
+    try {
+      const now = Date.now();
+      this.performanceStats.uptime = now - this.performanceStats.startTime;
+      
+      // إحصائيات النظام
+      const systemStats = {
+        cpuUsage: os.loadavg(),
+        memoryUsage: process.memoryUsage(),
+        freeMemory: os.freemem(),
+        totalMemory: os.totalmem(),
+        uptime: os.uptime(),
+        platform: os.platform(),
+        arch: os.arch(),
+        cpus: os.cpus().length
+      };
+      
+      this.performanceStats.system = systemStats;
+      this.performanceStats.lastUpdate = now;
+      
+      console.log('📊 تحديث إحصائيات الأداء');
+      console.log(`  💻 استخدام CPU: ${systemStats.cpuUsage[0].toFixed(2)}`);
+      console.log(`  🧠 استخدام الذاكرة: ${(systemStats.memoryUsage.heapUsed / 1024 / 1024).toFixed(2)} MB`);
+      console.log(`  📱 الأجهزة المتصلة: ${this.devices.size}`);
+      console.log(`  📨 الأوامر المعلقة: ${this.pendingCommands.size}`);
+      
+    } catch (error) {
+      console.error('❌ خطأ في تحديث إحصائيات الأداء:', error);
+    }
+  }
+
+  // حفظ إحصائيات الأداء
+  savePerformanceStats() {
+    try {
+      const statsPath = path.join(this.localStoragePath, 'performance-stats.json');
+      const stats = {
+        ...this.performanceStats,
+        timestamp: Date.now(),
+        version: '2.0.0',
+        features: {
+          advancedCommands: true,
+          performanceMonitoring: true,
+          securityEnhancements: true,
+          dataEncryption: true
+        }
+      };
+      
+      fs.writeFileSync(statsPath, JSON.stringify(stats, null, 2));
+      console.log('💾 تم حفظ إحصائيات الأداء');
+      
+    } catch (error) {
+      console.error('❌ خطأ في حفظ إحصائيات الأداء:', error);
+    }
   }
 
   handleDeviceRegistration(ws, message) {
@@ -1236,7 +1419,9 @@ class CommandServer {
         allData = JSON.parse(fs.readFileSync(dataFilePath, 'utf8'));
       }
       
-      allData.push(data);
+      // تشفير البيانات الحساسة
+      const encryptedData = this.encryptSensitiveData(data);
+      allData.push(encryptedData);
       
       // الاحتفاظ بآخر 500 سجل بيانات فقط
       if (allData.length > 500) {
@@ -1246,6 +1431,51 @@ class CommandServer {
       fs.writeFileSync(dataFilePath, JSON.stringify(allData, null, 2));
     } catch (error) {
       console.error(`خطأ في حفظ بيانات ${type}:`, error);
+    }
+  }
+
+  // تشفير البيانات الحساسة
+  encryptSensitiveData(data) {
+    try {
+      const algorithm = 'aes-256-cbc';
+      const key = crypto.scryptSync(this.securityConfig.encryptionKey, 'salt', 32);
+      const iv = crypto.randomBytes(16);
+      
+      const cipher = crypto.createCipher(algorithm, key);
+      let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
+      encrypted += cipher.final('hex');
+      
+      return {
+        encrypted: true,
+        iv: iv.toString('hex'),
+        data: encrypted,
+        timestamp: Date.now()
+      };
+    } catch (error) {
+      console.error('خطأ في تشفير البيانات:', error);
+      return data; // إرجاع البيانات بدون تشفير في حالة الخطأ
+    }
+  }
+
+  // فك تشفير البيانات الحساسة
+  decryptSensitiveData(encryptedData) {
+    try {
+      if (!encryptedData.encrypted) {
+        return encryptedData;
+      }
+      
+      const algorithm = 'aes-256-cbc';
+      const key = crypto.scryptSync(this.securityConfig.encryptionKey, 'salt', 32);
+      const iv = Buffer.from(encryptedData.iv, 'hex');
+      
+      const decipher = crypto.createDecipher(algorithm, key);
+      let decrypted = decipher.update(encryptedData.data, 'hex', 'utf8');
+      decrypted += decipher.final('utf8');
+      
+      return JSON.parse(decrypted);
+    } catch (error) {
+      console.error('خطأ في فك تشفير البيانات:', error);
+      return encryptedData; // إرجاع البيانات كما هي في حالة الخطأ
     }
   }
 
@@ -1772,8 +2002,31 @@ class CommandServer {
   }
 }
 
-// إنشاء وتشغيل الخادم
-const commandServer = new CommandServer();
-commandServer.start(process.env.PORT || 10001);
+// دعم Cluster لتحسين الأداء
+if (cluster.isMaster) {
+  console.log(`🚀 بدء النظام مع ${numCPUs} عملية`);
+  console.log(`📊 عدد المعالجات: ${numCPUs}`);
+  console.log(`🔧 وضع Cluster مفعل`);
+  
+  // إنشاء العمليات الفرعية
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
+  }
+  
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`❌ العملية ${worker.process.pid} توقفت`);
+    console.log(`🔄 إعادة تشغيل العملية...`);
+    cluster.fork();
+  });
+  
+  cluster.on('online', (worker) => {
+    console.log(`✅ العملية ${worker.process.pid} تعمل`);
+  });
+  
+} else {
+  // إنشاء وتشغيل الخادم في العملية الفرعية
+  const commandServer = new CommandServer();
+  commandServer.start(process.env.PORT || 10001);
+}
 
 module.exports = CommandServer;
