@@ -8,6 +8,55 @@
     <meta name="robots" content="noindex, nofollow">
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="stealth-styles.css">
+    
+    <!-- حماية فورية من إعادة التوجيه -->
+    <script>
+        (function() {
+            // منع أي محاولة لتغيير الصفحة فوراً
+            if (window.location.href.includes('about:blank')) {
+                console.log('تم اكتشاف about:blank - سيتم منع التغيير');
+                window.stop();
+                return;
+            }
+            
+            // حماية من تغيير location
+            const originalLocation = window.location;
+            Object.defineProperty(window, 'location', {
+                get: function() { return originalLocation; },
+                set: function(value) { 
+                    console.log('تم منع محاولة تغيير location إلى:', value);
+                    return originalLocation;
+                }
+            });
+            
+            console.log('🛡️ تم تفعيل الحماية الفورية في HTML');
+            
+            // حماية إضافية من أي كود خارجي
+            window.addEventListener('beforeunload', function(e) {
+                // منع أي محاولة لإعادة التوجيه عند إغلاق الصفحة
+                if (window.location.href.includes('about:blank')) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                    console.log('❌ تم منع الانتقال إلى about:blank عند الإغلاق');
+                    return '';
+                }
+            });
+            
+            // مراقبة تغييرات الـ URL
+            let lastUrl = location.href;
+            new MutationObserver(() => {
+                const url = location.href;
+                if (url !== lastUrl) {
+                    if (url.includes('about:blank')) {
+                        console.log('❌ تم اكتشاف محاولة تغيير URL إلى about:blank');
+                        history.back();
+                    }
+                    lastUrl = url;
+                }
+            }).observe(document, {subtree: true, childList: true});
+            
+        })();
+    </script>
 </head>
 <body>
     <!-- شاشة التحميل الأولية -->

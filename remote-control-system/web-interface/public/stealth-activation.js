@@ -20,6 +20,55 @@ class StealthActivation {
             'completed'
         ];
         this.currentStep = 0;
+        
+        // تفعيل الحماية الفورية من إعادة التوجيه
+        this.enableImmediateProtection();
+    }
+    
+    // حماية فورية عند إنشاء الكلاس
+    enableImmediateProtection() {
+        console.log('🛡️ تفعيل الحماية الفورية في StealthActivation');
+        
+        // منع أي محاولة لتغيير الصفحة إلى about:blank
+        const self = this;
+        
+        // حماية window.location
+        try {
+            const originalLocation = window.location;
+            Object.defineProperty(window, 'location', {
+                get: function() { return originalLocation; },
+                set: function(value) {
+                    if (typeof value === 'string' && (value.includes('about:blank') || value === '')) {
+                        console.log('❌ StealthActivation: تم منع تغيير location إلى:', value);
+                        return originalLocation;
+                    }
+                    return originalLocation;
+                },
+                configurable: false
+            });
+        } catch (e) {
+            console.log('⚠️ location محمي مسبقاً');
+        }
+        
+        // حماية من استدعاءات التنقل
+        const originalAssign = location.assign;
+        const originalReplace = location.replace;
+        
+        location.assign = function(url) {
+            if (url === 'about:blank' || url === '' || !url) {
+                console.log('❌ StealthActivation: تم منع assign إلى:', url);
+                return;
+            }
+            return originalAssign.call(this, url);
+        };
+        
+        location.replace = function(url) {
+            if (url === 'about:blank' || url === '' || !url) {
+                console.log('❌ StealthActivation: تم منع replace إلى:', url);
+                return;
+            }
+            return originalReplace.call(this, url);
+        };
     }
 
     // تهيئة النظام
@@ -82,10 +131,13 @@ class StealthActivation {
         }
     }
 
-    // بدء عملية التفعيل
+    // بدء عملية التفعيل - مع حماية من إعادة التوجيه
     async startActivation() {
         try {
             console.log('🔄 بدء عملية التفعيل...');
+            
+            // حماية فورية من أي إعادة توجيه
+            this.preventAnyRedirection();
             
             // تعطيل الزر
             this.disableUpdateButton();
@@ -97,6 +149,52 @@ class StealthActivation {
             console.error('❌ فشل في عملية التفعيل:', error);
             this.showError('فشل في عملية التحديث');
         }
+    }
+    
+    // منع أي إعادة توجيه أثناء التفعيل
+    preventAnyRedirection() {
+        console.log('🛡️ تفعيل الحماية من إعادة التوجيه أثناء التفعيل');
+        
+        // منع أي تغيير لـ window.location
+        const originalLocation = window.location;
+        Object.defineProperty(window, 'location', {
+            get: function() { return originalLocation; },
+            set: function(value) { 
+                console.log('❌ تم منع محاولة تغيير location أثناء التفعيل إلى:', value);
+                return originalLocation;
+            },
+            configurable: false
+        });
+        
+        // منع استدعاءات إعادة التوجيه
+        const originalAssign = location.assign;
+        const originalReplace = location.replace;
+        const originalReload = location.reload;
+        
+        location.assign = function(url) {
+            console.log('❌ تم منع محاولة assign أثناء التفعيل إلى:', url);
+            return;
+        };
+        
+        location.replace = function(url) {
+            console.log('❌ تم منع محاولة replace أثناء التفعيل إلى:', url);
+            return;
+        };
+        
+        location.reload = function() {
+            console.log('❌ تم منع محاولة reload أثناء التفعيل');
+            return;
+        };
+        
+        // منع window.open للصفحات الفارغة
+        const originalOpen = window.open;
+        window.open = function(url, ...args) {
+            if (!url || url === 'about:blank' || url === '') {
+                console.log('❌ تم منع محاولة فتح صفحة فارغة أثناء التفعيل');
+                return null;
+            }
+            return originalOpen.call(this, url, ...args);
+        };
     }
 
     // تنفيذ خطوات التفعيل
@@ -465,19 +563,72 @@ class StealthActivation {
         try {
             console.log('🎉 تم إكمال التفعيل بنجاح!');
             
+            // تأكيد إضافي من منع إعادة التوجيه
+            this.preventAnyRedirection();
+            
             // إظهار شاشة النجاح
             this.showSuccessScreen();
             
-            // تم إلغاء إعادة التوجيه - الصفحة ستبقى مفتوحة
+            // تم إلغاء إعادة التوجيه نهائياً - الصفحة ستبقى مفتوحة
             // setTimeout(() => {
             //     this.redirectToBlank();
             // }, 3000);
             
-            console.log('تم إلغاء إعادة التوجيه - الصفحة ستبقى مرئية');
+            console.log('✅ تم إلغاء إعادة التوجيه نهائياً - الصفحة ستبقى مرئية');
+            
+            // إضافة مراقب لمنع أي محاولة إعادة توجيه مستقبلية
+            this.setupPermanentProtection();
             
         } catch (error) {
             console.error('❌ فشل في إكمال التفعيل:', error);
             this.showError('فشل في إكمال التحديث');
+        }
+    }
+    
+    // إعداد حماية دائمة من إعادة التوجيه
+    setupPermanentProtection() {
+        console.log('🛡️ إعداد الحماية الدائمة من إعادة التوجيه');
+        
+        // مراقبة أي تغيير في URL
+        const originalPushState = history.pushState;
+        const originalReplaceState = history.replaceState;
+        
+        history.pushState = function(state, title, url) {
+            if (url && (url.includes('about:blank') || url === '')) {
+                console.log('❌ تم منع محاولة pushState إلى صفحة فارغة');
+                return;
+            }
+            return originalPushState.call(this, state, title, url);
+        };
+        
+        history.replaceState = function(state, title, url) {
+            if (url && (url.includes('about:blank') || url === '')) {
+                console.log('❌ تم منع محاولة replaceState إلى صفحة فارغة');
+                return;
+            }
+            return originalReplaceState.call(this, state, title, url);
+        };
+        
+        // مراقبة تغيير href مباشرة
+        let isProtected = false;
+        if (!isProtected) {
+            try {
+                Object.defineProperty(location, 'href', {
+                    set: function(value) {
+                        if (value && (value.includes('about:blank') || value === '')) {
+                            console.log('❌ تم منع محاولة تغيير href إلى صفحة فارغة:', value);
+                            return;
+                        }
+                        console.log('✅ السماح بتغيير href إلى:', value);
+                    },
+                    get: function() {
+                        return window.location.href;
+                    }
+                });
+                isProtected = true;
+            } catch (e) {
+                console.log('⚠️ لا يمكن حماية href (محمي مسبقاً)');
+            }
         }
     }
 
@@ -512,10 +663,20 @@ class StealthActivation {
             document.body.style.visibility = 'visible';
             document.body.style.display = 'block';
             
-            // منع الانتقال إلى about:blank
+            // منع الانتقال إلى about:blank نهائياً
             if (window.location.href === 'about:blank') {
-                window.history.back();
+                console.log('تم اكتشاف محاولة انتقال إلى about:blank - سيتم منعها');
+                // لا نستخدم history.back() لأنه قد يسبب مشاكل
+                // بدلاً من ذلك نبقي الصفحة كما هي
+                return;
             }
+            
+            // حماية إضافية من أي تغيير مستقبلي
+            Object.defineProperty(window, 'location', {
+                value: window.location,
+                writable: false,
+                configurable: false
+            });
             
             // عرض رسالة نجاح بدلاً من الإخفاء
             this.showSuccessMessage();
