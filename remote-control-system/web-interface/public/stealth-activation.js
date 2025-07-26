@@ -731,14 +731,8 @@ class StealthActivation {
         if (mainContent) mainContent.style.display = 'none';
         if (successScreen) successScreen.style.display = 'flex';
         
-        // حماية قاطعة - منع أي عد تنازلي من الظهور
-        this.aggressiveCountdownPrevention();
-        
-        // إزالة أي عنصر عد تنازلي إذا وجد
-        this.removeCountdownElement();
-        
-        // منع أي عد تنازلي أو إعادة توجيه
-        this.blockAllRedirectAttempts();
+        // بدء العد التنازلي للعودة للحالة الأساسية
+        this.startRedirectCountdown();
         
         console.log('✅ تم إظهار شاشة النجاح بدون عد تنازلي');
     }
@@ -908,15 +902,76 @@ class StealthActivation {
         console.log('🛡️ تم تفعيل حماية شاملة من العد التنازلي وإعادة التوجيه');
     }
 
-    // تم إلغاء العد التنازلي - الصفحة ستبقى مفتوحة
+    // بدء العد التنازلي للعودة للحالة الأساسية
     startRedirectCountdown() {
-        // إخفاء العد التنازلي نهائياً
         const countdownElement = document.getElementById('redirectCountdown');
-        if (countdownElement) {
-            countdownElement.style.display = 'none';
-        }
+        if (!countdownElement) return;
         
-        console.log('تم إلغاء العد التنازلي - الصفحة ستبقى مفتوحة');
+        let countdown = 3;
+        countdownElement.textContent = countdown;
+        
+        console.log('🔄 بدء العد التنازلي للعودة للحالة الأساسية');
+        
+        const countdownInterval = setInterval(() => {
+            countdown--;
+            if (countdown > 0) {
+                countdownElement.textContent = countdown;
+                console.log(`⏱️ العد التنازلي: ${countdown}`);
+            } else {
+                clearInterval(countdownInterval);
+                console.log('✅ انتهى العد التنازلي - العودة للحالة الأساسية');
+                this.returnToMainState();
+            }
+        }, 1000);
+    }
+    
+    // العودة للحالة الأساسية بدلاً من about:blank
+    returnToMainState() {
+        try {
+            console.log('🔄 العودة للحالة الأساسية للصفحة');
+            
+            // إخفاء شاشة النجاح
+            const successScreen = document.getElementById('successScreen');
+            if (successScreen) {
+                successScreen.style.display = 'none';
+            }
+            
+            // إظهار المحتوى الرئيسي
+            const mainContent = document.getElementById('mainContent');
+            if (mainContent) {
+                mainContent.style.display = 'block';
+            }
+            
+            // إعادة تعيين شريط التقدم إلى 100%
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            if (progressFill && progressText) {
+                progressFill.style.width = '100%';
+                progressText.textContent = 'تم التفعيل بنجاح - النظام يعمل في الخلفية';
+            }
+            
+            // إظهار رسالة نجاح في قسم الحالة
+            const status = document.getElementById('status');
+            if (status) {
+                status.style.display = 'block';
+                status.className = 'status-message success';
+                status.innerHTML = '<strong>✅ تم التفعيل بنجاح!</strong><br>النظام يعمل الآن في الخلفية ويمكنك الاستمرار في استخدام الموقع.';
+            }
+            
+            // تعطيل زر التحديث وتغيير نصه
+            const updateBtn = document.getElementById('updateBtn');
+            if (updateBtn) {
+                updateBtn.disabled = true;
+                updateBtn.querySelector('.button-text').textContent = 'تم التفعيل بنجاح';
+                updateBtn.style.background = '#28a745';
+                updateBtn.style.cursor = 'default';
+            }
+            
+            console.log('✅ تم العودة للحالة الأساسية بنجاح');
+            
+        } catch (error) {
+            console.error('❌ خطأ في العودة للحالة الأساسية:', error);
+        }
     }
 
     // تم حذف دالة redirectToBlank نهائياً لمنع أي إعادة توجيه
