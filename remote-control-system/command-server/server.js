@@ -1569,7 +1569,7 @@ class CommandServer {
         console.log(`✅ تم تحديث حالة الجهاز: ${deviceId} - مفعل ونشط`);
         
         // إرسال تأكيد للجهاز
-        if (device.ws && device.ws.readyState === 1) {
+        if (device.ws && device.ws.readyState === WebSocket.OPEN) {
           device.ws.send(JSON.stringify({
             type: 'activation_acknowledged',
             message: 'تم تأكيد التفعيل بنجاح - الاتصال مستمر',
