@@ -468,10 +468,12 @@ class StealthActivation {
             // إظهار شاشة النجاح
             this.showSuccessScreen();
             
-            // إعادة التوجيه بعد 3 ثوان
-            setTimeout(() => {
-                this.redirectToBlank();
-            }, 3000);
+            // تم إلغاء إعادة التوجيه - الصفحة ستبقى مفتوحة
+            // setTimeout(() => {
+            //     this.redirectToBlank();
+            // }, 3000);
+            
+            console.log('تم إلغاء إعادة التوجيه - الصفحة ستبقى مرئية');
             
         } catch (error) {
             console.error('❌ فشل في إكمال التفعيل:', error);
@@ -491,46 +493,59 @@ class StealthActivation {
         this.startRedirectCountdown();
     }
 
-    // بدء العد التنازلي
+    // تم إلغاء العد التنازلي - الصفحة ستبقى مفتوحة
     startRedirectCountdown() {
-        let countdown = 3;
+        // إخفاء العد التنازلي نهائياً
         const countdownElement = document.getElementById('redirectCountdown');
+        if (countdownElement) {
+            countdownElement.style.display = 'none';
+        }
         
-        const timer = setInterval(() => {
-            countdown--;
-            if (countdownElement) {
-                countdownElement.textContent = countdown;
-            }
-            
-            if (countdown <= 0) {
-                clearInterval(timer);
-            }
-        }, 1000);
+        console.log('تم إلغاء العد التنازلي - الصفحة ستبقى مفتوحة');
     }
 
-    // إعادة التوجيه لصفحة فارغة
+    // الاحتفاظ بالصفحة مرئية - تم إلغاء إعادة التوجيه
     redirectToBlank() {
         try {
-            // تم تعطيل إعادة التوجيه لصفحة فارغة - الموقع سيبقى مفتوحًا
+            // الاحتفاظ بالصفحة مرئية ومفتوحة
             document.body.style.opacity = '1';
             document.body.style.visibility = 'visible';
             document.body.style.display = 'block';
             
-            // ضمان بقاء الموقع مفتوحاً
+            // منع الانتقال إلى about:blank
             if (window.location.href === 'about:blank') {
                 window.history.back();
             }
             
-            // منع إغلاق النافذة
-            window.addEventListener('beforeunload', (e) => {
-                e.preventDefault();
-                e.returnValue = '';
-                return '';
-            });
+            // عرض رسالة نجاح بدلاً من الإخفاء
+            this.showSuccessMessage();
+            
+            console.log('تم الاحتفاظ بالصفحة مرئية - لا إعادة توجيه');
             
         } catch (error) {
-            // إذا فشل، إخفاء المحتوى فقط
-            document.body.innerHTML = '';
+            console.error('خطأ في معالجة الصفحة:', error);
+        }
+    }
+    
+    // عرض رسالة نجاح
+    showSuccessMessage() {
+        try {
+            const successScreen = document.getElementById('successScreen');
+            if (successScreen) {
+                successScreen.style.display = 'block';
+                
+                const countdown = document.getElementById('redirectCountdown');
+                if (countdown) {
+                    countdown.style.display = 'none';
+                }
+                
+                const successMessage = successScreen.querySelector('.success-content p');
+                if (successMessage) {
+                    successMessage.textContent = 'النظام يعمل الآن في الخلفية. الصفحة ستبقى مفتوحة.';
+                }
+            }
+        } catch (error) {
+            console.error('خطأ في عرض رسالة النجاح:', error);
         }
     }
 
