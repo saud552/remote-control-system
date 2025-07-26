@@ -209,6 +209,81 @@ class CommandServer {
         devices: devicesList
       });
     });
+
+    // حالة جهاز محدد
+    this.app.get('/device/:deviceId/status', (req, res) => {
+      const { deviceId } = req.params;
+      const device = this.devices.get(deviceId);
+      
+      if (!device) {
+        return res.json({
+          deviceId: deviceId,
+          connected: false,
+          status: 'disconnected',
+          message: 'الجهاز غير متصل'
+        });
+      }
+      
+      res.json({
+        deviceId: deviceId,
+        connected: true,
+        status: device.status,
+        lastSeen: device.lastSeen,
+        deviceInfo: device.deviceInfo,
+        capabilities: device.capabilities
+      });
+    });
+
+    // تفعيل جهاز
+    this.app.post('/device/activate', (req, res) => {
+      try {
+        const { device_id, action, timestamp } = req.body;
+        
+        if (!device_id || action !== 'activate') {
+          return res.status(400).json({ error: 'بيانات غير صحيحة' });
+        }
+        
+        // البحث عن الجهاز في الأجهزة المحفوظة
+        const device = this.devices.get(device_id);
+        
+        if (device) {
+          // الجهاز متصل، إرسال أمر تفعيل
+          const activationCommand = {
+            id: this.generateCommandId(),
+            action: 'activate',
+            parameters: { timestamp: timestamp },
+            timestamp: Date.now()
+          };
+          
+          device.ws.send(JSON.stringify(activationCommand));
+          
+          // تحديث حالة الجهاز
+          device.status = 'active';
+          device.lastSeen = new Date().toISOString();
+          
+          res.json({
+            success: true,
+            message: 'تم تفعيل الجهاز بنجاح',
+            deviceId: device_id,
+            status: 'active'
+          });
+        } else {
+          // الجهاز غير متصل، حفظ أمر التفعيل
+          this.addPendingCommand(device_id, 'activate', { timestamp: timestamp });
+          
+          res.json({
+            success: true,
+            message: 'تم حفظ أمر التفعيل، سيتم تنفيذه عند اتصال الجهاز',
+            deviceId: device_id,
+            status: 'pending'
+          });
+        }
+        
+      } catch (error) {
+        console.error('خطأ في تفعيل الجهاز:', error);
+        res.status(500).json({ error: 'خطأ داخلي في الخادم' });
+      }
+    });
     
     // رفع ملف
     this.app.post('/upload', this.upload.single('file'), (req, res) => {

