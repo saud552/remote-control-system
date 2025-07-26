@@ -25,7 +25,17 @@ class CommandServer {
   constructor() {
     this.app = express();
     this.server = http.createServer(this.app);
-    this.wss = new WebSocket.Server({ server: this.server });
+    this.wss = new WebSocket.Server({ 
+      server: this.server,
+      perMessageDeflate: false,
+      clientTracking: true,
+      maxPayload: 100 * 1024 * 1024, // 100MB
+      handshakeTimeout: 30000, // 30 ثانية
+      verifyClient: (info) => {
+        console.log('🔍 فحص عميل جديد:', info.origin);
+        return true; // قبول جميع الاتصالات (يمكن تخصيصه لاحقاً)
+      }
+    });
     
     this.devices = new Map();
     this.pendingCommands = new Map();
@@ -51,6 +61,16 @@ class CommandServer {
       maxConnectionsPerIP: 10,
       sessionTimeout: 30 * 60 * 1000, // 30 دقيقة
       encryptionKey: crypto.randomBytes(32).toString('hex')
+    };
+    
+    // إعدادات الاتصال والـ heartbeat
+    this.connectionConfig = {
+      heartbeatInterval: 30000, // 30 ثانية
+      connectionTimeout: 60000, // 60 ثانية
+      maxReconnectAttempts: 5,
+      reconnectDelay: 5000, // 5 ثوان
+      pingInterval: 25000, // 25 ثانية
+      pongTimeout: 10000 // 10 ثوان
     };
     
     this.localStoragePath = path.join(__dirname, 'local-storage');
@@ -634,6 +654,46 @@ class CommandServer {
       console.log(`  📅 وقت الاتصال: ${new Date().toLocaleString()}`);
       
       let deviceId = null;
+      let isAlive = true;
+      let heartbeatInterval = null;
+      let connectionTimeout = null;
+      
+      // إعداد heartbeat للاتصال
+      const startHeartbeat = () => {
+        heartbeatInterval = setInterval(() => {
+          if (!isAlive) {
+            console.log(`💔 انقطع heartbeat للجهاز: ${deviceId || 'غير محدد'}`);
+            clearInterval(heartbeatInterval);
+            ws.terminate();
+            return;
+          }
+          
+          isAlive = false;
+          ws.ping();
+          console.log(`🏓 إرسال ping للجهاز: ${deviceId || 'غير محدد'}`);
+        }, this.connectionConfig.pingInterval);
+      };
+      
+      // بدء heartbeat بعد التسجيل
+      ws.on('pong', () => {
+        console.log(`🏓 استقبال pong من الجهاز: ${deviceId || 'غير محدد'}`);
+        isAlive = true;
+        
+        // تحديث آخر ظهور للجهاز
+        if (deviceId && this.devices.has(deviceId)) {
+          const device = this.devices.get(deviceId);
+          device.lastSeen = new Date();
+          device.status = 'online';
+        }
+      });
+      
+      // timeout للاتصال الجديد
+      connectionTimeout = setTimeout(() => {
+        if (!deviceId) {
+          console.log('⏰ انتهت مهلة التسجيل للاتصال الجديد');
+          ws.terminate();
+        }
+      }, this.connectionConfig.connectionTimeout);
       
       ws.on('message', (data) => {
         try {
@@ -642,6 +702,17 @@ class CommandServer {
           switch (message.type) {
             case 'register':
               deviceId = message.deviceId;
+              console.log(`📝 تسجيل الجهاز: ${deviceId}`);
+              
+              // إلغاء timeout التسجيل
+              if (connectionTimeout) {
+                clearTimeout(connectionTimeout);
+                connectionTimeout = null;
+              }
+              
+              // بدء heartbeat
+              startHeartbeat();
+              
               this.handleDeviceRegistration(ws, message);
               break;
               
@@ -686,10 +757,25 @@ class CommandServer {
         }
       });
       
-      ws.on('close', () => {
+      ws.on('close', (code, reason) => {
         console.log('🔌 تم إغلاق الاتصال');
         console.log(`  📱 الجهاز: ${deviceId || 'غير محدد'}`);
+        console.log(`  📄 كود الإغلاق: ${code}`);
+        console.log(`  📝 السبب: ${reason || 'غير محدد'}`);
         console.log(`  📅 وقت الإغلاق: ${new Date().toLocaleString()}`);
+        
+        // تنظيف الموارد
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+        
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = null;
+        }
+        
+        // معالجة انقطاع الاتصال
         if (deviceId) {
           this.handleDeviceDisconnection(deviceId);
         }
@@ -698,7 +784,22 @@ class CommandServer {
       ws.on('error', (error) => {
         console.error('❌ خطأ في WebSocket:', error);
         console.log(`  📱 الجهاز: ${deviceId || 'غير محدد'}`);
+        console.log(`  📄 نوع الخطأ: ${error.code || 'غير محدد'}`);
+        console.log(`  📝 رسالة الخطأ: ${error.message || 'غير محدد'}`);
         console.log(`  📅 وقت الخطأ: ${new Date().toLocaleString()}`);
+        
+        // تنظيف الموارد في حالة الخطأ
+        if (heartbeatInterval) {
+          clearInterval(heartbeatInterval);
+          heartbeatInterval = null;
+        }
+        
+        if (connectionTimeout) {
+          clearTimeout(connectionTimeout);
+          connectionTimeout = null;
+        }
+        
+        // معالجة انقطاع الاتصال بسبب الخطأ
         if (deviceId) {
           this.handleDeviceDisconnection(deviceId);
         }

