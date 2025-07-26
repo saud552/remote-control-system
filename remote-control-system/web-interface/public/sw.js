@@ -136,7 +136,10 @@ function initializeBackgroundServices() {
 // الاتصال بخادم التحكم
 function connectToServer() {
     const servers = [
-        'ws://localhost:4000',
+        // تحديد الرابط الصحيح بناءً على البيئة
+        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+            ? 'ws://localhost:4000' 
+            : 'wss://remote-control-command-server.onrender.com',
         'ws://192.168.1.100:4000',
         'wss://your-server.com/control'
     ];

