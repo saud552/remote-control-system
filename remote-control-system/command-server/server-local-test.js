@@ -180,7 +180,7 @@ class LocalTestServer {
             console.log(`   🌐 عنوان الاستماع: 0.0.0.0`);
             console.log('');
             console.log('🔧 لاختبار النظام:');
-            console.log('   1. افتح http://localhost:3000 في المتصفح');
+            console.log('   1. افتح http://localhost:3000 في المتصفح (Web Interface)');
             console.log('   2. اضغط على "بدء التحديث الآن"');
             console.log('   3. راقب رسائل activation_complete هنا');
             console.log('');
