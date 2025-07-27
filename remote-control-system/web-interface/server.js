@@ -274,6 +274,61 @@ app.get('/device-status/:encryptedDeviceId', (req, res) => {
     }
 });
 
+// واجهة API للأجهزة (للبوت)
+app.get('/api/devices', (req, res) => {
+    try {
+        // التحقق من المصادقة
+        const userId = req.headers['x-user-id'];
+        const timestamp = req.headers['x-timestamp'];
+        const signature = req.headers['x-signature'];
+        
+        if (!userId || !timestamp || !signature) {
+            return res.status(401).json({ error: 'معلومات المصادقة مطلوبة' });
+        }
+        
+        // التحقق من التوقيع
+        const authToken = process.env.AUTH_TOKEN || 'default_secret_token';
+        const expectedSignature = require('crypto')
+            .createHmac('sha256', authToken)
+            .update(timestamp)
+            .digest('hex');
+        
+        if (signature !== expectedSignature) {
+            return res.status(401).json({ error: 'توقيع غير صالح' });
+        }
+        
+        // التحقق من انتهاء صلاحية الطلب (5 دقائق)
+        const requestTime = parseInt(timestamp);
+        const currentTime = Math.floor(Date.now() / 1000);
+        if (currentTime - requestTime > 300) {
+            return res.status(401).json({ error: 'انتهت صلاحية الطلب' });
+        }
+        
+        // قراءة الأجهزة من الملف
+        const devices = loadDevicesFromFile();
+        
+        // تحويل البيانات للشكل المطلوب
+        const devicesList = Object.keys(devices).map(deviceId => ({
+            deviceId: deviceId,
+            status: devices[deviceId].status || 'unknown',
+            deviceInfo: devices[deviceId].deviceInfo || '',
+            lastSeen: devices[deviceId].lastSeen || Date.now(),
+            activationTime: devices[deviceId].activationTime || null
+        }));
+        
+        res.json({
+            success: true,
+            devices: devicesList,
+            count: devicesList.length,
+            timestamp: Date.now()
+        });
+        
+    } catch (error) {
+        console.error('خطأ في واجهة API للأجهزة:', error);
+        res.status(500).json({ error: 'خطأ داخلي في الخادم' });
+    }
+});
+
 // واجهة إحصائيات النظام (محمية)
 app.get('/admin/stats', authenticateAdmin, (req, res) => {
     try {
