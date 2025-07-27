@@ -223,13 +223,19 @@ def restart_bot():
             return jsonify({"error": "Unauthorized"}), 401
             
         flask_logger.info("Restarting bot...")
-        global bot_thread
-        if bot_thread.is_alive():
-            bot.stop_polling()
-            bot_thread.join(timeout=10)
+        global bot_running, bot_thread
         
-        bot_thread = threading.Thread(target=run_bot, daemon=True)
-        bot_thread.start()
+        # إيقاف البوت الحالي
+        with bot_lock:
+            if bot_running:
+                bot.stop_polling()
+                bot_running = False
+                if bot_thread.is_alive():
+                    bot_thread.join(timeout=10)
+        
+        # إعادة تشغيل البوت
+        time.sleep(3)  # انتظار للتأكد من الإيقاف
+        start_bot_safely()
         
         return jsonify({"status": "restarting"})
     except Exception as e:
@@ -238,7 +244,7 @@ def restart_bot():
 
 def run_bot():
     """تشغيل البوت في خيط منفصل"""
-    global bot_status
+    global bot_status, bot_running
     try:
         # التحقق من وجود Token
         bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
@@ -266,14 +272,28 @@ def run_bot():
         # إعداد المستخدمين المصرح لهم
         setup_authorized_users()
         
-        # تشغيل البوت مع skip_pending لتجنب التضارب
-        bot.polling(none_stop=True, interval=1, skip_pending=True, timeout=60)
+        # إيقاف أي polling سابق
+        try:
+            bot.stop_polling()
+            time.sleep(2)  # انتظار لإيقاف كامل
+        except:
+            pass
+        
+        # تشغيل البوت مع إعدادات محسنة لتجنب التضارب
+        bot.polling(
+            none_stop=True, 
+            interval=3, 
+            skip_pending=True, 
+            timeout=60,
+            allowed_updates=['message', 'callback_query']
+        )
         
     except Exception as e:
         bot_logger.error(f"خطأ في تشغيل البوت: {e}")
         bot_status["running"] = False
     finally:
         bot_status["running"] = False
+        bot_running = False
 
 def update_activity():
     """تحديث آخر نشاط"""
@@ -299,9 +319,25 @@ def update_activity():
             flask_logger.error(f"Activity update failed: {e}")
             time.sleep(30)
 
+# متغير للتحكم في تشغيل البوت
+bot_running = False
+bot_lock = threading.Lock()
+
+def start_bot_safely():
+    """تشغيل البوت بشكل آمن"""
+    global bot_running, bot_thread
+    with bot_lock:
+        if bot_running:
+            flask_logger.info("البوت يعمل بالفعل")
+            return
+        
+        bot_running = True
+        bot_thread = threading.Thread(target=run_bot, daemon=True)
+        bot_thread.start()
+        flask_logger.info("تم بدء تشغيل البوت")
+
 # بدء تشغيل البوت عند التحميل
-bot_thread = threading.Thread(target=run_bot, daemon=True)
-bot_thread.start()
+start_bot_safely()
 
 # بدء تحديث النشاط
 activity_thread = threading.Thread(target=update_activity, daemon=True)
