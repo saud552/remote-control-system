@@ -45,7 +45,22 @@ BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', "7305811865:AAF_PKkBWEUw-QdL1ee
 OWNER_USER_ID = int(os.environ.get('OWNER_USER_ID', 985612253))
 bot = telebot.TeleBot(BOT_TOKEN)
 DB_FILE = 'devices.db'
-COMMAND_SERVER_URL = os.environ.get('COMMAND_SERVER_URL', 'https://remote-control-command-server.onrender.com')
+# تحديد رابط خادم الأوامر بناءً على البيئة
+def get_command_server_url():
+    """تحديد رابط خادم الأوامر بناءً على البيئة"""
+    # التحقق من وجود متغير بيئي محدد
+    env_url = os.environ.get('COMMAND_SERVER_URL')
+    if env_url:
+        return env_url
+    
+    # التحقق من البيئة المحلية
+    if os.environ.get('NODE_ENV') == 'development' or os.environ.get('LOCAL_DEVELOPMENT'):
+        return 'http://localhost:10001'
+    
+    # الرابط الافتراضي للإنتاج
+    return 'https://remote-control-command-server.onrender.com'
+
+COMMAND_SERVER_URL = get_command_server_url()
 
 # تخزين الجلسات النشطة
 active_sessions = {}
@@ -542,7 +557,7 @@ def check_device_connection(device_id):
     """التحقق من اتصال الجهاز الفعلي"""
     try:
         # محاولة الاتصال بالجهاز عبر خادم الأوامر
-        command_server_url = os.environ.get('COMMAND_SERVER_URL', 'https://remote-control-command-server.onrender.com')
+        command_server_url = get_command_server_url()
         
         response = requests.get(f"{command_server_url}/device/{device_id}/status", timeout=5)
         
@@ -562,7 +577,7 @@ def force_device_activation(device_id):
         device_manager.update_device_status(device_id, 'active', 'Force activated')
         
         # إرسال إشارة تفعيل للجهاز
-        command_server_url = os.environ.get('COMMAND_SERVER_URL', 'https://remote-control-command-server.onrender.com')
+        command_server_url = get_command_server_url()
         
         activation_data = {
             'device_id': device_id,
@@ -584,7 +599,11 @@ def force_device_activation(device_id):
 def import_devices_from_web_interface(user_id):
     """استيراد الأجهزة من واجهة الويب"""
     try:
-        web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web.onrender.com')
+        # تحديد رابط واجهة الويب بناءً على البيئة
+        if os.environ.get('NODE_ENV') == 'development' or os.environ.get('LOCAL_DEVELOPMENT'):
+            web_interface_url = 'http://localhost:3000'
+        else:
+            web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web.onrender.com')
         
         # محاولة الاتصال بواجهة الويب
         response = requests.get(f"{web_interface_url}/api/devices", timeout=10)
