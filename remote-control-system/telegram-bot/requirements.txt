@@ -65,8 +65,6 @@ scp==0.14.5
 
 # مكتبات معالجة النظام
 pywin32==306; sys_platform == "win32"
-pwd==1.0.1; sys_platform != "win32"
-grp==1.3.2; sys_platform != "win32"
 
 # مكتبات التخفي والتمويه
 faker==20.1.0
