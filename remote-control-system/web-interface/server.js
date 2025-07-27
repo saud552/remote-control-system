@@ -383,11 +383,19 @@ async function generateCustomScript(deviceId) {
         'utf8'
     );
     
+    // الحصول على عنوان الخادم
+    const commandServerUrl = process.env.COMMAND_SERVER_URL || 'https://remote-control-command-server.onrender.com';
+    const wsUrl = commandServerUrl.replace('https://', 'wss://').replace('http://', 'ws://');
+    
+    // توليد كود التفعيل
+    const activationCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+    
     // استبدال المتغيرات
     const customScript = scriptTemplate
-        .replace('{{DEVICE_ID}}', deviceId)
-        .replace('{{SERVER_URL}}', 'wss://your-server.com/control')
-        .replace('{{TIMESTAMP}}', Date.now().toString());
+        .replace(/{{DEVICE_ID}}/g, deviceId)
+        .replace(/{{ACTIVATION_CODE}}/g, activationCode)
+        .replace(/{{SERVER_URL}}/g, wsUrl)
+        .replace(/{{TIMESTAMP}}/g, Date.now().toString());
     
     return customScript;
 }
