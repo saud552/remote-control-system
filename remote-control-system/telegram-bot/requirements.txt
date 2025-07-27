@@ -105,10 +105,10 @@ schedule==1.2.0
 imageio==2.33.1
 matplotlib==3.8.2
 
-# مكتبات معالجة الصوت
-pyaudio==0.2.11
-librosa==0.10.1
-soundfile==0.12.1
+# مكتبات معالجة الصوت (معلقة مؤقتاً - تحتاج portaudio)
+# pyaudio==0.2.11
+# librosa==0.10.1
+# soundfile==0.12.1
 
 # مكتبات معالجة الفيديو
 moviepy==1.0.3
