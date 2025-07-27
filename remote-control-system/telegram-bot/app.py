@@ -149,8 +149,8 @@ def run_bot():
         # إعداد المستخدمين المصرح لهم
         setup_authorized_users()
         
-        # تشغيل البوت
-        bot.polling(none_stop=True, interval=0, skip_pending=True)
+        # تشغيل البوت مع skip_pending لتجنب التضارب
+        bot.polling(none_stop=True, interval=1, skip_pending=True, timeout=60)
         
     except Exception as e:
         bot_logger.error(f"خطأ في تشغيل البوت: {e}")
