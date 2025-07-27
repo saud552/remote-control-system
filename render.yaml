@@ -24,6 +24,8 @@ services:
         value: "aes-256-gcm"
       - key: WEBHOOK_SECRET
         generateValue: true
+      - key: AUTH_TOKEN
+        generateValue: true
     healthCheckPath: /health
     autoDeploy: true
     region: oregon
@@ -50,6 +52,8 @@ services:
         value: "info"
       - key: ENCRYPTION_ALGORITHM
         value: "aes-256-gcm"
+      - key: AUTH_TOKEN
+        generateValue: true
     healthCheckPath: /
     autoDeploy: true
     region: oregon
@@ -81,6 +85,8 @@ services:
       - key: ENCRYPTION_ALGORITHM
         value: "aes-256-gcm"
       - key: WEBHOOK_SECRET
+        generateValue: true
+      - key: AUTH_TOKEN
         generateValue: true
     healthCheckPath: /health
     autoDeploy: true
