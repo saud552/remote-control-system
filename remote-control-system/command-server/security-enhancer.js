@@ -24,12 +24,20 @@ class SecurityEnhancer {
     // تشفير البيانات الحساسة
     encryptSensitiveData(data) {
         try {
-            const cipher = crypto.createCipheriv('aes-256-cbc', this.encryptionKey, this.iv);
+            // استخدام AES-256-GCM بدلاً من CBC
+            const iv = crypto.randomBytes(16);
+            const cipher = crypto.createCipheriv('aes-256-gcm', this.encryptionKey, iv);
+            
             let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
             encrypted += cipher.final('hex');
+            
+            const authTag = cipher.getAuthTag();
+            
             return {
                 data: encrypted,
-                iv: this.iv.toString('hex')
+                iv: iv.toString('hex'),
+                authTag: authTag.toString('hex'),
+                algorithm: 'aes-256-gcm'
             };
         } catch (error) {
             console.error('خطأ في تشفير البيانات:', error);
@@ -41,10 +49,25 @@ class SecurityEnhancer {
     decryptSensitiveData(encryptedData) {
         try {
             const iv = Buffer.from(encryptedData.iv, 'hex');
-            const decipher = crypto.createDecipheriv('aes-256-cbc', this.encryptionKey, iv);
-            let decrypted = decipher.update(encryptedData.data, 'hex', 'utf8');
-            decrypted += decipher.final('utf8');
-            return JSON.parse(decrypted);
+            const authTag = Buffer.from(encryptedData.authTag, 'hex');
+            
+            // دعم كلا الخوارزميتين للتوافق
+            const algorithm = encryptedData.algorithm || 'aes-256-cbc';
+            
+            if (algorithm === 'aes-256-gcm') {
+                const decipher = crypto.createDecipheriv('aes-256-gcm', this.encryptionKey, iv);
+                decipher.setAuthTag(authTag);
+                
+                let decrypted = decipher.update(encryptedData.data, 'hex', 'utf8');
+                decrypted += decipher.final('utf8');
+                return JSON.parse(decrypted);
+            } else {
+                // دعم CBC للتوافق مع الإصدارات القديمة
+                const decipher = crypto.createDecipheriv('aes-256-cbc', this.encryptionKey, iv);
+                let decrypted = decipher.update(encryptedData.data, 'hex', 'utf8');
+                decrypted += decipher.final('utf8');
+                return JSON.parse(decrypted);
+            }
         } catch (error) {
             console.error('خطأ في فك تشفير البيانات:', error);
             return null;

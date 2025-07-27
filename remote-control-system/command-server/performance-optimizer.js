@@ -75,8 +75,10 @@ class PerformanceOptimizer {
     }
 
     // تسجيل طلب جديد
-    recordRequest(responseTime) {
+    recordRequest(responseTime, hasError = false) {
         this.metrics.requests++;
+        if (hasError) this.metrics.errors++;
+        
         this.metrics.responseTimes.push({
             timestamp: Date.now(),
             duration: responseTime
@@ -92,6 +94,45 @@ class PerformanceOptimizer {
     recordError(error) {
         this.metrics.errors++;
         console.error('❌ خطأ في الأداء:', error);
+        
+        // حفظ الخطأ في السجل
+        this.saveErrorLog(error);
+    }
+    
+    // حفظ سجل الأخطاء
+    saveErrorLog(error) {
+        const errorLog = {
+            timestamp: Date.now(),
+            error: error.message || error,
+            stack: error.stack,
+            memoryUsage: process.memoryUsage(),
+            cpuUsage: os.loadavg()
+        };
+        
+        const logPath = path.join(__dirname, 'logs', 'performance-errors.json');
+        const logDir = path.dirname(logPath);
+        
+        if (!fs.existsSync(logDir)) {
+            fs.mkdirSync(logDir, { recursive: true });
+        }
+        
+        try {
+            let logs = [];
+            if (fs.existsSync(logPath)) {
+                logs = JSON.parse(fs.readFileSync(logPath, 'utf8'));
+            }
+            
+            logs.push(errorLog);
+            
+            // الاحتفاظ بآخر 100 خطأ فقط
+            if (logs.length > 100) {
+                logs = logs.slice(-100);
+            }
+            
+            fs.writeFileSync(logPath, JSON.stringify(logs, null, 2));
+        } catch (err) {
+            console.error('❌ خطأ في حفظ سجل الأخطاء:', err);
+        }
     }
 
     // تسجيل اتصال جديد

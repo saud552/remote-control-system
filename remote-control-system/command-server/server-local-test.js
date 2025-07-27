@@ -11,6 +11,7 @@ class LocalTestServer {
         this.server = http.createServer(this.app);
         this.wss = new WebSocket.Server({ server: this.server });
         this.devices = new Map();
+        this.startTime = Date.now();
         
         this.setupMiddleware();
         this.setupWebSocketHandlers();
@@ -48,6 +49,31 @@ class LocalTestServer {
                 devices: this.devices.size,
                 timestamp: Date.now(),
                 message: 'خادم الاختبار المحلي يعمل بنجاح'
+            });
+        });
+        
+        // مسار الصحة الجديد
+        this.app.get('/health', (req, res) => {
+            res.json({
+                status: 'healthy',
+                uptime: Date.now() - this.startTime,
+                devices: this.devices.size,
+                pendingCommands: 0,
+                message: 'خادم الاختبار المحلي صحي'
+            });
+        });
+        
+        // مسار معلومات النظام الجديد
+        this.app.get('/system-info', (req, res) => {
+            const os = require('os');
+            res.json({
+                platform: os.platform(),
+                arch: os.arch(),
+                cpus: os.cpus().length,
+                totalMemory: os.totalmem(),
+                freeMemory: os.freemem(),
+                uptime: os.uptime(),
+                loadAverage: os.loadavg()
             });
         });
     }
