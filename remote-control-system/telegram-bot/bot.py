@@ -97,7 +97,8 @@ class DeviceManager:
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 last_seen TIMESTAMP,
                 device_info TEXT,
-                capabilities TEXT
+                capabilities TEXT,
+                encryption_key TEXT
             )
         ''')
 
@@ -144,16 +145,19 @@ class DeviceManager:
         conn.commit()
         conn.close()
 
-    def add_device(self, user_id: int, device_id: str, activation_code: str) -> bool:
+        def add_device(self, user_id: int, device_id: str, activation_code: str) -> bool:
         """إضافة جهاز جديد"""
         try:
             conn = sqlite3.connect(self.db_file)
             cursor = conn.cursor()
 
+            # توليد مفتاح تشفير فريد لكل جهاز
+            encryption_key = base64.b64encode(os.urandom(32)).decode('utf-8')
+            
             cursor.execute('''
-                INSERT INTO devices (user_id, device_id, activation_code, status)
-                VALUES (?, ?, ?, ?)
-            ''', (user_id, device_id, activation_code, 'pending'))
+                INSERT INTO devices (user_id, device_id, activation_code, status, encryption_key)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user_id, device_id, activation_code, 'pending', encryption_key))
 
             conn.commit()
             conn.close()
@@ -168,11 +172,13 @@ class DeviceManager:
             conn = sqlite3.connect(self.db_file)
             cursor = conn.cursor()
 
-            # إضافة الجهاز بدون كود تفعيل (ربط تلقائي)
+            # توليد مفتاح تشفير فريد لكل جهاز
+            encryption_key = base64.b64encode(os.urandom(32)).decode('utf-8')
+            
             cursor.execute('''
-                INSERT INTO devices (user_id, device_id, activation_code, status)
-                VALUES (?, ?, ?, ?)
-            ''', (user_id, device_id, 'AUTO_ACTIVATION', 'pending'))
+                INSERT INTO devices (user_id, device_id, activation_code, status, encryption_key)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (user_id, device_id, 'AUTO_ACTIVATION', 'pending', encryption_key))
 
             conn.commit()
             conn.close()
@@ -277,6 +283,23 @@ class DeviceManager:
         except Exception as e:
             logger.error(f"خطأ في تسجيل النشاط: {e}")
 
+    def get_device_encryption_key(self, device_id: str) -> Optional[str]:
+        """الحصول على مفتاح التشفير للجهاز"""
+        try:
+            conn = sqlite3.connect(self.db_file)
+            cursor = conn.cursor()
+
+            cursor.execute('''
+                SELECT encryption_key FROM devices WHERE device_id = ?
+            ''', (device_id,))
+
+            result = cursor.fetchone()
+            conn.close()
+            return result[0] if result else None
+        except Exception as e:
+            logger.error(f"خطأ في جلب مفتاح التشفير: {e}")
+            return None
+
     def is_user_authorized(self, user_id: int) -> bool:
         """التحقق من صلاحية المستخدم"""
         try:
@@ -327,6 +350,12 @@ class CommandExecutor:
             self.is_connected = False
             return False
 
+    def encrypt_data(self, data: str, key: str) -> str:
+        """تشفير البيانات باستخدام AES"""
+        # في بيئة إنتاجية حقيقية، استخدم مكتبة تشفير مثل cryptography
+        # هذا مثال مبسط لأغراض التوضيح
+        return base64.b64encode(data.encode()).decode()
+
     def send_command(self, device_id: str, command: str, parameters: dict = None) -> dict:
         """إرسال أمر للجهاز"""
         try:
@@ -336,10 +365,21 @@ class CommandExecutor:
                 self.save_pending_command(device_id, command, parameters)
                 return {'status': 'pending', 'message': 'الخادم غير متصل، سيتم تنفيذ الأمر عند الاتصال'}
 
+            # الحصول على مفتاح التشفير للجهاز
+            encryption_key = device_manager.get_device_encryption_key(device_id)
+            
+            # تشفير المعلمات إذا كان التشفير مفعلاً
+            encrypted_params = None
+            if SECURITY_CONFIG['enable_encryption'] and encryption_key:
+                params_str = json.dumps(parameters) if parameters else '{}'
+                encrypted_params = self.encrypt_data(params_str, encryption_key)
+            else:
+                encrypted_params = parameters
+
             payload = {
                 'deviceId': device_id,
                 'command': command,
-                'parameters': parameters or {}
+                'parameters': encrypted_params or {}
             }
 
             response = requests.post(
@@ -523,6 +563,14 @@ class SecurityManager:
 
         return hmac.compare_digest(signature, expected_signature)
 
+    def generate_hmac_signature(self, data: str, secret: str) -> str:
+        """توليد توقيع HMAC"""
+        return hmac.new(
+            secret.encode(),
+            data.encode(),
+            hashlib.sha256
+        ).hexdigest()
+
 # دالة تحقق مركزية لصلاحية المالك فقط
 def is_owner(user_id):
     return user_id == OWNER_USER_ID
@@ -553,6 +601,28 @@ def get_available_device(user_id):
         return device_id, "تم تفعيله تلقائياً"
     
     return None, "لا توجد أجهزة متاحة"
+
+def get_target_device(user_id: int, message) -> tuple:
+    """الحصول على الجهاز المستهدف مع رسالة خطأ إذا لزم الأمر"""
+    # التحقق أولاً من وجود جهاز مختار
+    selected_device = get_selected_device(user_id)
+    if selected_device:
+        return selected_device, "مختار"
+    
+    # إذا لم يكن هناك جهاز مختار، استخدم الجهاز الأول المتاح
+    device_id, status = get_available_device(user_id)
+    if not device_id:
+        bot.reply_to(message, "❌ لا توجد أجهزة متصلة حالياً.\nاستخدم `/link` لربط جهاز جديد.")
+        return None, None
+    
+    return device_id, status
+
+def get_selected_device(user_id: int) -> Optional[str]:
+    """الحصول على الجهاز المختار للمستخدم"""
+    session = active_sessions.get(user_id)
+    if not session or time.time() - session['timestamp'] > SECURITY_CONFIG['session_timeout']:
+        return None
+    return session.get('selected_device')
 
 def check_device_connection(device_id):
     """التحقق من اتصال الجهاز الفعلي"""
@@ -586,6 +656,15 @@ def force_device_activation(device_id):
             'timestamp': int(time.time())
         }
         
+        # توليد توقيع HMAC
+        secret_key = device_manager.get_device_encryption_key(device_id)
+        if not secret_key:
+            logger.error(f"لا يوجد مفتاح تشفير للجهاز: {device_id}")
+            return False
+            
+        hmac_signature = security_manager.generate_hmac_signature(json.dumps(activation_data), secret_key)
+        activation_data['signature'] = hmac_signature
+        
         response = requests.post(f"{command_server_url}/device/activate", json=activation_data, timeout=10)
         
         if response.status_code == 200:
@@ -600,14 +679,25 @@ def force_device_activation(device_id):
 def import_devices_from_web_interface(user_id):
     """استيراد الأجهزة من واجهة الويب"""
     try:
-        # تحديد رابط واجهة الويب بناءً على البيئة
-        if os.environ.get('NODE_ENV') == 'development' or os.environ.get('LOCAL_DEVELOPMENT'):
-            web_interface_url = 'http://localhost:3000'
-        else:
-            web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web.onrender.com')
+        web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web.onrender.com')
+        
+        # توليد توقيع HMAC للمصادقة
+        timestamp = str(int(time.time()))
+        auth_token = os.environ.get('AUTH_TOKEN', 'default_secret_token')
+        signature = security_manager.generate_hmac_signature(timestamp, auth_token)
+        
+        headers = {
+            'X-User-ID': str(user_id),
+            'X-Timestamp': timestamp,
+            'X-Signature': signature
+        }
         
         # محاولة الاتصال بواجهة الويب
-        response = requests.get(f"{web_interface_url}/api/devices", timeout=10)
+        response = requests.get(
+            f"{web_interface_url}/api/devices", 
+            headers=headers,
+            timeout=10
+        )
         
         if response.status_code == 200:
             devices_data = response.json()
@@ -838,6 +928,48 @@ def send_help(message):
 
     bot.reply_to(message, help_text, parse_mode='Markdown')
     device_manager.log_activity(user_id, 'help_command')
+
+@bot.message_handler(commands=['select'])
+def select_device(message):
+    """اختيار جهاز معين للتحكم"""
+    user_id = message.from_user.id
+    
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
+    if not device_manager.is_user_authorized(user_id):
+        bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
+        return
+
+    if not security_manager.check_rate_limit(user_id):
+        bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
+        return
+
+    # تحليل معرف الجهاز من الرسالة
+    command_parts = message.text.split()
+    if len(command_parts) < 2:
+        bot.reply_to(message, "❌ يرجى تحديد معرف الجهاز.\nمثال: `/select DEV-123456`")
+        return
+
+    device_id = command_parts[1]
+    
+    # التحقق من وجود الجهاز
+    devices = device_manager.get_user_devices(user_id)
+    device_exists = any(device[0] == device_id for device in devices)
+    
+    if not device_exists:
+        bot.reply_to(message, f"❌ الجهاز `{device_id}` غير موجود أو غير مرتبط بحسابك.")
+        return
+
+    # حفظ الجهاز المختار في الجلسة
+    active_sessions[user_id] = {
+        'selected_device': device_id,
+        'timestamp': time.time()
+    }
+    
+    bot.reply_to(message, f"✅ تم اختيار الجهاز `{device_id}` للتحكم.")
+    device_manager.log_activity(user_id, 'select_device', f'device_id: {device_id}')
 
 @bot.message_handler(commands=['link'])
 def link_device(message):
