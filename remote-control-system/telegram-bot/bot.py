@@ -2020,6 +2020,6 @@ if __name__ == "__main__":
     logger.info("💾 التخزين المحلي مفعل")
 
     try:
-        bot.polling(none_stop=True, interval=0)
+        bot.polling(none_stop=True, interval=1, skip_pending=True, timeout=60)
     except Exception as e:
         logger.error(f"خطأ في تشغيل البوت: {e}")
