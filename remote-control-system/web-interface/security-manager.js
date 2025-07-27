@@ -43,8 +43,8 @@ class SecurityManager {
     // تشفير البيانات
     encryptData(data) {
         try {
-            const iv = crypto.randomBytes(16);
-            const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(this.securityConfig.encryptionKey, 'hex'), iv);
+                const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', Buffer.from(this.securityConfig.encryptionKey, 'hex'), iv);
             let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
             encrypted += cipher.final('hex');
             return iv.toString('hex') + ':' + encrypted;
@@ -59,7 +59,7 @@ class SecurityManager {
         try {
             const [ivHex, encrypted] = encryptedData.split(':');
             const iv = Buffer.from(ivHex, 'hex');
-            const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(this.securityConfig.encryptionKey, 'hex'), iv);
+            const decipher = crypto.createDecipheriv('aes-256-gcm', Buffer.from(this.securityConfig.encryptionKey, 'hex'), iv);
             let decrypted = decipher.update(encrypted, 'hex', 'utf8');
             decrypted += decipher.final('utf8');
             return JSON.parse(decrypted);
