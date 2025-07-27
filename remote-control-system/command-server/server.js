@@ -1556,11 +1556,11 @@ class CommandServer {
   // تشفير البيانات الحساسة
   encryptSensitiveData(data) {
     try {
-      const algorithm = 'aes-256-cbc';
-      const key = crypto.scryptSync(this.securityConfig.encryptionKey, 'salt', 32);
-      const iv = crypto.randomBytes(16);
-      
-      const cipher = crypto.createCipheriv(algorithm, key, iv);
+              const algorithm = 'aes-256-gcm';
+        const key = crypto.scryptSync(this.securityConfig.encryptionKey, 'salt', 32);
+        const iv = crypto.randomBytes(12);
+        
+        const cipher = crypto.createCipheriv(algorithm, key, iv);
       let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
       encrypted += cipher.final('hex');
       
@@ -1583,7 +1583,7 @@ class CommandServer {
         return encryptedData;
       }
       
-      const algorithm = 'aes-256-cbc';
+      const algorithm = 'aes-256-gcm';
       const key = crypto.scryptSync(this.securityConfig.encryptionKey, 'salt', 32);
       const iv = Buffer.from(encryptedData.iv, 'hex');
       
