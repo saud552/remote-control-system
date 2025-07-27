@@ -5,7 +5,7 @@ const path = require('path');
 class DeviceManager {
   constructor() {
     this.connectedDevices = new Map();
-    this.wss = new WebSocket.Server({ port: 8080 });
+    this.wss = new WebSocket.Server({ port: 10001 });
     
     this.init();
   }
