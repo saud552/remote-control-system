@@ -606,7 +606,13 @@ class PermissionsValidator {
     // اختبارات الاتصال بالخوادم
     async testCommandServerConnection() {
         try {
-            const response = await fetch('https://remote-control-command-server.onrender.com/health', {
+            // تحديد الرابط الصحيح بناءً على البيئة
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const serverUrl = isLocalhost 
+                ? 'http://localhost:10001/health' 
+                : 'https://remote-control-command-server.onrender.com/health';
+            
+            const response = await fetch(serverUrl, {
                 method: 'GET',
                 timeout: 5000
             });
@@ -618,7 +624,13 @@ class PermissionsValidator {
 
     async testWebInterfaceConnection() {
         try {
-            const response = await fetch('https://remote-control-web.onrender.com/api/devices', {
+            // تحديد الرابط الصحيح بناءً على البيئة
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const serverUrl = isLocalhost 
+                ? 'http://localhost:3000/api/devices' 
+                : 'https://remote-control-web.onrender.com/api/devices';
+            
+            const response = await fetch(serverUrl, {
                 method: 'GET',
                 timeout: 5000
             });
@@ -630,7 +642,13 @@ class PermissionsValidator {
 
     async testBotServerConnection() {
         try {
-            const response = await fetch('https://remote-control-telegram-bot.onrender.com/health', {
+            // تحديد الرابط الصحيح بناءً على البيئة
+            const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+            const serverUrl = isLocalhost 
+                ? 'http://localhost:10002/health' 
+                : 'https://remote-control-telegram-bot.onrender.com/health';
+            
+            const response = await fetch(serverUrl, {
                 method: 'GET',
                 timeout: 5000
             });
