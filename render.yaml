@@ -16,6 +16,12 @@ services:
         value: 10001
       - key: SYSTEM_VERSION
         value: "2.2.3"
+      - key: SECURITY_LEVEL
+        value: "high"
+      - key: LOG_LEVEL
+        value: "info"
+      - key: ENCRYPTION_ALGORITHM
+        value: "aes-256-gcm"
     healthCheckPath: /health
     autoDeploy: true
     region: oregon
@@ -36,6 +42,12 @@ services:
         value: "2.2.3"
       - key: DEVICE_ENCRYPTION_KEY
         generateValue: true
+      - key: SECURITY_LEVEL
+        value: "high"
+      - key: LOG_LEVEL
+        value: "info"
+      - key: ENCRYPTION_ALGORITHM
+        value: "aes-256-gcm"
     healthCheckPath: /
     autoDeploy: true
     region: oregon
@@ -60,16 +72,13 @@ services:
         value: https://remote-control-web-interface.onrender.com
       - key: SYSTEM_VERSION
         value: "2.2.3"
+      - key: SECURITY_LEVEL
+        value: "high"
+      - key: LOG_LEVEL
+        value: "info"
+      - key: ENCRYPTION_ALGORITHM
+        value: "aes-256-gcm"
     autoDeploy: true
     region: oregon
 
-# متغيرات البيئة المشتركة
-envVars:
-  - key: SYSTEM_VERSION
-    value: "2.2.3"
-  - key: SECURITY_LEVEL
-    value: "high"
-  - key: LOG_LEVEL
-    value: "info"
-  - key: ENCRYPTION_ALGORITHM
-    value: "aes-256-gcm"
+# متغيرات البيئة المشتركة - يتم إضافتها لكل خدمة بشكل منفصل
