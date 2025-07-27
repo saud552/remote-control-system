@@ -1,6 +1,6 @@
 {
   "name": "advanced-remote-control-web-interface",
-  "version": "2.0.0",
+  "version": "2.1.6",
   "description": "Advanced Remote Control System Web Interface with Advanced Algorithms and Malware Support",
   "main": "server.js",
   "scripts": {
