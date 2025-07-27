@@ -679,7 +679,7 @@ def force_device_activation(device_id):
 def import_devices_from_web_interface(user_id):
     """استيراد الأجهزة من واجهة الويب"""
     try:
-        web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web.onrender.com')
+        web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web-interface.onrender.com')
         
         # توليد توقيع HMAC للمصادقة
         timestamp = str(int(time.time()))
@@ -1000,7 +1000,7 @@ def link_device(message):
     # إضافة الجهاز بدون كود تفعيل (ربط تلقائي)
     if device_manager.add_device_auto(user_id, device_id):
         # الحصول على رابط Render من المتغيرات البيئية
-        web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web.onrender.com')
+        web_interface_url = os.environ.get('WEB_INTERFACE_URL', 'https://remote-control-web-interface.onrender.com')
         
         link_text = f"""
 🔗 **رابط ربط الجهاز**
