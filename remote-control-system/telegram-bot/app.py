@@ -10,6 +10,7 @@ import threading
 import time
 import logging
 import sqlite3
+from datetime import datetime
 from flask import Flask, jsonify, request
 from bot import bot, logger as bot_logger, setup_authorized_users, device_manager, DB_FILE, SECURITY_CONFIG
 from bot import command_executor as bot_command_executor
@@ -95,6 +96,46 @@ def status():
     except Exception as e:
         flask_logger.error(f"Status check failed: {e}")
         return jsonify({"error": str(e)}), 500
+
+@app.route('/webhook', methods=['POST'])
+def webhook():
+    """استقبال النتائج من خادم الأوامر"""
+    try:
+        # التحقق من التوكن
+        auth_token = request.headers.get('X-Auth-Token')
+        if auth_token != os.environ.get('WEBHOOK_SECRET', 'secret'):
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        data = request.get_json()
+        command = data.get('command')
+        result = data.get('result')
+        error = data.get('error')
+        timestamp = data.get('timestamp')
+        
+        flask_logger.info(f"📨 استقبال نتيجة أمر: {command}")
+        
+        if command == 'backup_contacts':
+            if error:
+                # إرسال رسالة خطأ للمالك
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في نسخ جهات الاتصال:\n{error}"
+                )
+            else:
+                # إرسال النتيجة للمالك
+                contacts_count = result.get('count', 0) if result else 0
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"✅ تم نسخ جهات الاتصال بنجاح!\n"
+                    f"📊 عدد الجهات: {contacts_count}\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        return jsonify({'status': 'success'}), 200
+        
+    except Exception as e:
+        flask_logger.error(f"❌ خطأ في webhook: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/restart', methods=['POST'])
 def restart_bot():
