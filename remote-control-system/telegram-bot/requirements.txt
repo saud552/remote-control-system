@@ -20,7 +20,7 @@ Flask==3.0.0
 
 # مكتبات معالجة البيانات
 json5==0.9.14
-yaml==6.0.1
+PyYAML==6.0.1
 xmltodict==0.13.0
 pydantic==2.5.0
 
