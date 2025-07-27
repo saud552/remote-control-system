@@ -322,7 +322,8 @@ class CommandExecutor:
             response = requests.get(f'{self.server_url}/stats', timeout=5)
             self.is_connected = response.status_code == 200
             return self.is_connected
-        except:
+        except Exception as e:
+            logger.error(f"خطأ في فحص الاتصال: {e}")
             self.is_connected = False
             return False
 
