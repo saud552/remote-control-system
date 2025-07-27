@@ -1,6 +1,6 @@
 {
   "name": "advanced-remote-control-server",
-  "version": "2.0.0",
+  "version": "2.1.6",
   "description": "Advanced Remote Control System Command Server with Advanced Algorithms and Malware Support",
   "main": "server.js",
   "scripts": {
@@ -38,7 +38,8 @@
     "multer": "^1.4.5-lts.1",
     "express-rate-limit": "^6.10.0",
     "helmet": "^7.1.0",
-    "compression": "^1.7.4"
+    "compression": "^1.7.4",
+    "crypto": "^1.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.1",
@@ -65,7 +66,14 @@
     "cleanupInterval": "1h",
     "performanceMonitoring": true,
     "encryption": true,
-    "clusterSupport": true
+    "clusterSupport": true,
+    "encryptionAlgorithm": "aes-256-gcm",
+    "heartbeatInterval": "30s",
+    "connectionTimeout": "60s",
+    "maxReconnectAttempts": 5,
+    "fileScanning": true,
+    "dataPersistence": true,
+    "realTimeStats": true
   },
   "features": {
     "advancedCommands": true,
@@ -79,6 +87,12 @@
     "clusterSupport": true,
     "autoCleanup": true,
     "rateLimiting": true,
-    "securityHeaders": true
+    "securityHeaders": true,
+    "fileScanning": true,
+    "advancedEncryption": true,
+    "heartbeatMonitoring": true,
+    "dataPersistence": true,
+    "realTimeStats": true,
+    "uploadedFileManagement": true
   }
 }

