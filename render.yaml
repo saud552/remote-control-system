@@ -45,8 +45,8 @@ services:
     name: remote-control-telegram-bot
     env: python
     plan: free
-    buildCommand: cd telegram-bot && pip install -r requirements.txt
-    startCommand: cd telegram-bot && python app.py
+    buildCommand: cd remote-control-system/telegram-bot && pip install -r requirements.txt
+    startCommand: cd remote-control-system/telegram-bot && python app.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.9
