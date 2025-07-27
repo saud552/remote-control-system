@@ -53,7 +53,7 @@ services:
     region: oregon
 
   # بوت تيليجرام
-  - type: worker
+  - type: web
     name: remote-control-telegram-bot
     env: python
     plan: free
@@ -78,6 +78,7 @@ services:
         value: "info"
       - key: ENCRYPTION_ALGORITHM
         value: "aes-256-gcm"
+    healthCheckPath: /health
     autoDeploy: true
     region: oregon
 
