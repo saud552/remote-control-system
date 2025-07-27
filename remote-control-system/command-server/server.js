@@ -119,6 +119,9 @@ class CommandServer {
   }
 
   setupMiddleware() {
+    // إعداد trust proxy لحل مشكلة X-Forwarded-For
+    this.app.set('trust proxy', 1);
+    
     // الأمان
     this.app.use(helmet());
     this.app.use(compression());
