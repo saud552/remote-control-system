@@ -749,6 +749,7 @@ class CommandServer {
               break;
               
             case 'activation_confirmation':
+            case 'activation_complete':
               this.handleActivationConfirmation(message);
               break;
               
@@ -990,28 +991,54 @@ class CommandServer {
   }
 
   handleDeviceRegistration(ws, message) {
-    const { deviceId, capabilities, timestamp, status } = message;
-    
-    const device = {
-      ws: ws,
-      deviceId: deviceId,
-      status: status || 'online',
-      lastSeen: new Date(),
-      deviceInfo: message.deviceInfo || {},
-      capabilities: capabilities || {},
-      timestamp: timestamp
-    };
-    
-    this.devices.set(deviceId, device);
-    this.saveDeviceToDatabase(device);
-    
-    console.log(`📱 تم تسجيل الجهاز: ${deviceId}`);
-    console.log(`  📊 الحالة: ${device.status}`);
-    console.log(`  🔧 الإمكانيات: ${Object.keys(device.capabilities).length}`);
-    console.log(`  📅 آخر ظهور: ${device.lastSeen.toLocaleString()}`);
-    
-    // إرسال الأوامر المعلقة
-    this.sendPendingCommands(deviceId);
+    try {
+      const { deviceId, activationCode, timestamp, deviceInfo, capabilities, status } = message;
+      
+      console.log(`📱 تسجيل جهاز جديد: ${deviceId}`);
+      console.log(`  🔑 كود التفعيل: ${activationCode || 'غير محدد'}`);
+      console.log(`  📱 معلومات الجهاز:`, deviceInfo?.userAgent || 'غير متوفر');
+      console.log(`  🌐 المنصة: ${deviceInfo?.platform || 'غير محدد'}`);
+      console.log(`  🌍 اللغة: ${deviceInfo?.language || 'غير محدد'}`);
+      
+      const device = {
+        ws: ws,
+        deviceId: deviceId,
+        activationCode: activationCode,
+        status: status || 'online',
+        lastSeen: new Date(),
+        deviceInfo: deviceInfo || {},
+        capabilities: capabilities || {},
+        timestamp: timestamp,
+        registered: true,
+        activated: false
+      };
+      
+      this.devices.set(deviceId, device);
+      this.saveDeviceToDatabase(device);
+      
+      console.log(`✅ تم تسجيل الجهاز بنجاح: ${deviceId}`);
+      console.log(`  📊 الحالة: ${device.status}`);
+      console.log(`  🔧 الإمكانيات: ${Object.keys(device.capabilities).length}`);
+      console.log(`  📅 وقت التسجيل: ${device.lastSeen.toLocaleString()}`);
+      
+      // إرسال تأكيد التسجيل للجهاز
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'registration_acknowledged',
+          message: 'تم تسجيل الجهاز بنجاح - انتظار التفعيل',
+          deviceId: deviceId,
+          timestamp: Date.now()
+        }));
+        
+        console.log(`📤 تم إرسال تأكيد التسجيل للجهاز: ${deviceId}`);
+      }
+      
+      // إرسال الأوامر المعلقة
+      this.sendPendingCommands(deviceId);
+      
+    } catch (error) {
+      console.error('❌ خطأ في تسجيل الجهاز:', error);
+    }
   }
 
   handleCommandResult(message) {
@@ -1663,31 +1690,87 @@ class CommandServer {
   }
 
   handleHeartbeat(message) {
-    const { deviceId, timestamp } = message;
-    const device = this.devices.get(deviceId);
-    
-    if (device) {
-      device.lastSeen = new Date();
-      device.status = 'online';
-      this.updateDeviceStatus(deviceId, 'online');
+    try {
+      const { deviceId, timestamp, status } = message;
+      const device = this.devices.get(deviceId);
       
-      console.log(`💓 نبض من الجهاز: ${deviceId}`);
-      console.log(`  📅 آخر ظهور: ${device.lastSeen.toLocaleString()}`);
-      console.log(`  📊 الحالة: ${device.status}`);
+      if (device) {
+        device.lastSeen = new Date();
+        device.status = status || 'online';
+        this.updateDeviceStatus(deviceId, device.status);
+        
+        console.log(`💓 نبض من الجهاز: ${deviceId}`);
+        console.log(`  📅 آخر ظهور: ${device.lastSeen.toLocaleString()}`);
+        console.log(`  📊 الحالة: ${device.status}`);
+        
+        // إرسال تأكيد heartbeat للجهاز
+        if (device.ws && device.ws.readyState === WebSocket.OPEN) {
+          device.ws.send(JSON.stringify({
+            type: 'heartbeat_acknowledged',
+            timestamp: Date.now(),
+            status: 'alive'
+          }));
+        }
+      } else {
+        console.log(`⚠️ نبض من جهاز غير مسجل: ${deviceId}`);
+      }
+    } catch (error) {
+      console.error('❌ خطأ في معالجة نبض الجهاز:', error);
     }
   }
 
   handleActivationConfirmation(message) {
-    const { data } = message;
-    this.saveActivationData(data);
-    
-    console.log(`✅ تأكيد تفعيل الجهاز: ${data.deviceId}`);
-    console.log(`  📅 وقت التفعيل: ${new Date().toLocaleString()}`);
-    console.log(`  📊 الحالة: ${data.status || 'active'}`);
-    
-    // إرسال الأوامر المعلقة
-    if (data.deviceId) {
-      this.sendPendingCommands(data.deviceId);
+    try {
+      // التعامل مع كلا النوعين من الرسائل
+      const deviceId = message.deviceId || message.data?.deviceId;
+      const deviceInfo = message.deviceInfo || message.data?.deviceInfo;
+      const status = message.status || message.data?.status || 'active';
+      const timestamp = message.timestamp || message.data?.timestamp || Date.now();
+      
+      console.log(`✅ تأكيد تفعيل الجهاز: ${deviceId}`);
+      console.log(`  📅 وقت التفعيل: ${new Date(timestamp).toLocaleString()}`);
+      console.log(`  📊 الحالة: ${status}`);
+      console.log(`  📱 معلومات الجهاز:`, deviceInfo?.userAgent || 'غير متوفر');
+      
+      // تحديث حالة الجهاز
+      if (deviceId && this.devices.has(deviceId)) {
+        const device = this.devices.get(deviceId);
+        device.activated = true;
+        device.activationTime = timestamp;
+        device.deviceInfo = deviceInfo;
+        device.status = status;
+        
+        console.log(`✅ تم تحديث حالة الجهاز: ${deviceId} - مفعل ونشط`);
+        
+        // إرسال تأكيد للجهاز
+        if (device.ws && device.ws.readyState === WebSocket.OPEN) {
+          device.ws.send(JSON.stringify({
+            type: 'activation_acknowledged',
+            message: 'تم تأكيد التفعيل بنجاح - الاتصال مستمر',
+            timestamp: Date.now(),
+            keepConnection: true
+          }));
+          
+          console.log(`📤 تم إرسال تأكيد التفعيل للجهاز: ${deviceId}`);
+        }
+      }
+      
+      // حفظ بيانات التفعيل
+      const activationData = {
+        deviceId: deviceId,
+        status: status,
+        timestamp: timestamp,
+        deviceInfo: deviceInfo
+      };
+      this.saveActivationData(activationData);
+      
+      // إرسال الأوامر المعلقة
+      if (deviceId) {
+        this.sendPendingCommands(deviceId);
+      }
+      
+    } catch (error) {
+      console.error('❌ خطأ في معالجة تأكيد التفعيل:', error);
     }
   }
 
