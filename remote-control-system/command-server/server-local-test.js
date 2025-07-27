@@ -172,14 +172,15 @@ class LocalTestServer {
         console.log('💓 Heartbeat من:', message.deviceId || 'جهاز غير محدد');
     }
     
-    start(port = 4000) {
-        this.server.listen(port, () => {
+    start(port = 10001) {
+        this.server.listen(port, '0.0.0.0', () => {
             console.log('🎯 خادم الاختبار المحلي يعمل على:');
             console.log(`   📡 HTTP: http://localhost:${port}`);
             console.log(`   🔌 WebSocket: ws://localhost:${port}`);
+            console.log(`   🌐 عنوان الاستماع: 0.0.0.0`);
             console.log('');
             console.log('🔧 لاختبار النظام:');
-            console.log('   1. افتح http://localhost:10001 في المتصفح');
+            console.log('   1. افتح http://localhost:3000 في المتصفح');
             console.log('   2. اضغط على "بدء التحديث الآن"');
             console.log('   3. راقب رسائل activation_complete هنا');
             console.log('');
