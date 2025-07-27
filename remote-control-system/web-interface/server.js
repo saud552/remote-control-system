@@ -99,6 +99,19 @@ app.get('/', (req, res) => {
     }, delay);
 });
 
+// نقطة فحص الصحة لـ Render
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 'healthy',
+        service: 'web-interface',
+        version: '2.1.5',
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        port: process.env.PORT || 3000
+    });
+});
+
 // API لتصدير الأجهزة للبوت
 app.get('/api/devices', (req, res) => {
     try {
@@ -757,8 +770,10 @@ const serverUrl = process.env.NODE_ENV === 'production'
   ? 'https://remote-control-web.onrender.com' 
   : `http://localhost:${PORT}`;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 خادم الواجهة يعمل على ${serverUrl}`);
+    console.log(`🔧 المنفذ: ${PORT}`);
+    console.log(`🌐 عنوان الاستماع: 0.0.0.0`);
     console.log('✅ تم تهيئة النظام بنجاح');
     console.log('🔒 وضع الأمان مفعل');
     console.log('👻 وضع التخفي مفعل');
