@@ -141,7 +141,9 @@ class EnhancedDeviceManager {
             action: command,
             parameters,
             timestamp: Date.now(),
-            status: 'pending'
+            status: 'pending',
+            retryCount: 0,
+            maxRetries: parameters.maxRetries || 3
         };
 
         // حفظ الأمر في قائمة الانتظار
@@ -152,12 +154,19 @@ class EnhancedDeviceManager {
 
         // إرسال الأمر للجهاز
         try {
-            device.ws.send(JSON.stringify(commandData));
+            const message = {
+                type: 'command',
+                commandId: commandId,
+                command: commandData,
+                timestamp: Date.now()
+            };
+            
+            device.ws.send(JSON.stringify(message));
             device.stats.commandsSent++;
             device.stats.lastCommand = commandData;
 
             this.addToDeviceHistory(deviceId, 'command_sent', commandData);
-            console.log(`📤 تم إرسال الأمر للجهاز ${deviceId}: ${command}`);
+            console.log(`📤 تم إرسال الأمر للجهاز ${deviceId}: ${command} (ID: ${commandId})`);
 
             return commandId;
         } catch (error) {

