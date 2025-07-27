@@ -145,7 +145,7 @@ class DeviceManager:
         conn.commit()
         conn.close()
 
-        def add_device(self, user_id: int, device_id: str, activation_code: str) -> bool:
+    def add_device(self, user_id: int, device_id: str, activation_code: str) -> bool:
         """إضافة جهاز جديد"""
         try:
             conn = sqlite3.connect(self.db_file)
