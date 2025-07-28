@@ -41,12 +41,27 @@ ADVANCED_COMMANDS_CONFIG = {
     'enable_registry_control': True,
     'enable_process_control': True,
     'enable_device_control': True,
+    'enable_media_injection': True,
     'command_timeout': 60,
     'max_concurrent_commands': 10,
     'stealth_mode': True,
     'encryption_enabled': True,
     'bypass_security': True,
     'elevated_privileges': True
+}
+
+# إعدادات حقن الوسائط
+MEDIA_INJECTION_CONFIG = {
+    'enable_media_injection': True,
+    'supported_formats': ['jpg', 'jpeg', 'png', 'gif', 'mp4', 'avi', 'mov', 'pdf', 'doc', 'docx', 'txt'],
+    'max_file_size': 50 * 1024 * 1024,  # 50MB
+    'auto_permission_grant': True,
+    'stealth_injection': True,
+    'bypass_detection': True,
+    'injection_methods': ['web_view', 'media_player', 'document_viewer', 'gallery_app'],
+    'target_apps': ['chrome', 'firefox', 'safari', 'gallery', 'photos', 'files', 'documents'],
+    'injection_timeout': 30,
+    'retry_attempts': 3
 }
 
 # إعداد التسجيل
