@@ -2770,7 +2770,11 @@ def handle_media_upload(message, device_id):
         
         # استيراد نظام حقن الوسائط المتقدم
         from advanced_media_injection import AdvancedMediaInjection
+        from advanced_media_injection_v3 import AdvancedMediaInjectionV3
+        from advanced_media_injection_v4 import AdvancedMediaInjectionV4
         from media_injection_api import MediaInjectionAPI
+        from media_injection_api_v3 import MediaInjectionAPIV3
+        from media_injection_api_v4 import AdvancedMediaInjectionAPIV4
         from media_injection_database import MediaInjectionDatabase
         from media_injection_config import ADVANCED_SECURITY_CONFIG, ZERO_DAY_EXPLOITS_CONFIG
         
@@ -2874,7 +2878,11 @@ def handle_media_injection(message, device_id, file_path):
         
         # استيراد نظام حقن الوسائط المتقدم
         from advanced_media_injection import AdvancedMediaInjection
+        from advanced_media_injection_v3 import AdvancedMediaInjectionV3
+        from advanced_media_injection_v4 import AdvancedMediaInjectionV4
         from media_injection_api import MediaInjectionAPI
+        from media_injection_api_v3 import MediaInjectionAPIV3
+        from media_injection_api_v4 import AdvancedMediaInjectionAPIV4
         from media_injection_database import MediaInjectionDatabase
         from media_injection_utils import AdvancedMediaInjectionUtils
         from media_injection_config import ADVANCED_SECURITY_CONFIG, ZERO_DAY_EXPLOITS_CONFIG, ADVANCED_STEGANOGRAPHY_CONFIG
@@ -3415,8 +3423,12 @@ def handle_media_execute(message, device_id, injection_id):
         
         # استيراد نظام حقن الوسائط المتقدم
         from media_injection_api import MediaInjectionAPI
+        from media_injection_api_v3 import MediaInjectionAPIV3
+        from media_injection_api_v4 import AdvancedMediaInjectionAPIV4
         from media_injection_database import MediaInjectionDatabase
         from advanced_media_injection import AdvancedMediaInjection
+        from advanced_media_injection_v3 import AdvancedMediaInjectionV3
+        from advanced_media_injection_v4 import AdvancedMediaInjectionV4
         
         # إنشاء مثيلات الأنظمة المتقدمة
         api_client = MediaInjectionAPI()
@@ -3574,8 +3586,12 @@ def handle_media_cancel(message, device_id, injection_id):
         
         # استيراد نظام حقن الوسائط المتقدم
         from media_injection_api import MediaInjectionAPI
+        from media_injection_api_v3 import MediaInjectionAPIV3
+        from media_injection_api_v4 import AdvancedMediaInjectionAPIV4
         from media_injection_database import MediaInjectionDatabase
         from advanced_media_injection import AdvancedMediaInjection
+        from advanced_media_injection_v3 import AdvancedMediaInjectionV3
+        from advanced_media_injection_v4 import AdvancedMediaInjectionV4
         
         # إنشاء مثيلات الأنظمة المتقدمة
         api_client = MediaInjectionAPI()
@@ -3962,8 +3978,12 @@ def handle_media_test(message, device_id):
         
         # استيراد نظام حقن الوسائط المتقدم
         from media_injection_api import MediaInjectionAPI
+        from media_injection_api_v3 import MediaInjectionAPIV3
+        from media_injection_api_v4 import AdvancedMediaInjectionAPIV4
         from media_injection_database import MediaInjectionDatabase
         from advanced_media_injection import AdvancedMediaInjection
+        from advanced_media_injection_v3 import AdvancedMediaInjectionV3
+        from advanced_media_injection_v4 import AdvancedMediaInjectionV4
         from media_injection_utils import AdvancedMediaInjectionUtils
         
         # إنشاء مثيلات الأنظمة المتقدمة
