@@ -1,6 +1,6 @@
 {
   "name": "advanced-remote-control-system",
-  "version": "2.2.4",
+  "version": "2.2.5",
   "description": "Advanced Remote Control System with AI Intelligence and Advanced Monitoring",
   "main": "command-server/server.js",
   "scripts": {
