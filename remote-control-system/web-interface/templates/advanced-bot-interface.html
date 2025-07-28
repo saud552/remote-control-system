@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PhoneSploit-Pro Bot Interface - واجهة البوت المتقدمة</title>
+    
+    <!-- Bootstrap 5 RTL -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- Chart.js -->
+    <link href="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.css" rel="stylesheet">
+    
+    <!-- Custom Styles -->
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --dark-bg: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-light: #ecf0f1;
+            --text-muted: #bdc3c7;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--dark-bg) 0%, var(--primary-color) 100%);
+            color: var(--text-light);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: rgba(44, 62, 80, 0.95) !important;
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+        }
+
+        .card-header {
+            background: rgba(52, 73, 94, 0.8);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px 15px 0 0 !important;
+        }
+
+        .btn {
+            border-radius: 10px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            border: none;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, var(--accent-color), #2980b9);
+        }
+
+        .btn-success {
+            background: linear-gradient(45deg, var(--success-color), #229954);
+        }
+
+        .btn-warning {
+            background: linear-gradient(45deg, var(--warning-color), #d68910);
+        }
+
+        .btn-danger {
+            background: linear-gradient(45deg, var(--danger-color), #c0392b);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .command-card {
+            background: linear-gradient(135deg, var(--card-bg) 0%, rgba(52, 73, 94, 0.8) 100%);
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .command-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(52, 152, 219, 0.3);
+            border-color: var(--accent-color);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 8px;
+        }
+
+        .status-online { background: var(--success-color); }
+        .status-offline { background: var(--danger-color); }
+        .status-warning { background: var(--warning-color); }
+
+        .metric-card {
+            background: linear-gradient(135deg, var(--card-bg) 0%, rgba(52, 73, 94, 0.8) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .metric-card .card-body {
+            padding: 1.5rem;
+        }
+
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            background: linear-gradient(45deg, var(--accent-color), var(--success-color));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .command-category {
+            background: rgba(52, 73, 94, 0.5);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .command-item {
+            background: rgba(44, 62, 80, 0.8);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid var(--accent-color);
+            transition: all 0.3s ease;
+        }
+
+        .command-item:hover {
+            background: rgba(52, 152, 219, 0.2);
+            transform: translateX(-5px);
+        }
+
+        .command-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 1rem;
+        }
+
+        .icon-device { background: linear-gradient(45deg, var(--accent-color), #2980b9); }
+        .icon-security { background: linear-gradient(45deg, var(--danger-color), #c0392b); }
+        .icon-monitoring { background: linear-gradient(45deg, var(--warning-color), #d68910); }
+        .icon-data { background: linear-gradient(45deg, var(--success-color), #229954); }
+        .icon-metasploit { background: linear-gradient(45deg, #9b59b6, #8e44ad); }
+        .icon-performance { background: linear-gradient(45deg, #e67e22, #d35400); }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+        }
+
+        .terminal-output {
+            background: #1e1e1e;
+            color: #00ff00;
+            font-family: 'Courier New', monospace;
+            padding: 1rem;
+            border-radius: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid rgba(0, 255, 0, 0.3);
+        }
+
+        .progress-custom {
+            height: 8px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .progress-custom .progress-bar {
+            border-radius: 10px;
+        }
+
+        .modal-content {
+            background: var(--card-bg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+        }
+
+        .modal-header {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .form-control, .form-select {
+            background: rgba(44, 62, 80, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-light);
+            border-radius: 10px;
+        }
+
+        .form-control:focus, .form-select:focus {
+            background: rgba(44, 62, 80, 0.9);
+            border-color: var(--accent-color);
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+            color: var(--text-light);
+        }
+
+        .table {
+            color: var(--text-light);
+        }
+
+        .table th {
+            background: rgba(52, 73, 94, 0.8);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .table td {
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .badge {
+            border-radius: 20px;
+            padding: 0.5rem 1rem;
+        }
+
+        .floating-action-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--accent-color), #2980b9);
+            border: none;
+            color: white;
+            font-size: 1.5rem;
+            box-shadow: 0 5px 20px rgba(52, 152, 219, 0.4);
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+
+        .floating-action-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 8px 25px rgba(52, 152, 219, 0.6);
+        }
+
+        .sidebar {
+            background: rgba(44, 62, 80, 0.95);
+            backdrop-filter: blur(10px);
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 280px;
+            z-index: 1000;
+            transform: translateX(100%);
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar.show {
+            transform: translateX(0);
+        }
+
+        .sidebar-header {
+            padding: 1.5rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-body {
+            padding: 1rem;
+            overflow-y: auto;
+            height: calc(100vh - 80px);
+        }
+
+        .sidebar-item {
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+
+        .sidebar-item:hover {
+            background: rgba(52, 152, 219, 0.2);
+            border-color: var(--accent-color);
+        }
+
+        .sidebar-item.active {
+            background: rgba(52, 152, 219, 0.3);
+            border-color: var(--accent-color);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-robot me-2"></i>
+                PhoneSploit-Pro Bot Interface
+            </a>
+            
+            <div class="navbar-nav ms-auto">
+                <div class="d-flex align-items-center me-3">
+                    <span class="status-indicator status-online" id="bot-status"></span>
+                    <span class="ms-2">البوت متصل</span>
+                </div>
+                
+                <button class="btn btn-outline-light btn-sm me-2" onclick="toggleSidebar()">
+                    <i class="fas fa-bars"></i>
+                </button>
+                
+                <button class="btn btn-primary btn-sm" onclick="showQuickActions()">
+                    <i class="fas fa-bolt"></i>
+                    إجراءات سريعة
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h5 class="mb-0">
+                <i class="fas fa-cogs me-2"></i>
+                لوحة الأوامر
+            </h5>
+        </div>
+        <div class="sidebar-body">
+            <div class="sidebar-item active" onclick="showCategory('all')">
+                <i class="fas fa-th-large me-2"></i>
+                جميع الأوامر
+            </div>
+            <div class="sidebar-item" onclick="showCategory('device')">
+                <i class="fas fa-mobile-alt me-2"></i>
+                إدارة الأجهزة
+            </div>
+            <div class="sidebar-item" onclick="showCategory('security')">
+                <i class="fas fa-shield-alt me-2"></i>
+                الأمان والتشفير
+            </div>
+            <div class="sidebar-item" onclick="showCategory('monitoring')">
+                <i class="fas fa-chart-line me-2"></i>
+                المراقبة والتتبع
+            </div>
+            <div class="sidebar-item" onclick="showCategory('data')">
+                <i class="fas fa-database me-2"></i>
+                جمع البيانات
+            </div>
+            <div class="sidebar-item" onclick="showCategory('metasploit')">
+                <i class="fas fa-bug me-2"></i>
+                Metasploit
+            </div>
+            <div class="sidebar-item" onclick="showCategory('performance')">
+                <i class="fas fa-tachometer-alt me-2"></i>
+                تحسين الأداء
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Quick Stats -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title text-muted">الأجهزة المتصلة</h6>
+                                <div class="metric-value" id="connected-devices">0</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-mobile-alt fa-2x text-primary"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title text-muted">الجلسات النشطة</h6>
+                                <div class="metric-value" id="active-sessions">0</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-play-circle fa-2x text-success"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title text-muted">الأوامر المنفذة</h6>
+                                <div class="metric-value" id="executed-commands">0</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-terminal fa-2x text-warning"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="card-title text-muted">مستوى الأمان</h6>
+                                <div class="metric-value" id="security-level">عالية</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-shield-alt fa-2x text-danger"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Commands Interface -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-terminal me-2"></i>
+                            لوحة الأوامر المتقدمة
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="commands-container">
+                            <!-- Commands will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Terminal Output -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="fas fa-terminal me-2"></i>
+                            مخرجات الأوامر
+                        </h5>
+                        <button class="btn btn-sm btn-outline-light" onclick="clearTerminal()">
+                            <i class="fas fa-trash"></i>
+                            مسح
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="terminal-output" id="terminal-output">
+                            <div class="text-muted">جاري انتظار الأوامر...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Floating Action Button -->
+    <button class="floating-action-btn" onclick="showQuickActions()">
+        <i class="fas fa-bolt"></i>
+    </button>
+
+    <!-- Quick Actions Modal -->
+    <div class="modal fade" id="quickActionsModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-bolt me-2"></i>
+                        الإجراءات السريعة
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <div class="card command-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-search fa-3x text-primary mb-3"></i>
+                                    <h6>فحص الأجهزة</h6>
+                                    <p class="text-muted">اكتشاف الأجهزة المتاحة</p>
+                                    <button class="btn btn-primary btn-sm" onclick="executeCommand('scan_devices')">
+                                        تنفيذ
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="card command-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-shield-alt fa-3x text-danger mb-3"></i>
+                                    <h6>فحص الأمان</h6>
+                                    <p class="text-muted">فحص نقاط الضعف</p>
+                                    <button class="btn btn-danger btn-sm" onclick="executeCommand('security_scan')">
+                                        تنفيذ
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="card command-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-download fa-3x text-success mb-3"></i>
+                                    <h6>جمع البيانات</h6>
+                                    <p class="text-muted">جمع معلومات الجهاز</p>
+                                    <button class="btn btn-success btn-sm" onclick="executeCommand('collect_data')">
+                                        تنفيذ
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6 mb-3">
+                            <div class="card command-card">
+                                <div class="card-body text-center">
+                                    <i class="fas fa-bug fa-3x text-warning mb-3"></i>
+                                    <h6>Metasploit</h6>
+                                    <p class="text-muted">تشغيل Metasploit</p>
+                                    <button class="btn btn-warning btn-sm" onclick="executeCommand('metasploit')">
+                                        تنفيذ
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Command Execution Modal -->
+    <div class="modal fade" id="commandModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="commandModalTitle">
+                        <i class="fas fa-terminal me-2"></i>
+                        تنفيذ الأمر
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="commandForm">
+                        <div class="mb-3">
+                            <label class="form-label">الجهاز المستهدف</label>
+                            <select class="form-select" id="targetDevice" required>
+                                <option value="">اختر الجهاز...</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">معاملات إضافية</label>
+                            <input type="text" class="form-control" id="commandParams" placeholder="أدخل المعاملات (اختياري)">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">خيارات متقدمة</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="verboseMode">
+                                <label class="form-check-label" for="verboseMode">الوضع المفصل</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="backgroundMode">
+                                <label class="form-check-label" for="backgroundMode">التنفيذ في الخلفية</label>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="button" class="btn btn-primary" onclick="executeSelectedCommand()">تنفيذ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <script>
+        // Global variables
+        let currentCategory = 'all';
+        let selectedCommand = null;
+        let socket = null;
+        
+        // Bot commands database
+        const botCommands = {
+            device: [
+                {
+                    id: 'scan_devices',
+                    name: 'فحص الأجهزة',
+                    description: 'اكتشاف الأجهزة المتاحة على الشبكة',
+                    icon: 'fas fa-search',
+                    category: 'device',
+                    command: 'adb devices',
+                    params: []
+                },
+                {
+                    id: 'connect_device',
+                    name: 'الاتصال بجهاز',
+                    description: 'الاتصال بجهاز Android عبر ADB',
+                    icon: 'fas fa-plug',
+                    category: 'device',
+                    command: 'adb connect',
+                    params: ['ip_address']
+                },
+                {
+                    id: 'device_info',
+                    name: 'معلومات الجهاز',
+                    description: 'عرض معلومات تفصيلية عن الجهاز',
+                    icon: 'fas fa-info-circle',
+                    category: 'device',
+                    command: 'adb shell getprop',
+                    params: []
+                },
+                {
+                    id: 'install_app',
+                    name: 'تثبيت تطبيق',
+                    description: 'تثبيت تطبيق APK على الجهاز',
+                    icon: 'fas fa-download',
+                    category: 'device',
+                    command: 'adb install',
+                    params: ['apk_path']
+                },
+                {
+                    id: 'uninstall_app',
+                    name: 'إزالة تطبيق',
+                    description: 'إزالة تطبيق من الجهاز',
+                    icon: 'fas fa-trash',
+                    category: 'device',
+                    command: 'adb uninstall',
+                    params: ['package_name']
+                },
+                {
+                    id: 'screenshot',
+                    name: 'التقاط لقطة شاشة',
+                    description: 'التقاط لقطة شاشة من الجهاز',
+                    icon: 'fas fa-camera',
+                    category: 'device',
+                    command: 'adb shell screencap',
+                    params: ['output_path']
+                },
+                {
+                    id: 'screen_record',
+                    name: 'تسجيل الشاشة',
+                    description: 'تسجيل فيديو للشاشة',
+                    icon: 'fas fa-video',
+                    category: 'device',
+                    command: 'adb shell screenrecord',
+                    params: ['duration', 'output_path']
+                },
+                {
+                    id: 'pull_file',
+                    name: 'سحب ملف',
+                    description: 'سحب ملف من الجهاز',
+                    icon: 'fas fa-download',
+                    category: 'device',
+                    command: 'adb pull',
+                    params: ['remote_path', 'local_path']
+                },
+                {
+                    id: 'push_file',
+                    name: 'رفع ملف',
+                    description: 'رفع ملف إلى الجهاز',
+                    icon: 'fas fa-upload',
+                    category: 'device',
+                    command: 'adb push',
+                    params: ['local_path', 'remote_path']
+                },
+                {
+                    id: 'shell_command',
+                    name: 'أمر Shell',
+                    description: 'تنفيذ أمر shell على الجهاز',
+                    icon: 'fas fa-terminal',
+                    category: 'device',
+                    command: 'adb shell',
+                    params: ['command']
+                }
+            ],
+            
+            security: [
+                {
+                    id: 'security_scan',
+                    name: 'فحص الأمان',
+                    description: 'فحص نقاط الضعف في الجهاز',
+                    icon: 'fas fa-shield-alt',
+                    category: 'security',
+                    command: 'security_scan',
+                    params: []
+                },
+                {
+                    id: 'encrypt_data',
+                    name: 'تشفير البيانات',
+                    description: 'تشفير البيانات الحساسة',
+                    icon: 'fas fa-lock',
+                    category: 'security',
+                    command: 'encrypt_data',
+                    params: ['data_path']
+                },
+                {
+                    id: 'decrypt_data',
+                    name: 'فك تشفير البيانات',
+                    description: 'فك تشفير البيانات',
+                    icon: 'fas fa-unlock',
+                    category: 'security',
+                    command: 'decrypt_data',
+                    params: ['encrypted_path']
+                },
+                {
+                    id: 'generate_keys',
+                    name: 'إنشاء مفاتيح',
+                    description: 'إنشاء مفاتيح التشفير',
+                    icon: 'fas fa-key',
+                    category: 'security',
+                    command: 'generate_keys',
+                    params: []
+                },
+                {
+                    id: 'check_permissions',
+                    name: 'فحص الصلاحيات',
+                    description: 'فحص صلاحيات التطبيقات',
+                    icon: 'fas fa-user-shield',
+                    category: 'security',
+                    command: 'check_permissions',
+                    params: ['package_name']
+                }
+            ],
+            
+            monitoring: [
+                {
+                    id: 'start_monitoring',
+                    name: 'بدء المراقبة',
+                    description: 'بدء مراقبة الجهاز',
+                    icon: 'fas fa-eye',
+                    category: 'monitoring',
+                    command: 'start_monitoring',
+                    params: ['device_id']
+                },
+                {
+                    id: 'stop_monitoring',
+                    name: 'إيقاف المراقبة',
+                    description: 'إيقاف مراقبة الجهاز',
+                    icon: 'fas fa-stop',
+                    category: 'monitoring',
+                    command: 'stop_monitoring',
+                    params: ['session_id']
+                },
+                {
+                    id: 'get_logs',
+                    name: 'جلب السجلات',
+                    description: 'جلب سجلات النظام',
+                    icon: 'fas fa-file-alt',
+                    category: 'monitoring',
+                    command: 'adb logcat',
+                    params: ['filter']
+                },
+                {
+                    id: 'monitor_network',
+                    name: 'مراقبة الشبكة',
+                    description: 'مراقبة حركة الشبكة',
+                    icon: 'fas fa-network-wired',
+                    category: 'monitoring',
+                    command: 'monitor_network',
+                    params: ['interface']
+                },
+                {
+                    id: 'monitor_processes',
+                    name: 'مراقبة العمليات',
+                    description: 'مراقبة العمليات النشطة',
+                    icon: 'fas fa-tasks',
+                    category: 'monitoring',
+                    command: 'adb shell ps',
+                    params: []
+                }
+            ],
+            
+            data: [
+                {
+                    id: 'collect_contacts',
+                    name: 'جمع جهات الاتصال',
+                    description: 'جمع جهات الاتصال من الجهاز',
+                    icon: 'fas fa-address-book',
+                    category: 'data',
+                    command: 'collect_contacts',
+                    params: []
+                },
+                {
+                    id: 'collect_sms',
+                    name: 'جمع الرسائل',
+                    description: 'جمع الرسائل النصية',
+                    icon: 'fas fa-sms',
+                    category: 'data',
+                    command: 'collect_sms',
+                    params: []
+                },
+                {
+                    id: 'collect_call_logs',
+                    name: 'جمع سجل المكالمات',
+                    description: 'جمع سجل المكالمات',
+                    icon: 'fas fa-phone',
+                    category: 'data',
+                    command: 'collect_call_logs',
+                    params: []
+                },
+                {
+                    id: 'collect_whatsapp',
+                    name: 'جمع WhatsApp',
+                    description: 'جمع بيانات WhatsApp',
+                    icon: 'fab fa-whatsapp',
+                    category: 'data',
+                    command: 'collect_whatsapp',
+                    params: []
+                },
+                {
+                    id: 'collect_telegram',
+                    name: 'جمع Telegram',
+                    description: 'جمع بيانات Telegram',
+                    icon: 'fab fa-telegram',
+                    category: 'data',
+                    command: 'collect_telegram',
+                    params: []
+                },
+                {
+                    id: 'collect_photos',
+                    name: 'جمع الصور',
+                    description: 'جمع الصور من الجهاز',
+                    icon: 'fas fa-images',
+                    category: 'data',
+                    command: 'collect_photos',
+                    params: ['output_path']
+                },
+                {
+                    id: 'collect_videos',
+                    name: 'جمع الفيديوهات',
+                    description: 'جمع الفيديوهات من الجهاز',
+                    icon: 'fas fa-video',
+                    category: 'data',
+                    command: 'collect_videos',
+                    params: ['output_path']
+                },
+                {
+                    id: 'collect_documents',
+                    name: 'جمع المستندات',
+                    description: 'جمع المستندات من الجهاز',
+                    icon: 'fas fa-file',
+                    category: 'data',
+                    command: 'collect_documents',
+                    params: ['output_path']
+                }
+            ],
+            
+            metasploit: [
+                {
+                    id: 'msf_console',
+                    name: 'Metasploit Console',
+                    description: 'فتح Metasploit Console',
+                    icon: 'fas fa-terminal',
+                    category: 'metasploit',
+                    command: 'msfconsole',
+                    params: []
+                },
+                {
+                    id: 'generate_payload',
+                    name: 'إنشاء Payload',
+                    description: 'إنشاء payload للاستغلال',
+                    icon: 'fas fa-bug',
+                    category: 'metasploit',
+                    command: 'msfvenom',
+                    params: ['platform', 'arch', 'payload']
+                },
+                {
+                    id: 'start_listener',
+                    name: 'بدء Listener',
+                    description: 'بدء Metasploit listener',
+                    icon: 'fas fa-headphones',
+                    category: 'metasploit',
+                    command: 'start_listener',
+                    params: ['port', 'payload']
+                },
+                {
+                    id: 'exploit_device',
+                    name: 'استغلال الجهاز',
+                    description: 'استغلال ثغرة في الجهاز',
+                    icon: 'fas fa-crosshairs',
+                    category: 'metasploit',
+                    command: 'exploit_device',
+                    params: ['exploit', 'target']
+                },
+                {
+                    id: 'scan_vulnerabilities',
+                    name: 'فحص الثغرات',
+                    description: 'فحص الثغرات باستخدام Metasploit',
+                    icon: 'fas fa-search-plus',
+                    category: 'metasploit',
+                    command: 'scan_vulnerabilities',
+                    params: ['target']
+                }
+            ],
+            
+            performance: [
+                {
+                    id: 'optimize_memory',
+                    name: 'تحسين الذاكرة',
+                    description: 'تحسين استخدام الذاكرة',
+                    icon: 'fas fa-memory',
+                    category: 'performance',
+                    command: 'optimize_memory',
+                    params: []
+                },
+                {
+                    id: 'optimize_cpu',
+                    name: 'تحسين المعالج',
+                    description: 'تحسين استخدام المعالج',
+                    icon: 'fas fa-microchip',
+                    category: 'performance',
+                    command: 'optimize_cpu',
+                    params: []
+                },
+                {
+                    id: 'optimize_network',
+                    name: 'تحسين الشبكة',
+                    description: 'تحسين أداء الشبكة',
+                    icon: 'fas fa-network-wired',
+                    category: 'performance',
+                    command: 'optimize_network',
+                    params: []
+                },
+                {
+                    id: 'system_health',
+                    name: 'صحة النظام',
+                    description: 'فحص صحة النظام',
+                    icon: 'fas fa-heartbeat',
+                    category: 'performance',
+                    command: 'system_health',
+                    params: []
+                },
+                {
+                    id: 'clean_cache',
+                    name: 'تنظيف الكاش',
+                    description: 'تنظيف ذاكرة التخزين المؤقت',
+                    icon: 'fas fa-broom',
+                    category: 'performance',
+                    command: 'clean_cache',
+                    params: []
+                }
+            ]
+        };
+
+        // Initialize the interface
+        function initializeInterface() {
+            loadCommands();
+            updateStats();
+            initializeSocket();
+            
+            // Refresh stats every 30 seconds
+            setInterval(updateStats, 30000);
+        }
+
+        // Load commands based on category
+        function loadCommands() {
+            const container = document.getElementById('commands-container');
+            let commands = [];
+            
+            if (currentCategory === 'all') {
+                Object.values(botCommands).forEach(category => {
+                    commands = commands.concat(category);
+                });
+            } else {
+                commands = botCommands[currentCategory] || [];
+            }
+            
+            let html = '';
+            
+            if (commands.length === 0) {
+                html = `
+                    <div class="text-center text-muted">
+                        <i class="fas fa-search fa-3x mb-3"></i>
+                        <h5>لا توجد أوامر متاحة</h5>
+                        <p>اختر فئة أخرى لعرض الأوامر المتاحة</p>
+                    </div>
+                `;
+            } else {
+                commands.forEach(command => {
+                    html += `
+                        <div class="command-item" onclick="selectCommand('${command.id}')">
+                            <div class="d-flex align-items-center">
+                                <div class="command-icon icon-${command.category}">
+                                    <i class="${command.icon} text-white"></i>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-1">${command.name}</h6>
+                                    <p class="text-muted mb-0">${command.description}</p>
+                                    <small class="text-primary">${command.command}</small>
+                                </div>
+                                <div>
+                                    <button class="btn btn-primary btn-sm" onclick="executeCommand('${command.id}')">
+                                        <i class="fas fa-play"></i>
+                                        تنفيذ
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+            
+            container.innerHTML = html;
+        }
+
+        // Show category
+        function showCategory(category) {
+            currentCategory = category;
+            
+            // Update sidebar active state
+            document.querySelectorAll('.sidebar-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.sidebar-item').classList.add('active');
+            
+            loadCommands();
+        }
+
+        // Select command
+        function selectCommand(commandId) {
+            selectedCommand = commandId;
+            const command = findCommand(commandId);
+            
+            if (command) {
+                document.getElementById('commandModalTitle').innerHTML = `
+                    <i class="${command.icon} me-2"></i>
+                    ${command.name}
+                `;
+                
+                // Show modal
+                const modal = new bootstrap.Modal(document.getElementById('commandModal'));
+                modal.show();
+            }
+        }
+
+        // Find command by ID
+        function findCommand(commandId) {
+            for (const category of Object.values(botCommands)) {
+                const command = category.find(cmd => cmd.id === commandId);
+                if (command) return command;
+            }
+            return null;
+        }
+
+        // Execute command
+        function executeCommand(commandId, params = {}) {
+            const command = findCommand(commandId);
+            
+            if (!command) {
+                showNotification('الأمر غير موجود', 'error');
+                return;
+            }
+            
+            // Add to terminal
+            addToTerminal(`$ ${command.command} ${Object.values(params).join(' ')}`);
+            
+            // Simulate command execution
+            setTimeout(() => {
+                addToTerminal(`[SUCCESS] تم تنفيذ الأمر: ${command.name}`);
+                updateStats();
+            }, 1000);
+            
+            // Close modal if open
+            const modal = bootstrap.Modal.getInstance(document.getElementById('commandModal'));
+            if (modal) modal.hide();
+        }
+
+        // Execute selected command
+        function executeSelectedCommand() {
+            if (!selectedCommand) return;
+            
+            const device = document.getElementById('targetDevice').value;
+            const params = document.getElementById('commandParams').value;
+            const verbose = document.getElementById('verboseMode').checked;
+            const background = document.getElementById('backgroundMode').checked;
+            
+            const commandParams = {};
+            if (device) commandParams.device = device;
+            if (params) commandParams.params = params;
+            if (verbose) commandParams.verbose = true;
+            if (background) commandParams.background = true;
+            
+            executeCommand(selectedCommand, commandParams);
+        }
+
+        // Add to terminal
+        function addToTerminal(message) {
+            const terminal = document.getElementById('terminal-output');
+            const timestamp = new Date().toLocaleTimeString('ar-SA');
+            
+            terminal.innerHTML += `
+                <div class="mb-2">
+                    <span class="text-muted">[${timestamp}]</span>
+                    <span class="text-light">${message}</span>
+                </div>
+            `;
+            
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+
+        // Clear terminal
+        function clearTerminal() {
+            document.getElementById('terminal-output').innerHTML = `
+                <div class="text-muted">تم مسح المخرجات...</div>
+            `;
+        }
+
+        // Update stats
+        function updateStats() {
+            // Simulate stats update
+            document.getElementById('connected-devices').textContent = Math.floor(Math.random() * 10) + 1;
+            document.getElementById('active-sessions').textContent = Math.floor(Math.random() * 5) + 1;
+            document.getElementById('executed-commands').textContent = Math.floor(Math.random() * 100) + 50;
+        }
+
+        // Show quick actions
+        function showQuickActions() {
+            const modal = new bootstrap.Modal(document.getElementById('quickActionsModal'));
+            modal.show();
+        }
+
+        // Toggle sidebar
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('show');
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const notification = document.createElement('div');
+            notification.className = `notification alert alert-${type === 'error' ? 'danger' : type}`;
+            notification.innerHTML = `
+                <i class="fas fa-${type === 'error' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+                ${message}
+            `;
+            
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        // Initialize socket connection
+        function initializeSocket() {
+            try {
+                socket = io();
+                
+                socket.on('connect', () => {
+                    document.getElementById('bot-status').className = 'status-indicator status-online';
+                    addToTerminal('[INFO] تم الاتصال بالبوت بنجاح');
+                });
+                
+                socket.on('disconnect', () => {
+                    document.getElementById('bot-status').className = 'status-indicator status-offline';
+                    addToTerminal('[WARNING] تم قطع الاتصال بالبوت');
+                });
+                
+                socket.on('command_output', (data) => {
+                    addToTerminal(data.output);
+                });
+                
+                socket.on('error', (data) => {
+                    addToTerminal(`[ERROR] ${data.message}`);
+                });
+                
+            } catch (error) {
+                console.error('Socket connection error:', error);
+            }
+        }
+
+        // Initialize when document is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeInterface();
+        });
+    </script>
+</body>
+</html>
