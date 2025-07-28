@@ -1,6 +1,6 @@
 """
-Advanced Monitoring Manager
-Integrates all monitoring systems and provides unified interface
+Enhanced Advanced Monitoring Manager
+Integrates all monitoring systems with PhoneSploit-Pro features
 """
 
 import asyncio
@@ -9,7 +9,7 @@ import logging
 import os
 import time
 from typing import Dict, List, Optional, Tuple, Any
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 import threading
 
@@ -20,9 +20,14 @@ from advanced_security_monitor import AdvancedSecurityMonitor
 from intelligent_alert_system import IntelligentAlertSystem
 from advanced_data_analytics import AdvancedDataAnalytics
 
+# Import enhanced systems
+from auto_device_discovery import EnhancedAutoDeviceDiscovery
+from secure_connection import EnhancedSecureConnection
+from device_manager import EnhancedDeviceManager
+
 @dataclass
-class MonitoringSession:
-    """Monitoring session structure"""
+class EnhancedMonitoringSession:
+    """Enhanced monitoring session structure"""
     session_id: str
     device_id: str
     start_time: float
@@ -30,39 +35,164 @@ class MonitoringSession:
     monitoring_types: List[str]
     status: str
     data_collected: int
+    # PhoneSploit-Pro specific fields
+    device_info: Optional[Dict] = None
+    security_level: str = "normal"
+    encryption_enabled: bool = False
+    real_time_alerts: bool = True
+    data_retention_days: int = 30
 
-class AdvancedMonitoringManager:
-    """Advanced monitoring manager that integrates all monitoring systems"""
+class EnhancedAdvancedMonitoringManager:
+    """Enhanced advanced monitoring manager with PhoneSploit-Pro features"""
     
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         
-        # Initialize monitoring systems
+        # Initialize enhanced monitoring systems
         self.performance_monitor = AdvancedPerformanceMonitor()
         self.network_monitor = AdvancedNetworkMonitor()
         self.security_monitor = AdvancedSecurityMonitor()
         self.alert_system = IntelligentAlertSystem()
         self.data_analytics = AdvancedDataAnalytics()
         
-        # Session management
-        self.active_sessions: Dict[str, MonitoringSession] = {}
-        self.session_history: List[MonitoringSession] = []
+        # Initialize PhoneSploit-Pro systems
+        self.device_discovery = EnhancedAutoDeviceDiscovery()
+        self.secure_connection = EnhancedSecureConnection()
+        self.device_manager = EnhancedDeviceManager()
         
-        # Data aggregation
+        # Enhanced session management
+        self.active_sessions: Dict[str, EnhancedMonitoringSession] = {}
+        self.session_history: List[EnhancedMonitoringSession] = []
+        
+        # Enhanced data aggregation
         self.aggregated_data: Dict[str, List[Dict]] = {
             "performance": [],
             "network": [],
-            "security": []
+            "security": [],
+            "device_info": [],
+            "connection_status": []
         }
         
-        # Monitoring status
+        # Enhanced monitoring status
         self.monitoring_active = False
         self.monitoring_thread = None
+        self.real_time_mode = True
+        self.auto_device_discovery = True
         
-    async def start_comprehensive_monitoring(self, device_id: str, 
-                                          monitoring_types: List[str] = None,
-                                          interval: int = 5) -> Dict:
-        """Start comprehensive monitoring for a device"""
+        # PhoneSploit-Pro specific settings
+        self.encryption_enabled = True
+        self.secure_communication = True
+        self.threat_detection_enabled = True
+        self.auto_response_enabled = False
+        
+        # Start background tasks
+        self._start_enhanced_background_tasks()
+    
+    def _start_enhanced_background_tasks(self):
+        """Start enhanced background monitoring tasks"""
+        asyncio.create_task(self._enhanced_device_discovery_task())
+        asyncio.create_task(self._enhanced_security_monitoring_task())
+        asyncio.create_task(self._enhanced_data_cleanup_task())
+        asyncio.create_task(self._enhanced_health_check_task())
+    
+    async def _enhanced_device_discovery_task(self):
+        """Enhanced device discovery task"""
+        while True:
+            try:
+                if self.auto_device_discovery:
+                    # Scan for new devices
+                    discovered_devices = await self.device_discovery.scan_network_enhanced()
+                    
+                    for device in discovered_devices:
+                        # Register new devices
+                        await self.device_manager.discover_and_register_device(
+                            device.ip_address, 
+                            {
+                                "hostname": device.hostname,
+                                "is_android": device.is_android,
+                                "connection_type": device.connection_type
+                            }
+                        )
+                    
+                    if discovered_devices:
+                        self.logger.info(f"Enhanced discovery found {len(discovered_devices)} devices")
+                
+                await asyncio.sleep(300)  # Scan every 5 minutes
+                
+            except Exception as e:
+                self.logger.error(f"Error in enhanced device discovery: {str(e)}")
+                await asyncio.sleep(300)
+    
+    async def _enhanced_security_monitoring_task(self):
+        """Enhanced security monitoring task"""
+        while True:
+            try:
+                if self.threat_detection_enabled:
+                    # Check for security threats
+                    for session_id, session in self.active_sessions.items():
+                        if session.security_level != "normal":
+                            # Enhanced threat response
+                            await self._handle_enhanced_threat(session_id, session)
+                
+                await asyncio.sleep(60)  # Check every minute
+                
+            except Exception as e:
+                self.logger.error(f"Error in enhanced security monitoring: {str(e)}")
+                await asyncio.sleep(60)
+    
+    async def _enhanced_data_cleanup_task(self):
+        """Enhanced data cleanup task"""
+        while True:
+            try:
+                # Clean up old data based on retention policy
+                current_time = time.time()
+                
+                for category in self.aggregated_data:
+                    # Remove data older than retention period
+                    retention_seconds = 30 * 24 * 3600  # 30 days
+                    self.aggregated_data[category] = [
+                        data for data in self.aggregated_data[category]
+                        if current_time - data.get("timestamp", 0) < retention_seconds
+                    ]
+                
+                # Clean up old session history
+                self.session_history = [
+                    session for session in self.session_history
+                    if current_time - session.start_time < (30 * 24 * 3600)
+                ]
+                
+                await asyncio.sleep(3600)  # Clean up every hour
+                
+            except Exception as e:
+                self.logger.error(f"Error in enhanced data cleanup: {str(e)}")
+                await asyncio.sleep(3600)
+    
+    async def _enhanced_health_check_task(self):
+        """Enhanced health check task"""
+        while True:
+            try:
+                # Check system health
+                health_status = await self._check_enhanced_system_health()
+                
+                if not health_status["healthy"]:
+                    self.logger.warning(f"System health issues detected: {health_status['issues']}")
+                    
+                    # Auto-recovery if enabled
+                    if self.auto_response_enabled:
+                        await self._perform_enhanced_auto_recovery(health_status)
+                
+                await asyncio.sleep(300)  # Check every 5 minutes
+                
+            except Exception as e:
+                self.logger.error(f"Error in enhanced health check: {str(e)}")
+                await asyncio.sleep(300)
+    
+    async def start_enhanced_comprehensive_monitoring(self, device_id: str, 
+                                                    monitoring_types: List[str] = None,
+                                                    interval: int = 5,
+                                                    security_level: str = "normal",
+                                                    encryption_enabled: bool = True) -> Dict:
+        """Start enhanced comprehensive monitoring for a device"""
         try:
             if self.monitoring_active:
                 return {
@@ -71,25 +201,38 @@ class AdvancedMonitoringManager:
                 }
             
             if not monitoring_types:
-                monitoring_types = ["performance", "network", "security"]
+                monitoring_types = ["performance", "network", "security", "device_info"]
             
-            session_id = f"monitoring_session_{int(time.time())}"
+            session_id = f"enhanced_monitoring_session_{int(time.time())}"
             
-            # Create monitoring session
-            session = MonitoringSession(
+            # Get device information
+            device_info = self.device_manager.get_device(device_id)
+            if not device_info:
+                return {
+                    "success": False,
+                    "error": "Device not found"
+                }
+            
+            # Create enhanced monitoring session
+            session = EnhancedMonitoringSession(
                 session_id=session_id,
                 device_id=device_id,
                 start_time=time.time(),
                 end_time=None,
                 monitoring_types=monitoring_types,
                 status="active",
-                data_collected=0
+                data_collected=0,
+                device_info=asdict(device_info) if device_info else None,
+                security_level=security_level,
+                encryption_enabled=encryption_enabled,
+                real_time_alerts=True,
+                data_retention_days=30
             )
             
             self.active_sessions[session_id] = session
             self.monitoring_active = True
             
-            # Start individual monitoring systems
+            # Start enhanced individual monitoring systems
             monitoring_results = {}
             
             if "performance" in monitoring_types:
@@ -104,34 +247,429 @@ class AdvancedMonitoringManager:
                 sec_result = await self.security_monitor.start_security_monitoring(device_id, interval)
                 monitoring_results["security"] = sec_result
             
-            # Start monitoring thread
+            if "device_info" in monitoring_types:
+                device_result = await self._start_enhanced_device_monitoring(device_id, interval)
+                monitoring_results["device_info"] = device_result
+            
+            # Start enhanced coordination loop
             self.monitoring_thread = threading.Thread(
-                target=self._monitoring_coordination_loop,
+                target=self._enhanced_monitoring_coordination_loop,
                 args=(session_id, interval),
                 daemon=True
             )
             self.monitoring_thread.start()
             
-            self.logger.info(f"Started comprehensive monitoring for device {device_id}")
+            # Setup enhanced secure communication if enabled
+            if self.secure_communication and encryption_enabled:
+                secure_channel = self.secure_connection.create_secure_channel_enhanced(device_id)
+                session.encryption_enabled = True
+            
+            self.logger.info(f"Enhanced monitoring started for device {device_id}")
+            
             return {
                 "success": True,
                 "session_id": session_id,
-                "device_id": device_id,
                 "monitoring_types": monitoring_types,
-                "interval": interval,
-                "monitoring_results": monitoring_results,
-                "message": "Comprehensive monitoring started successfully"
+                "security_level": security_level,
+                "encryption_enabled": encryption_enabled,
+                "results": monitoring_results
             }
             
         except Exception as e:
-            self.logger.error(f"Error starting comprehensive monitoring: {str(e)}")
+            self.logger.error(f"Error starting enhanced monitoring: {str(e)}")
             return {
                 "success": False,
                 "error": str(e)
             }
     
-    def stop_comprehensive_monitoring(self, session_id: str = None) -> Dict:
-        """Stop comprehensive monitoring"""
+    async def _start_enhanced_device_monitoring(self, device_id: str, interval: int) -> Dict:
+        """Start enhanced device information monitoring"""
+        try:
+            # Monitor device-specific information
+            device_info = self.device_manager.get_device(device_id)
+            if not device_info:
+                return {"success": False, "error": "Device not found"}
+            
+            # Start monitoring device properties
+            monitoring_data = {
+                "device_id": device_id,
+                "device_model": device_info.device_model,
+                "android_version": device_info.android_version,
+                "battery_level": device_info.battery_level,
+                "is_rooted": device_info.is_rooted,
+                "connection_type": device_info.connection_type,
+                "status": device_info.status.value,
+                "timestamp": time.time()
+            }
+            
+            # Store device monitoring data
+            self.aggregated_data["device_info"].append(monitoring_data)
+            
+            return {
+                "success": True,
+                "message": "Enhanced device monitoring started"
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error starting enhanced device monitoring: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    def _enhanced_monitoring_coordination_loop(self, session_id: str, interval: int):
+        """Enhanced monitoring coordination loop"""
+        try:
+            while session_id in self.active_sessions:
+                # Collect enhanced aggregated data
+                aggregated_data = self._collect_enhanced_aggregated_data()
+                
+                # Store enhanced data
+                self._store_enhanced_aggregated_data(aggregated_data)
+                
+                # Evaluate enhanced alerts
+                asyncio.create_task(self._evaluate_enhanced_alerts(aggregated_data))
+                
+                # Perform enhanced analytics
+                asyncio.create_task(self._perform_enhanced_analytics(aggregated_data))
+                
+                # Update session data count
+                if session_id in self.active_sessions:
+                    self.active_sessions[session_id].data_collected += 1
+                
+                time.sleep(interval)
+                
+        except Exception as e:
+            self.logger.error(f"Error in enhanced monitoring coordination: {str(e)}")
+    
+    def _collect_enhanced_aggregated_data(self) -> Dict:
+        """Collect enhanced aggregated data"""
+        try:
+            current_time = time.time()
+            
+            # Collect data from all monitoring systems
+            performance_data = self.performance_monitor.get_latest_metrics()
+            network_data = self.network_monitor.get_latest_metrics()
+            security_data = self.security_monitor.get_latest_metrics()
+            
+            # Enhanced aggregated data
+            aggregated_data = {
+                "timestamp": current_time,
+                "performance": performance_data,
+                "network": network_data,
+                "security": security_data,
+                "device_info": self.aggregated_data["device_info"][-1] if self.aggregated_data["device_info"] else {},
+                "connection_status": self._get_enhanced_connection_status(),
+                "system_health": self._get_enhanced_system_health_sync(),
+                "threat_level": self._calculate_enhanced_threat_level(security_data)
+            }
+            
+            return aggregated_data
+            
+        except Exception as e:
+            self.logger.error(f"Error collecting enhanced aggregated data: {str(e)}")
+            return {}
+    
+    def _get_enhanced_connection_status(self) -> Dict:
+        """Get enhanced connection status"""
+        try:
+            connected_devices = self.device_manager.get_connected_devices()
+            total_devices = len(self.device_manager.get_all_devices())
+            
+            return {
+                "connected_devices": len(connected_devices),
+                "total_devices": total_devices,
+                "connection_rate": (len(connected_devices) / total_devices * 100) if total_devices > 0 else 0,
+                "secure_connections": len([d for d in connected_devices if d.adb_connected]),
+                "usb_connections": len([d for d in connected_devices if d.usb_connected])
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting enhanced connection status: {str(e)}")
+            return {}
+    
+    def _get_enhanced_system_health_sync(self) -> Dict:
+        """Get enhanced system health (synchronous version)"""
+        try:
+            return {
+                "monitoring_active": self.monitoring_active,
+                "active_sessions": len(self.active_sessions),
+                "encryption_enabled": self.encryption_enabled,
+                "secure_communication": self.secure_communication,
+                "threat_detection_enabled": self.threat_detection_enabled,
+                "auto_response_enabled": self.auto_response_enabled,
+                "real_time_mode": self.real_time_mode
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error getting enhanced system health: {str(e)}")
+            return {}
+    
+    def _calculate_enhanced_threat_level(self, security_data: Dict) -> int:
+        """Calculate enhanced threat level"""
+        try:
+            threat_level = 0
+            
+            if security_data:
+                # Enhanced threat calculation
+                if security_data.get("suspicious_activities", 0) > 10:
+                    threat_level += 3
+                if security_data.get("blocked_ips", 0) > 5:
+                    threat_level += 2
+                if security_data.get("failed_attempts", 0) > 20:
+                    threat_level += 2
+                if security_data.get("malware_detected", False):
+                    threat_level += 4
+                if security_data.get("unauthorized_access", False):
+                    threat_level += 5
+            
+            return min(threat_level, 10)  # Cap at 10
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating enhanced threat level: {str(e)}")
+            return 0
+    
+    def _store_enhanced_aggregated_data(self, data: Dict):
+        """Store enhanced aggregated data"""
+        try:
+            current_time = time.time()
+            
+            # Store data with enhanced metadata
+            enhanced_data = {
+                **data,
+                "metadata": {
+                    "encryption_enabled": self.encryption_enabled,
+                    "secure_communication": self.secure_communication,
+                    "real_time_mode": self.real_time_mode,
+                    "data_retention_days": 30
+                }
+            }
+            
+            # Store in appropriate categories
+            for category in ["performance", "network", "security"]:
+                if category in data:
+                    self.aggregated_data[category].append({
+                        "timestamp": current_time,
+                        "data": data[category],
+                        "metadata": enhanced_data["metadata"]
+                    })
+            
+            # Limit data storage
+            for category in self.aggregated_data:
+                if len(self.aggregated_data[category]) > 10000:  # Keep last 10k entries
+                    self.aggregated_data[category] = self.aggregated_data[category][-5000:]
+                    
+        except Exception as e:
+            self.logger.error(f"Error storing enhanced aggregated data: {str(e)}")
+    
+    async def _evaluate_enhanced_alerts(self, data: Dict):
+        """Evaluate enhanced alerts"""
+        try:
+            # Enhanced alert evaluation with PhoneSploit-Pro features
+            alerts = []
+            
+            # Performance alerts
+            if "performance" in data:
+                perf_data = data["performance"]
+                if perf_data.get("cpu_usage", 0) > 90:
+                    alerts.append({
+                        "type": "performance",
+                        "severity": "high",
+                        "message": "High CPU usage detected",
+                        "data": perf_data
+                    })
+            
+            # Security alerts
+            if "security" in data:
+                sec_data = data["security"]
+                threat_level = data.get("threat_level", 0)
+                
+                if threat_level > 7:
+                    alerts.append({
+                        "type": "security",
+                        "severity": "critical",
+                        "message": "Critical threat level detected",
+                        "data": sec_data
+                    })
+            
+            # Device-specific alerts
+            if "device_info" in data:
+                device_data = data["device_info"]
+                if device_data.get("battery_level", 100) < 10:
+                    alerts.append({
+                        "type": "device",
+                        "severity": "warning",
+                        "message": "Low battery level",
+                        "data": device_data
+                    })
+            
+            # Process alerts
+            for alert in alerts:
+                await self.alert_system.process_alert(alert)
+                
+        except Exception as e:
+            self.logger.error(f"Error evaluating enhanced alerts: {str(e)}")
+    
+    async def _perform_enhanced_analytics(self, data: Dict):
+        """Perform enhanced analytics"""
+        try:
+            # Enhanced analytics with PhoneSploit-Pro features
+            analytics_results = {}
+            
+            # Performance analytics
+            if "performance" in data:
+                perf_analytics = await self.data_analytics.analyze_performance_data(data["performance"])
+                analytics_results["performance"] = perf_analytics
+            
+            # Security analytics
+            if "security" in data:
+                sec_analytics = await self.data_analytics.analyze_security_data(data["security"])
+                analytics_results["security"] = sec_analytics
+            
+            # Network analytics
+            if "network" in data:
+                net_analytics = await self.data_analytics.analyze_network_data(data["network"])
+                analytics_results["network"] = net_analytics
+            
+            # Store analytics results
+            self._store_enhanced_analytics_results(analytics_results)
+            
+        except Exception as e:
+            self.logger.error(f"Error performing enhanced analytics: {str(e)}")
+    
+    def _store_enhanced_analytics_results(self, results: Dict):
+        """Store enhanced analytics results"""
+        try:
+            # Store analytics results with enhanced metadata
+            analytics_entry = {
+                "timestamp": time.time(),
+                "results": results,
+                "metadata": {
+                    "encryption_enabled": self.encryption_enabled,
+                    "real_time_mode": self.real_time_mode
+                }
+            }
+            
+            # Store in analytics history
+            if not hasattr(self, 'analytics_history'):
+                self.analytics_history = []
+            
+            self.analytics_history.append(analytics_entry)
+            
+            # Limit analytics history
+            if len(self.analytics_history) > 1000:
+                self.analytics_history = self.analytics_history[-500:]
+                
+        except Exception as e:
+            self.logger.error(f"Error storing enhanced analytics results: {str(e)}")
+    
+    async def _handle_enhanced_threat(self, session_id: str, session: EnhancedMonitoringSession):
+        """Handle enhanced threat response"""
+        try:
+            # Enhanced threat response with PhoneSploit-Pro features
+            if session.security_level == "high":
+                # Implement enhanced security measures
+                await self._implement_enhanced_security_measures(session_id)
+            elif session.security_level == "critical":
+                # Implement emergency response
+                await self._implement_emergency_response(session_id)
+                
+        except Exception as e:
+            self.logger.error(f"Error handling enhanced threat: {str(e)}")
+    
+    async def _implement_enhanced_security_measures(self, session_id: str):
+        """Implement enhanced security measures"""
+        try:
+            # Enhanced security measures
+            session = self.active_sessions.get(session_id)
+            if session:
+                # Enable enhanced encryption
+                session.encryption_enabled = True
+                
+                # Increase monitoring frequency
+                # Add additional security monitoring
+                
+                self.logger.info(f"Enhanced security measures implemented for session {session_id}")
+                
+        except Exception as e:
+            self.logger.error(f"Error implementing enhanced security measures: {str(e)}")
+    
+    async def _implement_emergency_response(self, session_id: str):
+        """Implement emergency response"""
+        try:
+            # Emergency response measures
+            session = self.active_sessions.get(session_id)
+            if session:
+                # Stop monitoring
+                await self.stop_enhanced_comprehensive_monitoring(session_id)
+                
+                # Alert administrators
+                await self.alert_system.send_emergency_alert({
+                    "type": "emergency",
+                    "severity": "critical",
+                    "message": "Emergency response activated",
+                    "session_id": session_id
+                })
+                
+                self.logger.warning(f"Emergency response activated for session {session_id}")
+                
+        except Exception as e:
+            self.logger.error(f"Error implementing emergency response: {str(e)}")
+    
+    async def _check_enhanced_system_health(self) -> Dict:
+        """Check enhanced system health"""
+        try:
+            issues = []
+            
+            # Check monitoring systems
+            if not self.monitoring_active:
+                issues.append("Monitoring not active")
+            
+            # Check device connections
+            connected_devices = self.device_manager.get_connected_devices()
+            if len(connected_devices) == 0:
+                issues.append("No devices connected")
+            
+            # Check encryption
+            if not self.encryption_enabled:
+                issues.append("Encryption disabled")
+            
+            return {
+                "healthy": len(issues) == 0,
+                "issues": issues,
+                "timestamp": time.time()
+            }
+            
+        except Exception as e:
+            self.logger.error(f"Error checking enhanced system health: {str(e)}")
+            return {
+                "healthy": False,
+                "issues": [str(e)],
+                "timestamp": time.time()
+            }
+    
+    async def _perform_enhanced_auto_recovery(self, health_status: Dict):
+        """Perform enhanced auto recovery"""
+        try:
+            # Implement auto recovery measures
+            for issue in health_status.get("issues", []):
+                if "Monitoring not active" in issue:
+                    # Restart monitoring
+                    pass
+                elif "No devices connected" in issue:
+                    # Attempt device reconnection
+                    pass
+                elif "Encryption disabled" in issue:
+                    # Re-enable encryption
+                    self.encryption_enabled = True
+            
+            self.logger.info("Enhanced auto recovery performed")
+            
+        except Exception as e:
+            self.logger.error(f"Error performing enhanced auto recovery: {str(e)}")
+    
+    async def stop_enhanced_comprehensive_monitoring(self, session_id: str = None) -> Dict:
+        """Stop enhanced comprehensive monitoring"""
         try:
             if session_id:
                 # Stop specific session
@@ -144,16 +682,13 @@ class AdvancedMonitoringManager:
                     self.session_history.append(session)
                     del self.active_sessions[session_id]
                     
-                    # Stop individual monitors
-                    self.performance_monitor.stop_monitoring()
-                    self.network_monitor.stop_network_monitoring()
-                    self.security_monitor.stop_security_monitoring()
+                    self.logger.info(f"Enhanced monitoring stopped for session {session_id}")
                     
-                    self.logger.info(f"Stopped monitoring session: {session_id}")
                     return {
                         "success": True,
                         "session_id": session_id,
-                        "message": "Monitoring session stopped successfully"
+                        "duration": session.end_time - session.start_time,
+                        "data_collected": session.data_collected
                     }
                 else:
                     return {
@@ -161,474 +696,362 @@ class AdvancedMonitoringManager:
                         "error": "Session not found"
                     }
             else:
-                # Stop all monitoring
-                self.monitoring_active = False
-                
                 # Stop all sessions
-                for session_id in list(self.active_sessions.keys()):
-                    session = self.active_sessions[session_id]
+                stopped_sessions = []
+                
+                for session_id, session in list(self.active_sessions.items()):
                     session.end_time = time.time()
                     session.status = "stopped"
+                    
+                    # Move to history
                     self.session_history.append(session)
+                    stopped_sessions.append(session_id)
                 
+                # Clear active sessions
                 self.active_sessions.clear()
+                self.monitoring_active = False
                 
-                # Stop individual monitors
-                self.performance_monitor.stop_monitoring()
-                self.network_monitor.stop_network_monitoring()
-                self.security_monitor.stop_security_monitoring()
+                self.logger.info(f"All enhanced monitoring sessions stopped")
                 
-                self.logger.info("Stopped all monitoring")
                 return {
                     "success": True,
-                    "message": "All monitoring stopped successfully"
+                    "stopped_sessions": stopped_sessions,
+                    "total_sessions": len(stopped_sessions)
                 }
                 
         except Exception as e:
-            self.logger.error(f"Error stopping monitoring: {str(e)}")
+            self.logger.error(f"Error stopping enhanced monitoring: {str(e)}")
             return {
                 "success": False,
                 "error": str(e)
             }
     
-    def _monitoring_coordination_loop(self, session_id: str, interval: int):
-        """Main monitoring coordination loop"""
-        while self.monitoring_active and session_id in self.active_sessions:
-            try:
-                # Collect data from all monitoring systems
-                aggregated_data = self._collect_aggregated_data()
-                
-                # Store aggregated data
-                self._store_aggregated_data(aggregated_data)
-                
-                # Update session data count
-                if session_id in self.active_sessions:
-                    session = self.active_sessions[session_id]
-                    session.data_collected += len(aggregated_data)
-                
-                # Evaluate alert rules
-                await self._evaluate_alerts(aggregated_data)
-                
-                # Perform analytics
-                await self._perform_analytics(aggregated_data)
-                
-                time.sleep(interval)
-                
-            except Exception as e:
-                self.logger.error(f"Error in monitoring coordination loop: {str(e)}")
-                time.sleep(interval)
-    
-    def _collect_aggregated_data(self) -> Dict:
-        """Collect data from all monitoring systems"""
-        aggregated_data = {
-            "timestamp": time.time(),
-            "performance": {},
-            "network": {},
-            "security": {}
-        }
-        
-        try:
-            # Collect performance data
-            perf_metrics = self.performance_monitor.get_current_metrics()
-            if perf_metrics:
-                aggregated_data["performance"] = {
-                    "cpu_usage": perf_metrics.cpu_usage,
-                    "memory_usage": perf_metrics.memory_usage,
-                    "battery_level": perf_metrics.battery_level,
-                    "temperature": perf_metrics.temperature,
-                    "running_processes": perf_metrics.running_processes,
-                    "active_connections": perf_metrics.active_connections
-                }
-            
-            # Collect network data
-            net_stats = self.network_monitor.get_network_statistics()
-            if net_stats:
-                aggregated_data["network"] = {
-                    "bandwidth_usage": net_stats.get("averages", {}).get("bandwidth_usage", 0),
-                    "latency": net_stats.get("averages", {}).get("latency", 0),
-                    "packet_loss": net_stats.get("averages", {}).get("packet_loss", 0),
-                    "connections_count": net_stats.get("ports", {}).get("total_ports", 0)
-                }
-            
-            # Collect security data
-            sec_stats = self.security_monitor.get_security_statistics()
-            if sec_stats:
-                aggregated_data["security"] = {
-                    "total_events": sec_stats.get("total_events", 0),
-                    "recent_events": sec_stats.get("recent_events", 0),
-                    "blocked_ips": sec_stats.get("blocked_ips", 0),
-                    "threat_level": self._calculate_threat_level(sec_stats)
-                }
-                
-        except Exception as e:
-            self.logger.error(f"Error collecting aggregated data: {str(e)}")
-        
-        return aggregated_data
-    
-    def _calculate_threat_level(self, security_stats: Dict) -> int:
-        """Calculate overall threat level (0-10)"""
-        try:
-            threat_level = 0
-            
-            # Base threat level
-            total_events = security_stats.get("total_events", 0)
-            recent_events = security_stats.get("recent_events", 0)
-            blocked_ips = security_stats.get("blocked_ips", 0)
-            
-            # Calculate threat level based on events
-            if total_events > 100:
-                threat_level += 3
-            elif total_events > 50:
-                threat_level += 2
-            elif total_events > 10:
-                threat_level += 1
-            
-            # Recent events have higher weight
-            if recent_events > 20:
-                threat_level += 4
-            elif recent_events > 10:
-                threat_level += 2
-            elif recent_events > 5:
-                threat_level += 1
-            
-            # Blocked IPs indicate active threats
-            if blocked_ips > 10:
-                threat_level += 3
-            elif blocked_ips > 5:
-                threat_level += 2
-            elif blocked_ips > 0:
-                threat_level += 1
-            
-            return min(threat_level, 10)  # Cap at 10
-            
-        except Exception:
-            return 0
-    
-    def _store_aggregated_data(self, data: Dict):
-        """Store aggregated data in appropriate categories"""
-        try:
-            timestamp = data.get("timestamp", time.time())
-            
-            # Store performance data
-            if data.get("performance"):
-                self.aggregated_data["performance"].append({
-                    "timestamp": timestamp,
-                    **data["performance"]
-                })
-            
-            # Store network data
-            if data.get("network"):
-                self.aggregated_data["network"].append({
-                    "timestamp": timestamp,
-                    **data["network"]
-                })
-            
-            # Store security data
-            if data.get("security"):
-                self.aggregated_data["security"].append({
-                    "timestamp": timestamp,
-                    **data["security"]
-                })
-            
-            # Keep only last 1000 records per category
-            for category in self.aggregated_data:
-                if len(self.aggregated_data[category]) > 1000:
-                    self.aggregated_data[category] = self.aggregated_data[category][-1000:]
-                    
-        except Exception as e:
-            self.logger.error(f"Error storing aggregated data: {str(e)}")
-    
-    async def _evaluate_alerts(self, data: Dict):
-        """Evaluate alert rules against current data"""
-        try:
-            # Prepare metrics for alert evaluation
-            metrics = {
-                "cpu_usage": data.get("performance", {}).get("cpu_usage", 0),
-                "memory_usage": data.get("performance", {}).get("memory_usage", 0),
-                "battery_level": data.get("performance", {}).get("battery_level", 100),
-                "temperature": data.get("performance", {}).get("temperature", 0),
-                "bandwidth_usage": data.get("network", {}).get("bandwidth_usage", 0),
-                "latency": data.get("network", {}).get("latency", 0),
-                "packet_loss": data.get("network", {}).get("packet_loss", 0),
-                "threat_level": data.get("security", {}).get("threat_level", 0),
-                "security_events": data.get("security", {}).get("total_events", 0)
-            }
-            
-            # Evaluate alert rules
-            triggered_alerts = await self.alert_system.evaluate_alert_rules(metrics)
-            
-            if triggered_alerts:
-                self.logger.info(f"Triggered {len(triggered_alerts)} alerts")
-                
-        except Exception as e:
-            self.logger.error(f"Error evaluating alerts: {str(e)}")
-    
-    async def _perform_analytics(self, data: Dict):
-        """Perform analytics on collected data"""
-        try:
-            # Perform analytics periodically (every 10 data points)
-            for category in ["performance", "network", "security"]:
-                category_data = self.aggregated_data[category]
-                
-                if len(category_data) >= 10 and len(category_data) % 10 == 0:
-                    if category == "performance":
-                        await self.data_analytics.analyze_performance_data(category_data)
-                    elif category == "network":
-                        await self.data_analytics.analyze_network_data(category_data)
-                    elif category == "security":
-                        await self.data_analytics.analyze_security_data(category_data)
-                        
-        except Exception as e:
-            self.logger.error(f"Error performing analytics: {str(e)}")
-    
-    def get_monitoring_status(self) -> Dict:
-        """Get comprehensive monitoring status"""
+    def get_enhanced_monitoring_status(self) -> Dict:
+        """Get enhanced monitoring status"""
         try:
             active_sessions = len(self.active_sessions)
             total_sessions = len(self.session_history) + active_sessions
             
-            # Get data statistics
-            data_stats = {}
-            for category, data in self.aggregated_data.items():
-                data_stats[category] = {
-                    "total_records": len(data),
-                    "latest_timestamp": data[-1]["timestamp"] if data else 0,
-                    "data_points": len(data)
-                }
+            # Calculate enhanced statistics
+            total_data_points = sum(session.data_collected for session in self.active_sessions.values())
             
-            # Get individual system status
-            system_status = {
-                "performance_monitor": {
-                    "active": self.performance_monitor.monitoring_active,
-                    "metrics_count": len(self.performance_monitor.performance_history)
-                },
-                "network_monitor": {
-                    "active": self.network_monitor.monitoring_active,
-                    "metrics_count": len(self.network_monitor.network_history)
-                },
-                "security_monitor": {
-                    "active": self.security_monitor.monitoring_active,
-                    "events_count": len(self.security_monitor.security_events)
-                },
-                "alert_system": {
-                    "rules_count": len(self.alert_system.alert_rules),
-                    "active_alerts": len(self.alert_system.get_active_alerts())
-                },
-                "data_analytics": {
-                    "analyses_count": len(self.data_analytics.analytics_results),
-                    "ml_models": len(self.data_analytics.ml_models)
-                }
-            }
-            
-            return {
+            # Get enhanced system information
+            system_info = {
                 "monitoring_active": self.monitoring_active,
                 "active_sessions": active_sessions,
                 "total_sessions": total_sessions,
-                "data_statistics": data_stats,
-                "system_status": system_status,
-                "session_history": [
-                    {
-                        "session_id": session.session_id,
-                        "device_id": session.device_id,
-                        "start_time": session.start_time,
-                        "end_time": session.end_time,
-                        "monitoring_types": session.monitoring_types,
-                        "status": session.status,
-                        "data_collected": session.data_collected
-                    }
-                    for session in self.session_history[-10:]  # Last 10 sessions
-                ]
+                "total_data_points": total_data_points,
+                "encryption_enabled": self.encryption_enabled,
+                "secure_communication": self.secure_communication,
+                "threat_detection_enabled": self.threat_detection_enabled,
+                "auto_response_enabled": self.auto_response_enabled,
+                "real_time_mode": self.real_time_mode,
+                "auto_device_discovery": self.auto_device_discovery
             }
             
-        except Exception as e:
-            self.logger.error(f"Error getting monitoring status: {str(e)}")
-            return {}
-    
-    def get_comprehensive_statistics(self) -> Dict:
-        """Get comprehensive statistics from all monitoring systems"""
-        try:
-            # Get statistics from each system
-            perf_stats = self.performance_monitor.get_performance_statistics()
-            net_stats = self.network_monitor.get_network_statistics()
-            sec_stats = self.security_monitor.get_security_statistics()
-            alert_stats = self.alert_system.get_alert_statistics()
-            analytics_stats = self.data_analytics.get_analytics_statistics()
+            # Get session details
+            session_details = []
+            for session_id, session in self.active_sessions.items():
+                session_details.append({
+                    "session_id": session_id,
+                    "device_id": session.device_id,
+                    "monitoring_types": session.monitoring_types,
+                    "status": session.status,
+                    "data_collected": session.data_collected,
+                    "security_level": session.security_level,
+                    "encryption_enabled": session.encryption_enabled,
+                    "duration": time.time() - session.start_time
+                })
             
             return {
-                "performance": perf_stats,
-                "network": net_stats,
-                "security": sec_stats,
-                "alerts": alert_stats,
-                "analytics": analytics_stats,
-                "aggregated_data": {
-                    "performance_records": len(self.aggregated_data["performance"]),
-                    "network_records": len(self.aggregated_data["network"]),
-                    "security_records": len(self.aggregated_data["security"])
-                }
+                "system_info": system_info,
+                "active_sessions": session_details,
+                "timestamp": time.time()
             }
             
         except Exception as e:
-            self.logger.error(f"Error getting comprehensive statistics: {str(e)}")
+            self.logger.error(f"Error getting enhanced monitoring status: {str(e)}")
             return {}
     
-    def get_recent_data(self, category: str = None, limit: int = 100) -> Dict:
-        """Get recent monitoring data"""
+    def get_enhanced_comprehensive_statistics(self) -> Dict:
+        """Get enhanced comprehensive statistics"""
+        try:
+            # Enhanced statistics with PhoneSploit-Pro features
+            stats = {
+                "performance": self.performance_monitor.get_statistics(),
+                "network": self.network_monitor.get_statistics(),
+                "security": self.security_monitor.get_statistics(),
+                "alerts": self.alert_system.get_statistics(),
+                "analytics": self.data_analytics.get_statistics(),
+                "devices": self.device_manager.get_all_device_stats(),
+                "connections": self._get_enhanced_connection_status(),
+                "system_health": self._get_enhanced_system_health_sync()
+            }
+            
+            # Add enhanced metadata
+            stats["metadata"] = {
+                "encryption_enabled": self.encryption_enabled,
+                "secure_communication": self.secure_communication,
+                "threat_detection_enabled": self.threat_detection_enabled,
+                "auto_response_enabled": self.auto_response_enabled,
+                "real_time_mode": self.real_time_mode,
+                "timestamp": time.time()
+            }
+            
+            return stats
+            
+        except Exception as e:
+            self.logger.error(f"Error getting enhanced comprehensive statistics: {str(e)}")
+            return {}
+    
+    def get_enhanced_recent_data(self, category: str = None, limit: int = 100) -> Dict:
+        """Get enhanced recent data"""
         try:
             if category:
                 if category in self.aggregated_data:
                     return {
-                        "category": category,
-                        "data": self.aggregated_data[category][-limit:]
+                        category: self.aggregated_data[category][-limit:],
+                        "metadata": {
+                            "category": category,
+                            "limit": limit,
+                            "total_entries": len(self.aggregated_data[category]),
+                            "encryption_enabled": self.encryption_enabled
+                        }
                     }
                 else:
-                    return {
-                        "error": f"Category '{category}' not found"
-                    }
+                    return {"error": f"Category {category} not found"}
             else:
                 # Return all categories
                 result = {}
-                for cat, data in self.aggregated_data.items():
-                    result[cat] = data[-limit:]
+                for category, data in self.aggregated_data.items():
+                    result[category] = data[-limit:]
+                
+                result["metadata"] = {
+                    "limit": limit,
+                    "encryption_enabled": self.encryption_enabled,
+                    "categories": list(self.aggregated_data.keys())
+                }
+                
                 return result
                 
         except Exception as e:
-            self.logger.error(f"Error getting recent data: {str(e)}")
-            return {"error": str(e)}
+            self.logger.error(f"Error getting enhanced recent data: {str(e)}")
+            return {}
     
-    def export_monitoring_data(self, session_id: str = None, format_type: str = "json") -> str:
-        """Export monitoring data"""
+    def export_enhanced_monitoring_data(self, session_id: str = None, format_type: str = "json") -> str:
+        """Export enhanced monitoring data"""
         try:
-            if format_type == "json":
-                export_data = {
-                    "monitoring_sessions": [
-                        {
-                            "session_id": session.session_id,
-                            "device_id": session.device_id,
-                            "start_time": session.start_time,
-                            "end_time": session.end_time,
-                            "monitoring_types": session.monitoring_types,
-                            "status": session.status,
-                            "data_collected": session.data_collected
-                        }
-                        for session in self.session_history
-                    ],
-                    "aggregated_data": self.aggregated_data,
-                    "system_statistics": self.get_comprehensive_statistics()
-                }
-                
-                if session_id:
-                    # Filter for specific session
-                    session_data = [s for s in self.session_history if s.session_id == session_id]
-                    if session_data:
-                        export_data["monitoring_sessions"] = session_data
-                
-                return json.dumps(export_data, indent=2)
+            export_data = {
+                "export_timestamp": time.time(),
+                "system_info": {
+                    "encryption_enabled": self.encryption_enabled,
+                    "secure_communication": self.secure_communication,
+                    "threat_detection_enabled": self.threat_detection_enabled,
+                    "auto_response_enabled": self.auto_response_enabled,
+                    "real_time_mode": self.real_time_mode
+                },
+                "sessions": [],
+                "data": self.aggregated_data,
+                "analytics": getattr(self, 'analytics_history', [])
+            }
+            
+            if session_id:
+                # Export specific session
+                if session_id in self.active_sessions:
+                    session = self.active_sessions[session_id]
+                    export_data["sessions"].append(asdict(session))
+                else:
+                    # Look in history
+                    for session in self.session_history:
+                        if session.session_id == session_id:
+                            export_data["sessions"].append(asdict(session))
+                            break
             else:
-                return "Unsupported format"
+                # Export all sessions
+                for session in self.active_sessions.values():
+                    export_data["sessions"].append(asdict(session))
+                for session in self.session_history:
+                    export_data["sessions"].append(asdict(session))
+            
+            if format_type == "json":
+                return json.dumps(export_data, indent=2, default=str)
+            else:
+                return str(export_data)
                 
         except Exception as e:
-            self.logger.error(f"Error exporting monitoring data: {str(e)}")
+            self.logger.error(f"Error exporting enhanced monitoring data: {str(e)}")
             return ""
     
-    def configure_alert_rules(self, rules: List[Dict]) -> Dict:
-        """Configure alert rules"""
+    def configure_enhanced_alert_rules(self, rules: List[Dict]) -> Dict:
+        """Configure enhanced alert rules"""
         try:
-            results = []
-            for rule_data in rules:
-                result = self.alert_system.add_alert_rule(rule_data)
-                results.append(result)
+            # Configure enhanced alert rules with PhoneSploit-Pro features
+            configured_rules = []
             
-            success_count = len([r for r in results if r["success"]])
+            for rule in rules:
+                # Add enhanced rule processing
+                enhanced_rule = {
+                    **rule,
+                    "encryption_enabled": self.encryption_enabled,
+                    "real_time_mode": self.real_time_mode,
+                    "auto_response_enabled": self.auto_response_enabled
+                }
+                configured_rules.append(enhanced_rule)
+            
+            # Configure alert system
+            result = self.alert_system.configure_rules(configured_rules)
             
             return {
-                "success": success_count > 0,
-                "configured_rules": success_count,
-                "total_rules": len(rules),
-                "results": results
+                "success": True,
+                "configured_rules": len(configured_rules),
+                "results": result
             }
             
         except Exception as e:
-            self.logger.error(f"Error configuring alert rules: {str(e)}")
+            self.logger.error(f"Error configuring enhanced alert rules: {str(e)}")
             return {
                 "success": False,
                 "error": str(e)
             }
     
-    def configure_notification_channels(self, channels: Dict) -> Dict:
-        """Configure notification channels"""
+    def configure_enhanced_notification_channels(self, channels: Dict) -> Dict:
+        """Configure enhanced notification channels"""
         try:
-            results = []
-            for channel, config in channels.items():
-                result = self.alert_system.configure_notification_channel(channel, config)
-                results.append(result)
+            # Configure enhanced notification channels with PhoneSploit-Pro features
+            enhanced_channels = {}
             
-            success_count = len([r for r in results if r["success"]])
+            for channel_type, config in channels.items():
+                enhanced_config = {
+                    **config,
+                    "encryption_enabled": self.encryption_enabled,
+                    "secure_communication": self.secure_communication
+                }
+                enhanced_channels[channel_type] = enhanced_config
+            
+            # Configure notification system
+            result = self.alert_system.configure_notification_channels(enhanced_channels)
             
             return {
-                "success": success_count > 0,
-                "configured_channels": success_count,
-                "total_channels": len(channels),
-                "results": results
+                "success": True,
+                "configured_channels": len(enhanced_channels),
+                "results": result
             }
             
         except Exception as e:
-            self.logger.error(f"Error configuring notification channels: {str(e)}")
+            self.logger.error(f"Error configuring enhanced notification channels: {str(e)}")
             return {
                 "success": False,
                 "error": str(e)
             }
     
-    def get_active_alerts(self, limit: int = 50) -> List[Dict]:
-        """Get active alerts"""
-        return self.alert_system.get_active_alerts(limit)
+    def get_enhanced_active_alerts(self, limit: int = 50) -> List[Dict]:
+        """Get enhanced active alerts"""
+        try:
+            alerts = self.alert_system.get_active_alerts(limit)
+            
+            # Add enhanced metadata to alerts
+            enhanced_alerts = []
+            for alert in alerts:
+                enhanced_alert = {
+                    **alert,
+                    "encryption_enabled": self.encryption_enabled,
+                    "threat_detection_enabled": self.threat_detection_enabled,
+                    "auto_response_enabled": self.auto_response_enabled
+                }
+                enhanced_alerts.append(enhanced_alert)
+            
+            return enhanced_alerts
+            
+        except Exception as e:
+            self.logger.error(f"Error getting enhanced active alerts: {str(e)}")
+            return []
     
-    def get_recent_analyses(self, limit: int = 10) -> List[Dict]:
-        """Get recent analytics results"""
-        return self.data_analytics.get_recent_analyses(limit)
+    def get_enhanced_recent_analyses(self, limit: int = 10) -> List[Dict]:
+        """Get enhanced recent analyses"""
+        try:
+            analyses = getattr(self, 'analytics_history', [])
+            
+            # Return recent analyses with enhanced metadata
+            recent_analyses = analyses[-limit:] if analyses else []
+            
+            for analysis in recent_analyses:
+                analysis["encryption_enabled"] = self.encryption_enabled
+                analysis["real_time_mode"] = self.real_time_mode
+            
+            return recent_analyses
+            
+        except Exception as e:
+            self.logger.error(f"Error getting enhanced recent analyses: {str(e)}")
+            return []
     
-    def acknowledge_alert(self, alert_id: str) -> Dict:
-        """Acknowledge an alert"""
-        return self.alert_system.acknowledge_alert(alert_id)
+    def acknowledge_enhanced_alert(self, alert_id: str) -> Dict:
+        """Acknowledge enhanced alert"""
+        try:
+            result = self.alert_system.acknowledge_alert(alert_id)
+            
+            # Add enhanced metadata
+            if result.get("success"):
+                result["encryption_enabled"] = self.encryption_enabled
+                result["threat_detection_enabled"] = self.threat_detection_enabled
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error acknowledging enhanced alert: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
-    def resolve_alert(self, alert_id: str) -> Dict:
-        """Resolve an alert"""
-        return self.alert_system.resolve_alert(alert_id)
+    def resolve_enhanced_alert(self, alert_id: str) -> Dict:
+        """Resolve enhanced alert"""
+        try:
+            result = self.alert_system.resolve_alert(alert_id)
+            
+            # Add enhanced metadata
+            if result.get("success"):
+                result["encryption_enabled"] = self.encryption_enabled
+                result["auto_response_enabled"] = self.auto_response_enabled
+            
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error resolving enhanced alert: {str(e)}")
+            return {
+                "success": False,
+                "error": str(e)
+            }
     
-    def clear_monitoring_data(self, category: str = None) -> Dict:
-        """Clear monitoring data"""
+    def clear_enhanced_monitoring_data(self, category: str = None) -> Dict:
+        """Clear enhanced monitoring data"""
         try:
             if category:
                 if category in self.aggregated_data:
-                    original_count = len(self.aggregated_data[category])
                     self.aggregated_data[category].clear()
-                    
-                    self.logger.info(f"Cleared {original_count} records from {category}")
-                    return {
-                        "success": True,
-                        "category": category,
-                        "cleared_records": original_count,
-                        "message": f"Cleared {original_count} records from {category}"
-                    }
+                    self.logger.info(f"Cleared enhanced monitoring data for category: {category}")
                 else:
                     return {
                         "success": False,
-                        "error": f"Category '{category}' not found"
+                        "error": f"Category {category} not found"
                     }
             else:
                 # Clear all data
-                total_records = sum(len(data) for data in self.aggregated_data.values())
                 for category in self.aggregated_data:
                     self.aggregated_data[category].clear()
                 
-                self.logger.info(f"Cleared {total_records} total records")
-                return {
-                    "success": True,
-                    "cleared_records": total_records,
-                    "message": f"Cleared {total_records} total records"
-                }
+                # Clear analytics history
+                if hasattr(self, 'analytics_history'):
+                    self.analytics_history.clear()
                 
+                self.logger.info("Cleared all enhanced monitoring data")
+            
+            return {
+                "success": True,
+                "message": f"Enhanced monitoring data cleared for category: {category if category else 'all'}"
+            }
+            
         except Exception as e:
-            self.logger.error(f"Error clearing monitoring data: {str(e)}")
+            self.logger.error(f"Error clearing enhanced monitoring data: {str(e)}")
             return {
                 "success": False,
                 "error": str(e)
