@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}نظام التحكم عن بعد المتقدم{% endblock %}</title>
+    
+    <!-- Bootstrap RTL CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --dark-color: #34495e;
+            --light-color: #ecf0f1;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .navbar {
+            background: rgba(44, 62, 80, 0.95) !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+        }
+        
+        .sidebar {
+            background: rgba(52, 73, 94, 0.95);
+            backdrop-filter: blur(10px);
+            min-height: 100vh;
+            box-shadow: 2px 0 20px rgba(0,0,0,0.1);
+        }
+        
+        .main-content {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin: 20px;
+            padding: 30px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+        }
+        
+        .btn {
+            border-radius: 10px;
+            padding: 10px 20px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .metric-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 10px 0;
+        }
+        
+        .alert-card {
+            border-left: 5px solid var(--danger-color);
+            background: rgba(231, 76, 60, 0.1);
+        }
+        
+        .success-card {
+            border-left: 5px solid var(--success-color);
+            background: rgba(39, 174, 96, 0.1);
+        }
+        
+        .warning-card {
+            border-left: 5px solid var(--warning-color);
+            background: rgba(243, 156, 18, 0.1);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--secondary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 10px;
+        }
+        
+        .status-online { background-color: var(--success-color); }
+        .status-offline { background-color: var(--danger-color); }
+        .status-warning { background-color: var(--warning-color); }
+        
+        .device-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .device-card:hover {
+            transform: scale(1.02);
+        }
+        
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: var(--danger-color);
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-content {
+            border-radius: 15px;
+            border: none;
+        }
+        
+        .form-control {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            transition: border-color 0.3s ease;
+        }
+        
+        .form-control:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+        }
+        
+        .table {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .table thead th {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            font-weight: 600;
+        }
+        
+        .progress {
+            border-radius: 10px;
+            height: 10px;
+        }
+        
+        .progress-bar {
+            border-radius: 10px;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: fixed;
+                top: 0;
+                left: -100%;
+                width: 250px;
+                z-index: 1000;
+                transition: left 0.3s ease;
+            }
+            
+            .sidebar.show {
+                left: 0;
+            }
+            
+            .main-content {
+                margin: 10px;
+                padding: 20px;
+            }
+        }
+        
+        /* Dark Mode Support */
+        @media (prefers-color-scheme: dark) {
+            body {
+                background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+                color: #ecf0f1;
+            }
+            
+            .main-content {
+                background: rgba(52, 73, 94, 0.95);
+                color: #ecf0f1;
+            }
+            
+            .card {
+                background: rgba(44, 62, 80, 0.9);
+                color: #ecf0f1;
+            }
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-shield-alt"></i>
+                نظام التحكم المتقدم
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard">
+                            <i class="fas fa-tachometer-alt"></i>
+                            لوحة التحكم
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/devices">
+                            <i class="fas fa-mobile-alt"></i>
+                            الأجهزة
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/monitoring">
+                            <i class="fas fa-chart-line"></i>
+                            المراقبة
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/alerts">
+                            <i class="fas fa-bell"></i>
+                            التنبيهات
+                            <span class="badge bg-danger" id="alert-count">0</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/analytics">
+                            <i class="fas fa-chart-bar"></i>
+                            التحليلات
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/security">
+                            <i class="fas fa-shield-alt"></i>
+                            الأمان
+                        </a>
+                    </li>
+                </ul>
+                
+                <ul class="navbar-nav">
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user"></i>
+                            {{ session.user_id if session.user_id else 'المستخدم' }}
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="/profile">الملف الشخصي</a></li>
+                            <li><a class="dropdown-item" href="/settings">الإعدادات</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/logout">تسجيل الخروج</a></li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <div class="container-fluid" style="margin-top: 80px;">
+        <div class="row">
+            <!-- Sidebar -->
+            <div class="col-md-3 col-lg-2 d-md-block sidebar collapse" id="sidebar">
+                <div class="position-sticky pt-3">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/dashboard">
+                                <i class="fas fa-tachometer-alt"></i>
+                                لوحة التحكم
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/devices">
+                                <i class="fas fa-mobile-alt"></i>
+                                إدارة الأجهزة
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/monitoring">
+                                <i class="fas fa-chart-line"></i>
+                                مراقبة الأداء
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/network">
+                                <i class="fas fa-network-wired"></i>
+                                مراقبة الشبكة
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/security">
+                                <i class="fas fa-shield-alt"></i>
+                                مراقبة الأمان
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/alerts">
+                                <i class="fas fa-bell"></i>
+                                إدارة التنبيهات
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/analytics">
+                                <i class="fas fa-chart-bar"></i>
+                                التحليلات المتقدمة
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/reports">
+                                <i class="fas fa-file-alt"></i>
+                                التقارير
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-white" href="/settings">
+                                <i class="fas fa-cog"></i>
+                                الإعدادات
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            
+            <!-- Main Content Area -->
+            <div class="col-md-9 col-lg-10 ms-sm-auto px-md-4">
+                <div class="main-content">
+                    <!-- Loading Indicator -->
+                    <div class="loading" id="loading">
+                        <div class="spinner"></div>
+                        <p class="mt-3">جاري التحميل...</p>
+                    </div>
+                    
+                    <!-- Content -->
+                    <div id="content">
+                        {% block content %}{% endblock %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        // Global variables
+        let socket = null;
+        let currentSessionId = null;
+        
+        // Initialize Socket.IO connection
+        function initializeSocket() {
+            socket = io();
+            
+            socket.on('connect', function() {
+                console.log('Connected to server');
+                updateConnectionStatus(true);
+            });
+            
+            socket.on('disconnect', function() {
+                console.log('Disconnected from server');
+                updateConnectionStatus(false);
+            });
+            
+            socket.on('monitoring_update', function(data) {
+                handleMonitoringUpdate(data);
+            });
+            
+            socket.on('new_alert', function(alertData) {
+                handleNewAlert(alertData);
+            });
+            
+            socket.on('performance_data', function(data) {
+                updatePerformanceMetrics(data);
+            });
+            
+            socket.on('network_data', function(data) {
+                updateNetworkMetrics(data);
+            });
+            
+            socket.on('security_data', function(data) {
+                updateSecurityMetrics(data);
+            });
+        }
+        
+        // Update connection status
+        function updateConnectionStatus(connected) {
+            const statusElement = document.getElementById('connection-status');
+            if (statusElement) {
+                statusElement.className = connected ? 'status-online' : 'status-offline';
+                statusElement.title = connected ? 'متصل' : 'غير متصل';
+            }
+        }
+        
+        // Handle monitoring updates
+        function handleMonitoringUpdate(data) {
+            console.log('Monitoring update received:', data);
+            // Update UI based on data type
+            if (data.performance) {
+                updatePerformanceMetrics(data.performance);
+            }
+            if (data.network) {
+                updateNetworkMetrics(data.network);
+            }
+            if (data.security) {
+                updateSecurityMetrics(data.security);
+            }
+        }
+        
+        // Handle new alerts
+        function handleNewAlert(alertData) {
+            console.log('New alert received:', alertData);
+            
+            // Update alert count
+            const alertCount = document.getElementById('alert-count');
+            if (alertCount) {
+                const currentCount = parseInt(alertCount.textContent) || 0;
+                alertCount.textContent = currentCount + 1;
+            }
+            
+            // Show notification
+            showNotification(alertData.message, alertData.severity);
+        }
+        
+        // Show notification
+        function showNotification(message, severity = 'info') {
+            const alertClass = {
+                'critical': 'alert-danger',
+                'high': 'alert-warning',
+                'medium': 'alert-info',
+                'low': 'alert-success'
+            }[severity] || 'alert-info';
+            
+            const notification = `
+                <div class="alert ${alertClass} alert-dismissible fade show" role="alert">
+                    <i class="fas fa-bell"></i>
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            // Add to notification area
+            const notificationArea = document.getElementById('notification-area');
+            if (notificationArea) {
+                notificationArea.insertAdjacentHTML('afterbegin', notification);
+            }
+        }
+        
+        // Update performance metrics
+        function updatePerformanceMetrics(data) {
+            // Update CPU usage
+            const cpuElement = document.getElementById('cpu-usage');
+            if (cpuElement && data.cpu_usage !== undefined) {
+                cpuElement.textContent = data.cpu_usage.toFixed(1) + '%';
+                updateProgressBar('cpu-progress', data.cpu_usage);
+            }
+            
+            // Update memory usage
+            const memoryElement = document.getElementById('memory-usage');
+            if (memoryElement && data.memory_usage !== undefined) {
+                memoryElement.textContent = data.memory_usage.toFixed(1) + '%';
+                updateProgressBar('memory-progress', data.memory_usage);
+            }
+            
+            // Update battery level
+            const batteryElement = document.getElementById('battery-level');
+            if (batteryElement && data.battery_level !== undefined) {
+                batteryElement.textContent = data.battery_level.toFixed(1) + '%';
+                updateProgressBar('battery-progress', data.battery_level);
+            }
+            
+            // Update temperature
+            const tempElement = document.getElementById('temperature');
+            if (tempElement && data.temperature !== undefined) {
+                tempElement.textContent = data.temperature.toFixed(1) + '°C';
+            }
+        }
+        
+        // Update network metrics
+        function updateNetworkMetrics(data) {
+            // Update bandwidth usage
+            const bandwidthElement = document.getElementById('bandwidth-usage');
+            if (bandwidthElement && data.bandwidth_usage !== undefined) {
+                bandwidthElement.textContent = formatBytes(data.bandwidth_usage);
+            }
+            
+            // Update latency
+            const latencyElement = document.getElementById('latency');
+            if (latencyElement && data.latency !== undefined) {
+                latencyElement.textContent = data.latency.toFixed(1) + 'ms';
+            }
+            
+            // Update packet loss
+            const packetLossElement = document.getElementById('packet-loss');
+            if (packetLossElement && data.packet_loss !== undefined) {
+                packetLossElement.textContent = data.packet_loss.toFixed(2) + '%';
+            }
+        }
+        
+        // Update security metrics
+        function updateSecurityMetrics(data) {
+            // Update threat level
+            const threatElement = document.getElementById('threat-level');
+            if (threatElement && data.threat_level !== undefined) {
+                threatElement.textContent = data.threat_level + '/10';
+                updateThreatIndicator(data.threat_level);
+            }
+            
+            // Update security events
+            const eventsElement = document.getElementById('security-events');
+            if (eventsElement && data.total_events !== undefined) {
+                eventsElement.textContent = data.total_events;
+            }
+        }
+        
+        // Update progress bar
+        function updateProgressBar(elementId, value) {
+            const element = document.getElementById(elementId);
+            if (element) {
+                element.style.width = value + '%';
+                element.setAttribute('aria-valuenow', value);
+                
+                // Update color based on value
+                if (value > 80) {
+                    element.className = 'progress-bar bg-danger';
+                } else if (value > 60) {
+                    element.className = 'progress-bar bg-warning';
+                } else {
+                    element.className = 'progress-bar bg-success';
+                }
+            }
+        }
+        
+        // Update threat indicator
+        function updateThreatIndicator(level) {
+            const indicator = document.getElementById('threat-indicator');
+            if (indicator) {
+                if (level > 7) {
+                    indicator.className = 'status-indicator status-offline';
+                } else if (level > 4) {
+                    indicator.className = 'status-indicator status-warning';
+                } else {
+                    indicator.className = 'status-indicator status-online';
+                }
+            }
+        }
+        
+        // Format bytes
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+        
+        // Show loading
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('content').style.display = 'none';
+        }
+        
+        // Hide loading
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('content').style.display = 'block';
+        }
+        
+        // Make API request
+        async function makeApiRequest(url, options = {}) {
+            try {
+                showLoading();
+                const response = await fetch(url, {
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...options.headers
+                    },
+                    ...options
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                return await response.json();
+            } catch (error) {
+                console.error('API request failed:', error);
+                showNotification('خطأ في الاتصال بالخادم', 'critical');
+                throw error;
+            } finally {
+                hideLoading();
+            }
+        }
+        
+        // Initialize when document is ready
+        $(document).ready(function() {
+            initializeSocket();
+            
+            // Initialize tooltips
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+            
+            // Initialize popovers
+            var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+            var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+                return new bootstrap.Popover(popoverTriggerEl);
+            });
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
