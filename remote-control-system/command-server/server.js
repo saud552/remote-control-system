@@ -986,6 +986,232 @@ class CommandServer {
         res.status(500).json({ success: false, error: 'خطأ في الحصول على حالة النظام' });
       }
     });
+
+    // واجهات API للأدوات المتقدمة
+    this.app.post('/api/tools/install', async (req, res) => {
+      try {
+        const { toolName } = req.body;
+        
+        if (!toolName) {
+          return res.status(400).json({ success: false, error: 'اسم الأداة مطلوب' });
+        }
+
+        // تنفيذ تثبيت الأداة عبر Python
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python3', [
+          'tool_manager.py',
+          '--install',
+          toolName
+        ]);
+
+        let output = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code === 0) {
+            res.json({ 
+              success: true, 
+              message: `تم تثبيت الأداة ${toolName} بنجاح`,
+              output: output
+            });
+          } else {
+            res.status(500).json({ 
+              success: false, 
+              error: `فشل في تثبيت الأداة ${toolName}`,
+              details: error
+            });
+          }
+        });
+
+      } catch (error) {
+        console.error('خطأ في تثبيت الأداة:', error);
+        res.status(500).json({ success: false, error: 'خطأ في تثبيت الأداة' });
+      }
+    });
+
+    this.app.get('/api/tools/status', async (req, res) => {
+      try {
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python3', [
+          'tool_manager.py',
+          '--status'
+        ]);
+
+        let output = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code === 0) {
+            try {
+              const status = JSON.parse(output);
+              res.json({ success: true, data: status });
+            } catch (parseError) {
+              res.status(500).json({ success: false, error: 'فشل في تحليل حالة الأدوات' });
+            }
+          } else {
+            res.status(500).json({ success: false, error: 'فشل في الحصول على حالة الأدوات' });
+          }
+        });
+
+      } catch (error) {
+        console.error('خطأ في الحصول على حالة الأدوات:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على حالة الأدوات' });
+      }
+    });
+
+    this.app.post('/api/attack', async (req, res) => {
+      try {
+        const attackConfig = req.body;
+        
+        if (!attackConfig.type || !attackConfig.target) {
+          return res.status(400).json({ 
+            success: false, 
+            error: 'نوع الهجوم والهدف مطلوبان' 
+          });
+        }
+
+        // تنفيذ الهجوم المتقدم عبر Python
+        const { spawn } = require('child_process');
+        const pythonProcess = spawn('python3', [
+          'enhanced_tool_integration.py',
+          '--attack',
+          JSON.stringify(attackConfig)
+        ]);
+
+        let output = '';
+        let error = '';
+
+        pythonProcess.stdout.on('data', (data) => {
+          output += data.toString();
+        });
+
+        pythonProcess.stderr.on('data', (data) => {
+          error += data.toString();
+        });
+
+        pythonProcess.on('close', (code) => {
+          if (code === 0) {
+            try {
+              const result = JSON.parse(output);
+              res.json({ success: true, result });
+            } catch (parseError) {
+              res.status(500).json({ success: false, error: 'فشل في تحليل نتيجة الهجوم' });
+            }
+          } else {
+            res.status(500).json({ success: false, error: 'فشل في تنفيذ الهجوم' });
+          }
+        });
+
+      } catch (error) {
+        console.error('خطأ في تنفيذ الهجوم:', error);
+        res.status(500).json({ success: false, error: 'خطأ في تنفيذ الهجوم' });
+      }
+    });
+
+    this.app.get('/api/attacks/history', (req, res) => {
+      try {
+        // قراءة تاريخ الهجمات من الملف
+        const attacksPath = path.join(this.localStoragePath, 'attacks-history.json');
+        let attacks = [];
+        
+        if (fs.existsSync(attacksPath)) {
+          attacks = JSON.parse(fs.readFileSync(attacksPath, 'utf8'));
+        }
+        
+        res.json({ success: true, attacks });
+      } catch (error) {
+        console.error('خطأ في الحصول على تاريخ الهجمات:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على تاريخ الهجمات' });
+      }
+    });
+
+    this.app.get('/api/tools/available', (req, res) => {
+      try {
+        const availableTools = [
+          {
+            name: "stitch",
+            type: "RAT",
+            description: "Cross-platform Python RAT framework",
+            status: "available"
+          },
+          {
+            name: "pyshell",
+            type: "RAT", 
+            description: "Advanced Python RAT with file transfer",
+            status: "available"
+          },
+          {
+            name: "hiddeneye",
+            type: "Phishing",
+            description: "Modern phishing tool with advanced features",
+            status: "available"
+          },
+          {
+            name: "evilginx2",
+            type: "Phishing",
+            description: "Advanced man-in-the-middle attack framework",
+            status: "available"
+          },
+          {
+            name: "wifijammer",
+            type: "WiFi Jamming",
+            description: "Advanced WiFi jamming and deauthentication",
+            status: "available"
+          },
+          {
+            name: "fluxion",
+            type: "WiFi Jamming",
+            description: "Advanced WiFi attack framework",
+            status: "available"
+          },
+          {
+            name: "thefatrat",
+            type: "Payload",
+            description: "Advanced payload generator with anti-detection",
+            status: "available"
+          },
+          {
+            name: "hashbuster",
+            type: "Hash Cracking",
+            description: "Advanced hash cracking and identification",
+            status: "available"
+          },
+          {
+            name: "reconspider",
+            type: "Reconnaissance",
+            description: "Advanced OSINT reconnaissance framework",
+            status: "available"
+          },
+          {
+            name: "sherlock",
+            type: "Reconnaissance",
+            description: "Hunt down social media accounts by username",
+            status: "available"
+          }
+        ];
+        
+        res.json({ success: true, tools: availableTools });
+      } catch (error) {
+        console.error('خطأ في الحصول على الأدوات المتاحة:', error);
+        res.status(500).json({ success: false, error: 'خطأ في الحصول على الأدوات المتاحة' });
+      }
+    });
   }
 
   setupWebSocket() {
