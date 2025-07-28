@@ -1,0 +1,653 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة التحكم - نظام التحكم عن بعد المتقدم{% endblock %}
+
+{% block content %}
+<!-- Notification Area -->
+<div id="notification-area"></div>
+
+<!-- Dashboard Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-tachometer-alt text-primary"></i>
+                    لوحة التحكم
+                </h1>
+                <p class="text-muted">مراقبة شاملة للأجهزة والأنظمة</p>
+            </div>
+            <div class="d-flex align-items-center">
+                <span class="status-indicator status-online" id="connection-status" title="متصل"></span>
+                <span class="ms-2">متصل بالخادم</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">الأجهزة المتصلة</h5>
+                        <h2 class="mb-0" id="connected-devices">0</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-mobile-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">التنبيهات النشطة</h5>
+                        <h2 class="mb-0" id="active-alerts">0</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-bell fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">مستوى التهديد</h5>
+                        <h2 class="mb-0" id="threat-level">0/10</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-shield-alt fa-2x"></i>
+                        <span class="status-indicator" id="threat-indicator"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">جلسات المراقبة</h5>
+                        <h2 class="mb-0" id="monitoring-sessions">0</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Performance Monitoring -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-microchip"></i>
+                    مراقبة الأداء
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6>استخدام المعالج</h6>
+                            <h3 id="cpu-usage">0%</h3>
+                            <div class="progress">
+                                <div class="progress-bar" id="cpu-progress" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6>استخدام الذاكرة</h6>
+                            <h3 id="memory-usage">0%</h3>
+                            <div class="progress">
+                                <div class="progress-bar" id="memory-progress" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6>مستوى البطارية</h6>
+                            <h3 id="battery-level">0%</h3>
+                            <div class="progress">
+                                <div class="progress-bar" id="battery-progress" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="text-center">
+                            <h6>درجة الحرارة</h6>
+                            <h3 id="temperature">0°C</h3>
+                            <div class="progress">
+                                <div class="progress-bar" id="temp-progress" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Network Monitoring -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-network-wired"></i>
+                    مراقبة الشبكة
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h6>استخدام النطاق الترددي</h6>
+                            <h3 id="bandwidth-usage">0 KB</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h6>زمن الاستجابة</h6>
+                            <h3 id="latency">0ms</h3>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center">
+                            <h6>فقدان الحزم</h6>
+                            <h3 id="packet-loss">0%</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row mb-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-line"></i>
+                    أداء النظام عبر الزمن
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-chart-pie"></i>
+                    توزيع الأحداث الأمنية
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="chart-container">
+                    <canvas id="securityChart"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Alerts -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    التنبيهات الأخيرة
+                </h5>
+                <a href="/alerts" class="btn btn-sm btn-primary">عرض الكل</a>
+            </div>
+            <div class="card-body">
+                <div id="recent-alerts">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-bell fa-2x mb-2"></i>
+                        <p>لا توجد تنبيهات حديثة</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Device Status -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-mobile-alt"></i>
+                    حالة الأجهزة
+                </h5>
+                <a href="/devices" class="btn btn-sm btn-primary">إدارة الأجهزة</a>
+            </div>
+            <div class="card-body">
+                <div id="device-status">
+                    <div class="text-center text-muted">
+                        <i class="fas fa-mobile-alt fa-2x mb-2"></i>
+                        <p>جاري تحميل حالة الأجهزة...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="card-title mb-0">
+                    <i class="fas fa-bolt"></i>
+                    إجراءات سريعة
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-outline-primary w-100" onclick="startMonitoring()">
+                            <i class="fas fa-play"></i>
+                            بدء المراقبة
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-outline-success w-100" onclick="scanDevices()">
+                            <i class="fas fa-search"></i>
+                            فحص الأجهزة
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-outline-warning w-100" onclick="generateReport()">
+                            <i class="fas fa-file-alt"></i>
+                            إنشاء تقرير
+                        </button>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <button class="btn btn-outline-info w-100" onclick="openSettings()">
+                            <i class="fas fa-cog"></i>
+                            الإعدادات
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Chart instances
+    let performanceChart = null;
+    let securityChart = null;
+    
+    // Chart data
+    let performanceData = {
+        labels: [],
+        datasets: [{
+            label: 'استخدام المعالج (%)',
+            data: [],
+            borderColor: '#3498db',
+            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+            tension: 0.4
+        }, {
+            label: 'استخدام الذاكرة (%)',
+            data: [],
+            borderColor: '#e74c3c',
+            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+            tension: 0.4
+        }]
+    };
+    
+    let securityData = {
+        labels: ['منخفض', 'متوسط', 'عالي', 'حرج'],
+        datasets: [{
+            data: [0, 0, 0, 0],
+            backgroundColor: [
+                '#27ae60',
+                '#f39c12',
+                '#e67e22',
+                '#e74c3c'
+            ]
+        }]
+    };
+    
+    // Initialize charts
+    function initializeCharts() {
+        // Performance Chart
+        const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+        performanceChart = new Chart(performanceCtx, {
+            type: 'line',
+            data: performanceData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'top',
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100
+                    }
+                }
+            }
+        });
+        
+        // Security Chart
+        const securityCtx = document.getElementById('securityChart').getContext('2d');
+        securityChart = new Chart(securityCtx, {
+            type: 'doughnut',
+            data: securityData,
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                    }
+                }
+            }
+        });
+    }
+    
+    // Update performance chart
+    function updatePerformanceChart(cpuUsage, memoryUsage) {
+        const now = new Date().toLocaleTimeString('ar-SA');
+        
+        performanceData.labels.push(now);
+        performanceData.datasets[0].data.push(cpuUsage);
+        performanceData.datasets[1].data.push(memoryUsage);
+        
+        // Keep only last 20 data points
+        if (performanceData.labels.length > 20) {
+            performanceData.labels.shift();
+            performanceData.datasets[0].data.shift();
+            performanceData.datasets[1].data.shift();
+        }
+        
+        performanceChart.update();
+    }
+    
+    // Update security chart
+    function updateSecurityChart(events) {
+        securityData.datasets[0].data = [
+            events.low || 0,
+            events.medium || 0,
+            events.high || 0,
+            events.critical || 0
+        ];
+        
+        securityChart.update();
+    }
+    
+    // Load dashboard data
+    async function loadDashboardData() {
+        try {
+            // Load monitoring status
+            const statusResponse = await makeApiRequest('/api/monitoring/status');
+            updateDashboardStats(statusResponse);
+            
+            // Load recent alerts
+            const alertsResponse = await makeApiRequest('/api/alerts?limit=5');
+            updateRecentAlerts(alertsResponse.alerts);
+            
+            // Load device status
+            const devicesResponse = await makeApiRequest('/api/devices');
+            updateDeviceStatus(devicesResponse.devices);
+            
+            // Load monitoring statistics
+            const statsResponse = await makeApiRequest('/api/monitoring/statistics');
+            updateSecurityChart(statsResponse.security?.severity_distribution || {});
+            
+        } catch (error) {
+            console.error('Error loading dashboard data:', error);
+        }
+    }
+    
+    // Update dashboard statistics
+    function updateDashboardStats(status) {
+        document.getElementById('connected-devices').textContent = status.active_sessions || 0;
+        document.getElementById('active-alerts').textContent = status.system_status?.alert_system?.active_alerts || 0;
+        document.getElementById('monitoring-sessions').textContent = status.total_sessions || 0;
+    }
+    
+    // Update recent alerts
+    function updateRecentAlerts(alerts) {
+        const container = document.getElementById('recent-alerts');
+        
+        if (!alerts || alerts.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="fas fa-bell fa-2x mb-2"></i>
+                    <p>لا توجد تنبيهات حديثة</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let alertsHtml = '';
+        alerts.forEach(alert => {
+            const severityClass = {
+                'critical': 'alert-danger',
+                'high': 'alert-warning',
+                'medium': 'alert-info',
+                'low': 'alert-success'
+            }[alert.severity] || 'alert-info';
+            
+            alertsHtml += `
+                <div class="alert ${severityClass} alert-sm mb-2">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${alert.message}</strong>
+                            <br>
+                            <small class="text-muted">${new Date(alert.timestamp * 1000).toLocaleString('ar-SA')}</small>
+                        </div>
+                        <div>
+                            <button class="btn btn-sm btn-outline-primary" onclick="acknowledgeAlert('${alert.alert_id}')">
+                                إقرار
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        container.innerHTML = alertsHtml;
+    }
+    
+    // Update device status
+    function updateDeviceStatus(devices) {
+        const container = document.getElementById('device-status');
+        
+        if (!devices || devices.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted">
+                    <i class="fas fa-mobile-alt fa-2x mb-2"></i>
+                    <p>لا توجد أجهزة متصلة</p>
+                </div>
+            `;
+            return;
+        }
+        
+        let devicesHtml = '<div class="row">';
+        devices.forEach(device => {
+            const statusClass = device.is_connected ? 'status-online' : 'status-offline';
+            const statusText = device.is_connected ? 'متصل' : 'غير متصل';
+            
+            devicesHtml += `
+                <div class="col-md-4 mb-3">
+                    <div class="card device-card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <h6 class="card-title">${device.hostname || device.device_id}</h6>
+                                    <p class="card-text text-muted">${device.ip_address}</p>
+                                </div>
+                                <div class="text-end">
+                                    <span class="status-indicator ${statusClass}" title="${statusText}"></span>
+                                    <br>
+                                    <small class="text-muted">${device.device_type}</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        devicesHtml += '</div>';
+        
+        container.innerHTML = devicesHtml;
+    }
+    
+    // Quick action functions
+    function startMonitoring() {
+        // Show monitoring modal
+        const modal = new bootstrap.Modal(document.getElementById('monitoringModal'));
+        modal.show();
+    }
+    
+    function scanDevices() {
+        showNotification('جاري فحص الأجهزة...', 'info');
+        // Implement device scanning
+    }
+    
+    function generateReport() {
+        showNotification('جاري إنشاء التقرير...', 'info');
+        // Implement report generation
+    }
+    
+    function openSettings() {
+        window.location.href = '/settings';
+    }
+    
+    // Acknowledge alert
+    async function acknowledgeAlert(alertId) {
+        try {
+            await makeApiRequest(`/api/alerts/${alertId}/acknowledge`, {
+                method: 'POST'
+            });
+            showNotification('تم إقرار التنبيه بنجاح', 'success');
+            loadDashboardData(); // Reload data
+        } catch (error) {
+            showNotification('خطأ في إقرار التنبيه', 'critical');
+        }
+    }
+    
+    // Enhanced performance metrics update
+    function updatePerformanceMetrics(data) {
+        super.updatePerformanceMetrics(data);
+        
+        // Update chart
+        if (performanceChart && data.cpu_usage !== undefined && data.memory_usage !== undefined) {
+            updatePerformanceChart(data.cpu_usage, data.memory_usage);
+        }
+        
+        // Update temperature progress bar
+        if (data.temperature !== undefined) {
+            const tempProgress = document.getElementById('temp-progress');
+            if (tempProgress) {
+                const tempPercent = (data.temperature / 60) * 100; // Assuming max temp is 60°C
+                tempProgress.style.width = tempPercent + '%';
+                tempProgress.setAttribute('aria-valuenow', tempPercent);
+                
+                if (data.temperature > 45) {
+                    tempProgress.className = 'progress-bar bg-danger';
+                } else if (data.temperature > 35) {
+                    tempProgress.className = 'progress-bar bg-warning';
+                } else {
+                    tempProgress.className = 'progress-bar bg-success';
+                }
+            }
+        }
+    }
+    
+    // Initialize dashboard
+    $(document).ready(function() {
+        initializeCharts();
+        loadDashboardData();
+        
+        // Refresh data every 30 seconds
+        setInterval(loadDashboardData, 30000);
+    });
+</script>
+
+<!-- Monitoring Modal -->
+<div class="modal fade" id="monitoringModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">بدء المراقبة</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="monitoringForm">
+                    <div class="mb-3">
+                        <label class="form-label">اختر الجهاز</label>
+                        <select class="form-select" id="deviceSelect" required>
+                            <option value="">اختر جهاز...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">نوع المراقبة</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="performance" id="monitorPerformance" checked>
+                            <label class="form-check-label" for="monitorPerformance">مراقبة الأداء</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="network" id="monitorNetwork" checked>
+                            <label class="form-check-label" for="monitorNetwork">مراقبة الشبكة</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="security" id="monitorSecurity" checked>
+                            <label class="form-check-label" for="monitorSecurity">مراقبة الأمان</label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">فترة التحديث (ثواني)</label>
+                        <input type="number" class="form-control" id="updateInterval" value="5" min="1" max="60">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إلغاء</button>
+                <button type="button" class="btn btn-primary" onclick="startMonitoringSession()">بدء المراقبة</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

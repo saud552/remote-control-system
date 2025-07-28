@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تسجيل الدخول - نظام التحكم عن بعد المتقدم</title>
+    
+    <!-- Bootstrap RTL CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.rtl.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- Custom CSS -->
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --warning-color: #f39c12;
+            --danger-color: #e74c3c;
+            --dark-color: #34495e;
+            --light-color: #ecf0f1;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .login-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 40px;
+            width: 100%;
+            max-width: 400px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .login-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+        
+        .login-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        
+        .login-header .logo {
+            width: 80px;
+            height: 80px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            color: white;
+            font-size: 2rem;
+        }
+        
+        .login-header h1 {
+            color: var(--primary-color);
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        
+        .login-header p {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .form-control {
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 12px 15px 12px 45px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.9);
+        }
+        
+        .form-control:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.2rem rgba(52, 152, 219, 0.25);
+            background: white;
+        }
+        
+        .form-icon {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #6c757d;
+            font-size: 1.1rem;
+            transition: color 0.3s ease;
+        }
+        
+        .form-control:focus + .form-icon {
+            color: var(--secondary-color);
+        }
+        
+        .btn-login {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 10px;
+            padding: 12px 30px;
+            font-size: 1rem;
+            font-weight: 600;
+            color: white;
+            width: 100%;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-login::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-login:hover::before {
+            left: 100%;
+        }
+        
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        
+        .btn-login:active {
+            transform: translateY(0);
+        }
+        
+        .alert {
+            border-radius: 10px;
+            border: none;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+        }
+        
+        .alert-danger {
+            background: rgba(231, 76, 60, 0.1);
+            color: #c0392b;
+            border-left: 4px solid var(--danger-color);
+        }
+        
+        .alert-success {
+            background: rgba(39, 174, 96, 0.1);
+            color: #27ae60;
+            border-left: 4px solid var(--success-color);
+        }
+        
+        .login-footer {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        .login-footer p {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+        }
+        
+        .social-login {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        
+        .social-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid #e9ecef;
+            background: white;
+            color: #6c757d;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+        
+        .social-btn:hover {
+            border-color: var(--secondary-color);
+            color: var(--secondary-color);
+            transform: translateY(-2px);
+        }
+        
+        .remember-me {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
+        .form-check-input {
+            border-radius: 5px;
+        }
+        
+        .form-check-input:checked {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+        }
+        
+        .forgot-password {
+            color: var(--secondary-color);
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+        
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--secondary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 480px) {
+            .login-container {
+                margin: 20px;
+                padding: 30px 20px;
+            }
+            
+            .login-header h1 {
+                font-size: 1.5rem;
+            }
+        }
+        
+        /* Dark Mode Support */
+        @media (prefers-color-scheme: dark) {
+            .login-container {
+                background: rgba(52, 73, 94, 0.95);
+                color: #ecf0f1;
+            }
+            
+            .form-control {
+                background: rgba(44, 62, 80, 0.9);
+                color: #ecf0f1;
+                border-color: #34495e;
+            }
+            
+            .form-control:focus {
+                background: rgba(44, 62, 80, 1);
+            }
+            
+            .login-header h1 {
+                color: #ecf0f1;
+            }
+            
+            .login-header p {
+                color: #bdc3c7;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <!-- Loading Indicator -->
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>جاري تسجيل الدخول...</p>
+        </div>
+        
+        <!-- Login Form -->
+        <div id="loginForm">
+            <!-- Header -->
+            <div class="login-header">
+                <div class="logo">
+                    <i class="fas fa-shield-alt"></i>
+                </div>
+                <h1>نظام التحكم المتقدم</h1>
+                <p>تسجيل الدخول للوصول إلى لوحة التحكم</p>
+            </div>
+            
+            <!-- Error/Success Messages -->
+            {% if error %}
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                {{ error }}
+            </div>
+            {% endif %}
+            
+            {% if success %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                {{ success }}
+            </div>
+            {% endif %}
+            
+            <!-- Login Form -->
+            <form method="POST" id="loginFormElement">
+                <div class="form-group">
+                    <input type="text" 
+                           class="form-control" 
+                           id="username" 
+                           name="username" 
+                           placeholder="اسم المستخدم"
+                           required>
+                    <i class="fas fa-user form-icon"></i>
+                </div>
+                
+                <div class="form-group">
+                    <input type="password" 
+                           class="form-control" 
+                           id="password" 
+                           name="password" 
+                           placeholder="كلمة المرور"
+                           required>
+                    <i class="fas fa-lock form-icon"></i>
+                </div>
+                
+                <div class="remember-me">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="rememberMe" name="remember">
+                        <label class="form-check-label" for="rememberMe">
+                            تذكرني
+                        </label>
+                    </div>
+                    <a href="#" class="forgot-password">نسيت كلمة المرور؟</a>
+                </div>
+                
+                <button type="submit" class="btn btn-login">
+                    <i class="fas fa-sign-in-alt"></i>
+                    تسجيل الدخول
+                </button>
+            </form>
+            
+            <!-- Footer -->
+            <div class="login-footer">
+                <p>أو سجل الدخول باستخدام</p>
+                <div class="social-login">
+                    <a href="#" class="social-btn" title="Google">
+                        <i class="fab fa-google"></i>
+                    </a>
+                    <a href="#" class="social-btn" title="Microsoft">
+                        <i class="fab fa-microsoft"></i>
+                    </a>
+                    <a href="#" class="social-btn" title="GitHub">
+                        <i class="fab fa-github"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Custom JavaScript -->
+    <script>
+        // Form validation and submission
+        $(document).ready(function() {
+            const loginForm = $('#loginFormElement');
+            const loading = $('#loading');
+            const loginFormContainer = $('#loginForm');
+            
+            // Form submission
+            loginForm.on('submit', function(e) {
+                e.preventDefault();
+                
+                // Show loading
+                loading.show();
+                loginFormContainer.hide();
+                
+                // Get form data
+                const formData = {
+                    username: $('#username').val(),
+                    password: $('#password').val(),
+                    remember: $('#rememberMe').is(':checked')
+                };
+                
+                // Simulate API call (replace with actual API call)
+                setTimeout(() => {
+                    // For demo purposes, accept any username/password
+                    if (formData.username && formData.password) {
+                        // Success - redirect to dashboard
+                        window.location.href = '/';
+                    } else {
+                        // Show error
+                        showError('يرجى إدخال اسم المستخدم وكلمة المرور');
+                        loading.hide();
+                        loginFormContainer.show();
+                    }
+                }, 1500);
+            });
+            
+            // Input focus effects
+            $('.form-control').on('focus', function() {
+                $(this).parent().addClass('focused');
+            });
+            
+            $('.form-control').on('blur', function() {
+                if (!$(this).val()) {
+                    $(this).parent().removeClass('focused');
+                }
+            });
+            
+            // Password visibility toggle
+            $('#password').on('input', function() {
+                const password = $(this).val();
+                const icon = $(this).siblings('.form-icon');
+                
+                if (password.length > 0) {
+                    icon.removeClass('fa-lock').addClass('fa-eye');
+                    icon.css('cursor', 'pointer');
+                } else {
+                    icon.removeClass('fa-eye').addClass('fa-lock');
+                    icon.css('cursor', 'default');
+                }
+            });
+            
+            // Toggle password visibility
+            $('.form-icon').on('click', function() {
+                const input = $(this).siblings('.form-control');
+                const icon = $(this);
+                
+                if (input.attr('type') === 'password') {
+                    input.attr('type', 'text');
+                    icon.removeClass('fa-eye').addClass('fa-eye-slash');
+                } else {
+                    input.attr('type', 'password');
+                    icon.removeClass('fa-eye-slash').addClass('fa-eye');
+                }
+            });
+            
+            // Auto-focus username field
+            $('#username').focus();
+            
+            // Enter key navigation
+            $('#username').on('keypress', function(e) {
+                if (e.which === 13) {
+                    $('#password').focus();
+                }
+            });
+            
+            $('#password').on('keypress', function(e) {
+                if (e.which === 13) {
+                    loginForm.submit();
+                }
+            });
+        });
+        
+        // Show error message
+        function showError(message) {
+            const errorHtml = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    ${message}
+                </div>
+            `;
+            
+            // Remove existing alerts
+            $('.alert').remove();
+            
+            // Add new error
+            $('.login-header').after(errorHtml);
+        }
+        
+        // Show success message
+        function showSuccess(message) {
+            const successHtml = `
+                <div class="alert alert-success">
+                    <i class="fas fa-check-circle"></i>
+                    ${message}
+                </div>
+            `;
+            
+            // Remove existing alerts
+            $('.alert').remove();
+            
+            // Add new success
+            $('.login-header').after(successHtml);
+        }
+        
+        // Demo credentials helper
+        function fillDemoCredentials() {
+            $('#username').val('admin');
+            $('#password').val('admin123');
+        }
+        
+        // Add demo credentials button (for development)
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            $(document).ready(function() {
+                const demoButton = `
+                    <button type="button" class="btn btn-sm btn-outline-secondary mt-3" onclick="fillDemoCredentials()">
+                        <i class="fas fa-magic"></i>
+                        تعبئة بيانات تجريبية
+                    </button>
+                `;
+                $('.login-footer').append(demoButton);
+            });
+        }
+    </script>
+</body>
+</html>
