@@ -1,5 +1,5 @@
-# Render Configuration for Advanced Remote Control System v2.2.3
-# ملف تكوين Render لنظام التحكم عن بعد المتقدم الإصدار 2.2.3
+# Render Configuration for Advanced Remote Control System v2.2.5
+# ملف تكوين Render لنظام التحكم عن بعد المتقدم الإصدار 2.2.5
 
 services:
   # خادم الأوامر - الخدمة الرئيسية
@@ -15,7 +15,7 @@ services:
       - key: PORT
         value: 10001
       - key: SYSTEM_VERSION
-        value: "2.2.3"
+        value: "2.2.5"
     healthCheckPath: /health
     autoDeploy: true
     region: oregon
@@ -33,7 +33,7 @@ services:
       - key: PORT
         value: 3000
       - key: SYSTEM_VERSION
-        value: "2.2.3"
+        value: "2.2.5"
       - key: DEVICE_ENCRYPTION_KEY
         generateValue: true
     healthCheckPath: /
@@ -59,14 +59,14 @@ services:
       - key: WEB_INTERFACE_URL
         value: https://remote-control-web-interface.onrender.com
       - key: SYSTEM_VERSION
-        value: "2.2.3"
+        value: "2.2.5"
     autoDeploy: true
     region: oregon
 
 # متغيرات البيئة المشتركة
 envVars:
   - key: SYSTEM_VERSION
-    value: "2.2.3"
+    value: "2.2.5"
   - key: SECURITY_LEVEL
     value: "high"
   - key: LOG_LEVEL
