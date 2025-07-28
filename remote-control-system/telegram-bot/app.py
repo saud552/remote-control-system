@@ -41,7 +41,7 @@ def home():
     return jsonify({
         "status": "running",
         "service": "Telegram Bot",
-        "version": "2.1.7",
+        "version": "2.2.5",
         "bot_running": bot_status["running"],
         "uptime": time.time() - bot_status["start_time"] if bot_status["start_time"] else 0,
         "security": SECURITY_CONFIG,

