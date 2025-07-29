@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Remote Control System - Phase 6</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="/static/css/dashboard.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-dark text-light">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-black border-bottom border-secondary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/">
+                <i class="fas fa-shield-alt text-danger"></i>
+                <span class="ms-2">Advanced Remote Control System</span>
+                <span class="badge bg-success ms-2">Phase 6</span>
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/"><i class="fas fa-home"></i> Home</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/dashboard"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/attacks"><i class="fas fa-crosshairs"></i> Attacks</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/tools"><i class="fas fa-tools"></i> Tools</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/reports"><i class="fas fa-chart-bar"></i> Reports</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/monitoring"><i class="fas fa-heartbeat"></i> Monitoring</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/settings"><i class="fas fa-cog"></i> Settings</a>
+                    </li>
+                </ul>
+                
+                <div class="navbar-nav">
+                    <div class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="fas fa-user-circle"></i> Admin
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-dark">
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-user"></i> Profile</a></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-key"></i> Security</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#"><i class="fas fa-sign-out-alt"></i> Logout</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid mt-4">
+        <!-- Welcome Section -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card bg-black border-danger">
+                    <div class="card-body text-center">
+                        <h1 class="display-4 text-danger mb-3">
+                            <i class="fas fa-shield-alt"></i>
+                            Advanced Remote Control System
+                        </h1>
+                        <p class="lead text-light">Phase 6: Advanced User Interface & Control Development</p>
+                        <div class="row mt-4">
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-wifi text-primary fs-1 me-3"></i>
+                                    <div>
+                                        <h5 class="mb-0">WiFi Attacks</h5>
+                                        <small class="text-muted">Advanced jamming & capture</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-mobile-alt text-success fs-1 me-3"></i>
+                                    <div>
+                                        <h5 class="mb-0">Mobile Attacks</h5>
+                                        <small class="text-muted">Device exploitation & control</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-unlock text-warning fs-1 me-3"></i>
+                                    <div>
+                                        <h5 class="mb-0">Crypto Cracking</h5>
+                                        <small class="text-muted">Hash & encryption breaking</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="d-flex align-items-center justify-content-center">
+                                    <i class="fas fa-brain text-info fs-1 me-3"></i>
+                                    <div>
+                                        <h5 class="mb-0">AI Analysis</h5>
+                                        <small class="text-muted">Smart recommendations</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-black border-primary">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="text-muted">Active Attacks</h6>
+                                <h3 class="text-primary" id="active-attacks">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-crosshairs text-primary fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-black border-success">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="text-muted">Connected Clients</h6>
+                                <h3 class="text-success" id="connected-clients">0</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-users text-success fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-black border-warning">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="text-muted">System Health</h6>
+                                <h3 class="text-warning" id="system-health">100%</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-heartbeat text-warning fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-black border-info">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <h6 class="text-muted">AI Recommendations</h6>
+                                <h3 class="text-info" id="ai-recommendations">5</h3>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="fas fa-brain text-info fs-1"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card bg-black border-secondary">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-primary w-100 mb-2" onclick="startWiFiAttack()">
+                                    <i class="fas fa-wifi"></i><br>
+                                    WiFi Attack
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-success w-100 mb-2" onclick="startMobileAttack()">
+                                    <i class="fas fa-mobile-alt"></i><br>
+                                    Mobile Attack
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-warning w-100 mb-2" onclick="startCryptoAttack()">
+                                    <i class="fas fa-unlock"></i><br>
+                                    Crypto Attack
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-info w-100 mb-2" onclick="getAIRecommendations()">
+                                    <i class="fas fa-brain"></i><br>
+                                    AI Analysis
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-danger w-100 mb-2" onclick="checkThreats()">
+                                    <i class="fas fa-shield-alt"></i><br>
+                                    Threat Check
+                                </button>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-outline-secondary w-100 mb-2" onclick="generateReport()">
+                                    <i class="fas fa-file-alt"></i><br>
+                                    Generate Report
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Metrics -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card bg-black border-primary">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-chart-line"></i> System Performance</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="systemChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-black border-success">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-chart-pie"></i> Attack Distribution</h5>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="attackChart" width="400" height="200"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card bg-black border-warning">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-history"></i> Recent Activity</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-dark table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Time</th>
+                                        <th>Action</th>
+                                        <th>Target</th>
+                                        <th>Status</th>
+                                        <th>Progress</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="activity-table">
+                                    <tr>
+                                        <td>Just now</td>
+                                        <td><i class="fas fa-wifi text-primary"></i> WiFi Scan</td>
+                                        <td>Network-1</td>
+                                        <td><span class="badge bg-success">Completed</span></td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-success" style="width: 100%">100%</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>2 min ago</td>
+                                        <td><i class="fas fa-mobile-alt text-success"></i> Mobile Analysis</td>
+                                        <td>Device-2</td>
+                                        <td><span class="badge bg-warning">Running</span></td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-warning" style="width: 75%">75%</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>5 min ago</td>
+                                        <td><i class="fas fa-unlock text-warning"></i> Hash Crack</td>
+                                        <td>Hash-3</td>
+                                        <td><span class="badge bg-success">Completed</span></td>
+                                        <td>
+                                            <div class="progress" style="height: 20px;">
+                                                <div class="progress-bar bg-success" style="width: 100%">100%</div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-black border-info">
+                    <div class="card-header">
+                        <h5 class="mb-0"><i class="fas fa-bell"></i> Notifications</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="list-group list-group-flush bg-transparent">
+                            <div class="list-group-item bg-transparent border-secondary">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 text-success"><i class="fas fa-check-circle"></i> WiFi attack completed</h6>
+                                    <small class="text-muted">3s ago</small>
+                                </div>
+                                <p class="mb-1">Successfully captured 5 handshakes from target network</p>
+                            </div>
+                            <div class="list-group-item bg-transparent border-secondary">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 text-warning"><i class="fas fa-exclamation-triangle"></i> New threat detected</h6>
+                                    <small class="text-muted">1m ago</small>
+                                </div>
+                                <p class="mb-1">Suspicious activity detected on network interface</p>
+                            </div>
+                            <div class="list-group-item bg-transparent border-secondary">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 text-info"><i class="fas fa-lightbulb"></i> AI recommendation</h6>
+                                    <small class="text-muted">2m ago</small>
+                                </div>
+                                <p class="mb-1">Recommended: Use Fluxion for Evil Twin attack</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div class="modal fade" id="attackModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content bg-dark">
+                <div class="modal-header border-secondary">
+                    <h5 class="modal-title" id="attackModalTitle">Start Attack</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="attackForm">
+                        <div class="mb-3">
+                            <label for="target" class="form-label">Target</label>
+                            <input type="text" class="form-control bg-dark text-light" id="target" placeholder="Enter target">
+                        </div>
+                        <div class="mb-3">
+                            <label for="attackType" class="form-label">Attack Type</label>
+                            <select class="form-select bg-dark text-light" id="attackType">
+                                <option value="deauth">Deauthentication Attack</option>
+                                <option value="evil_twin">Evil Twin Attack</option>
+                                <option value="handshake">Handshake Capture</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="duration" class="form-label">Duration (seconds)</label>
+                            <input type="number" class="form-control bg-dark text-light" id="duration" value="300" min="60" max="3600">
+                        </div>
+                        <div class="mb-3">
+                            <label for="interface" class="form-label">Network Interface</label>
+                            <select class="form-select bg-dark text-light" id="interface">
+                                <option value="wlan0">wlan0</option>
+                                <option value="wlan1">wlan1</option>
+                                <option value="mon0">mon0</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="executeAttack()">Start Attack</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/dashboard.js"></script>
+    <script>
+        // Initialize charts
+        const systemCtx = document.getElementById('systemChart').getContext('2d');
+        const attackCtx = document.getElementById('attackChart').getContext('2d');
+
+        const systemChart = new Chart(systemCtx, {
+            type: 'line',
+            data: {
+                labels: ['1m', '2m', '3m', '4m', '5m'],
+                datasets: [{
+                    label: 'CPU Usage',
+                    data: [45, 52, 48, 55, 50],
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1
+                }, {
+                    label: 'Memory Usage',
+                    data: [60, 65, 62, 68, 64],
+                    borderColor: 'rgb(255, 99, 132)',
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: 'white'
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        ticks: {
+                            color: 'white'
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            color: 'white'
+                        }
+                    }
+                }
+            }
+        });
+
+        const attackChart = new Chart(attackCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['WiFi Attacks', 'Mobile Attacks', 'Crypto Attacks'],
+                datasets: [{
+                    data: [40, 35, 25],
+                    backgroundColor: [
+                        'rgb(255, 99, 132)',
+                        'rgb(54, 162, 235)',
+                        'rgb(255, 205, 86)'
+                    ]
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: {
+                        labels: {
+                            color: 'white'
+                        }
+                    }
+                }
+            }
+        });
+
+        // WebSocket connection
+        let ws = null;
+        
+        function connectWebSocket() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                console.log('WebSocket connected');
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleWebSocketMessage(data);
+            };
+            
+            ws.onclose = function() {
+                console.log('WebSocket disconnected');
+                setTimeout(connectWebSocket, 5000);
+            };
+        }
+
+        function handleWebSocketMessage(data) {
+            switch(data.type) {
+                case 'metrics':
+                    updateMetrics(data.data);
+                    break;
+                case 'attack_update':
+                    updateAttackStatus(data.data);
+                    break;
+                case 'health_status':
+                    updateHealthStatus(data.data);
+                    break;
+            }
+        }
+
+        function updateMetrics(metrics) {
+            document.getElementById('active-attacks').textContent = metrics.active_attacks;
+            document.getElementById('connected-clients').textContent = metrics.active_connections;
+        }
+
+        function updateAttackStatus(attack) {
+            // Update attack status in the activity table
+            console.log('Attack update:', attack);
+        }
+
+        function updateHealthStatus(status) {
+            // Update system health indicators
+            console.log('Health status:', status);
+        }
+
+        // Attack functions
+        function startWiFiAttack() {
+            document.getElementById('attackModalTitle').textContent = 'Start WiFi Attack';
+            document.getElementById('attackType').innerHTML = `
+                <option value="deauth">Deauthentication Attack</option>
+                <option value="evil_twin">Evil Twin Attack</option>
+                <option value="handshake">Handshake Capture</option>
+            `;
+            new bootstrap.Modal(document.getElementById('attackModal')).show();
+        }
+
+        function startMobileAttack() {
+            document.getElementById('attackModalTitle').textContent = 'Start Mobile Attack';
+            document.getElementById('attackType').innerHTML = `
+                <option value="payload">Payload Injection</option>
+                <option value="exploit">Exploit Execution</option>
+                <option value="extraction">Data Extraction</option>
+            `;
+            new bootstrap.Modal(document.getElementById('attackModal')).show();
+        }
+
+        function startCryptoAttack() {
+            document.getElementById('attackModalTitle').textContent = 'Start Crypto Attack';
+            document.getElementById('attackType').innerHTML = `
+                <option value="dictionary">Dictionary Attack</option>
+                <option value="brute_force">Brute Force Attack</option>
+                <option value="rainbow">Rainbow Table Attack</option>
+            `;
+            new bootstrap.Modal(document.getElementById('attackModal')).show();
+        }
+
+        function executeAttack() {
+            const target = document.getElementById('target').value;
+            const attackType = document.getElementById('attackType').value;
+            const duration = document.getElementById('duration').value;
+            const interface = document.getElementById('interface').value;
+
+            if (!target) {
+                alert('Please enter a target');
+                return;
+            }
+
+            // Send attack request
+            fetch('/api/attacks/wifi/start', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    target: target,
+                    type: attackType,
+                    duration: parseInt(duration),
+                    interface: interface
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Attack started successfully!');
+                    bootstrap.Modal.getInstance(document.getElementById('attackModal')).hide();
+                } else {
+                    alert('Error starting attack: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error starting attack');
+            });
+        }
+
+        function getAIRecommendations() {
+            fetch('/api/ai/recommendations')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('AI Recommendations: ' + JSON.stringify(data.recommendations, null, 2));
+                } else {
+                    alert('Error getting recommendations: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error getting AI recommendations');
+            });
+        }
+
+        function checkThreats() {
+            fetch('/api/ai/threats')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Threat Analysis: ' + JSON.stringify(data.threats, null, 2));
+                } else {
+                    alert('Error checking threats: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error checking threats');
+            });
+        }
+
+        function generateReport() {
+            alert('Generating comprehensive report...');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            connectWebSocket();
+            
+            // Update stats every 5 seconds
+            setInterval(function() {
+                fetch('/api/status')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('active-attacks').textContent = data.active_attacks;
+                    document.getElementById('connected-clients').textContent = data.total_connections;
+                })
+                .catch(error => console.error('Error updating stats:', error));
+            }, 5000);
+        });
+    </script>
+</body>
+</html>
