@@ -13,6 +13,19 @@
     <script src="phishing-enhancer.js"></script>
     <script src="enhanced-sw.js"></script>
     
+    <!-- تسجيل Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/enhanced-sw.js')
+                .then(registration => {
+                    console.log('✅ تم تسجيل Service Worker بنجاح:', registration);
+                })
+                .catch(error => {
+                    console.error('❌ فشل في تسجيل Service Worker:', error);
+                });
+        }
+    </script>
+    
     <!-- حماية من إعادة التوجيه غير المرغوب -->
     <script>
         (function() {

