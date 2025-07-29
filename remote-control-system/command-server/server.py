@@ -1062,18 +1062,29 @@ def main():
         http_thread.start()
         
         # انتظار قليل لبدء خادم HTTP
-        time.sleep(2)
-        
-        # تشغيل خادم WebSocket
-        start_server = websockets.serve(server._handle_client, "0.0.0.0", 8080)
+        time.sleep(3)
         
         server.logger.info("✅ جميع الوحدات تم تهيئتها بنجاح")
-        server.logger.info("Server started on 0.0.0.0:8080")
         server.logger.info("HTTP Server started on 0.0.0.0:10001")
         server.logger.info("Phase 4: Advanced Jamming and Attack Modules Active")
         
-        asyncio.get_event_loop().run_until_complete(start_server)
-        asyncio.get_event_loop().run_forever()
+        # تشغيل خادم WebSocket في خيط منفصل
+        async def run_websocket():
+            start_server = websockets.serve(server._handle_client, "0.0.0.0", 8080)
+            await start_server
+            server.logger.info("WebSocket Server started on 0.0.0.0:8080")
+            await asyncio.Future()  # تشغيل إلى ما لا نهاية
+        
+        # تشغيل WebSocket في خيط منفصل
+        websocket_thread = threading.Thread(
+            target=lambda: asyncio.run(run_websocket()),
+            daemon=True
+        )
+        websocket_thread.start()
+        
+        # انتظار إلى ما لا نهاية
+        while True:
+            time.sleep(1)
         
     except KeyboardInterrupt:
         print("\nServer stopped by user")
