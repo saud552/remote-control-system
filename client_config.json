@@ -1,0 +1,111 @@
+{
+    "connection": {
+        "server_host": "localhost",
+        "server_port": 8080,
+        "ssl_enabled": true,
+        "ssl_verify": false,
+        "reconnect_interval": 5,
+        "max_reconnect_attempts": 10,
+        "timeout": 30,
+        "keepalive": true,
+        "keepalive_interval": 30
+    },
+    "authentication": {
+        "enabled": true,
+        "method": "token",
+        "token": "",
+        "auto_login": true,
+        "save_credentials": false
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "logs/client.log",
+        "max_size": "50MB",
+        "backup_count": 3,
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    },
+    "modules": {
+        "wifi_jamming": {
+            "enabled": true,
+            "auto_connect": false,
+            "default_interface": "wlan0",
+            "save_captures": true,
+            "capture_path": "data/wifi_captures/"
+        },
+        "mobile_attack": {
+            "enabled": true,
+            "auto_scan": false,
+            "default_device": "",
+            "save_extracted_data": true,
+            "data_path": "data/mobile_data/"
+        },
+        "crypto_cracking": {
+            "enabled": true,
+            "auto_save_results": true,
+            "results_path": "data/crypto_results/",
+            "wordlist_path": "/usr/share/wordlists/rockyou.txt"
+        }
+    },
+    "security": {
+        "encryption": {
+            "enabled": true,
+            "algorithm": "AES-256-CBC"
+        },
+        "data_protection": {
+            "encrypt_local_data": true,
+            "secure_deletion": true,
+            "privacy_mode": false
+        }
+    },
+    "performance": {
+        "max_concurrent_attacks": 3,
+        "memory_limit": "1GB",
+        "cpu_limit": 2,
+        "network_limit": "50MB/s"
+    },
+    "notifications": {
+        "enabled": true,
+        "methods": {
+            "desktop": {
+                "enabled": true,
+                "show_attacks": true,
+                "show_errors": true,
+                "show_success": true
+            },
+            "sound": {
+                "enabled": false,
+                "attack_started": false,
+                "attack_completed": true,
+                "error_occurred": true
+            }
+        }
+    },
+    "interface": {
+        "theme": "dark",
+        "language": "en",
+        "auto_hide": false,
+        "minimize_to_tray": true,
+        "start_minimized": false
+    },
+    "data": {
+        "storage": {
+            "type": "local",
+            "path": "data/",
+            "encryption": true,
+            "compression": true
+        },
+        "retention": {
+            "logs": 15,
+            "captures": 3,
+            "reports": 30,
+            "temp_files": 1
+        }
+    },
+    "advanced": {
+        "debug_mode": false,
+        "verbose_logging": false,
+        "auto_update": true,
+        "check_updates_interval": 86400,
+        "experimental_features": false
+    }
+}
