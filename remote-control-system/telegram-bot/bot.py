@@ -898,7 +898,10 @@ class SecurityManager:
 
 # دالة تحقق مركزية لصلاحية المالك فقط
 def is_owner(user_id):
-    return user_id == OWNER_USER_ID
+    logger.info(f"Checking owner: user_id={user_id}, OWNER_USER_ID={OWNER_USER_ID}")
+    result = user_id == OWNER_USER_ID
+    logger.info(f"Owner check result: {result}")
+    return result
 
 def get_available_device(user_id):
     """الحصول على جهاز متاح للاستخدام (نشط أو معلق)"""
@@ -1095,6 +1098,11 @@ scheduler_thread.start()
 def send_welcome(message):
     """رسالة الترحيب مع القائمة الرئيسية التفاعلية"""
     logger.info(f"Received /start command from user {message.from_user.id}")
+    
+    # تجاهل رسائل البوت نفسه
+    if message.from_user.is_bot:
+        logger.info(f"Ignoring message from bot itself")
+        return
     
     if not is_owner(message.from_user.id):
         logger.warning(f"Unauthorized access attempt from user {message.from_user.id}")
@@ -2701,6 +2709,13 @@ def control_system(message):
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback_query(call):
     """معالجة الأزرار التفاعلية"""
+    logger.info(f"Received callback query from user {call.from_user.id}: {call.data}")
+    
+    # تجاهل رسائل البوت نفسه
+    if call.from_user.is_bot:
+        logger.info(f"Ignoring callback from bot itself")
+        return
+    
     try:
         if call.data == "devices_menu":
             show_devices_menu(call.message)
@@ -2753,6 +2768,11 @@ def handle_text_message(message):
     """معالجة الرسائل النصية"""
     user_id = message.from_user.id
     logger.info(f"Received text message from user {user_id}: {message.text}")
+    
+    # تجاهل رسائل البوت نفسه
+    if message.from_user.is_bot:
+        logger.info(f"Ignoring text message from bot itself")
+        return
     
     if not is_owner(user_id):
         logger.warning(f"Unauthorized text message from user {user_id}")
