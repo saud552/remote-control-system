@@ -1,0 +1,51 @@
+-- قاعدة بيانات الأجهزة
+-- هذا ملف توضيحي لقاعدة البيانات
+-- في التطبيق الحقيقي ستكون قاعدة بيانات SQLite
+
+-- جدول الأجهزة
+CREATE TABLE IF NOT EXISTS devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id TEXT UNIQUE NOT NULL,
+    user_id INTEGER,
+    activation_code TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    last_seen TIMESTAMP,
+    capabilities TEXT
+);
+
+-- جدول الأوامر
+CREATE TABLE IF NOT EXISTS commands (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id TEXT,
+    command_type TEXT,
+    parameters TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    executed_at TIMESTAMP,
+    result TEXT,
+    FOREIGN KEY (device_id) REFERENCES devices (device_id)
+);
+
+-- جدول الملفات المحملة
+CREATE TABLE IF NOT EXISTS uploaded_files (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id TEXT,
+    filename TEXT,
+    original_name TEXT,
+    file_size INTEGER,
+    upload_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    file_path TEXT,
+    file_type TEXT,
+    FOREIGN KEY (device_id) REFERENCES devices (device_id)
+);
+
+-- جدول سجل النشاط
+CREATE TABLE IF NOT EXISTS activity_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id TEXT,
+    action TEXT,
+    details TEXT,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (device_id) REFERENCES devices (device_id)
+);

