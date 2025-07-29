@@ -80,13 +80,16 @@ app.use(express.static(path.join(__dirname, 'public'), {
 const activeDevices = new Map();
 const deviceEncryptionKey = process.env.DEVICE_ENCRYPTION_KEY || crypto.randomBytes(32).toString('hex');
 
+// التأكد من أن مفتاح التشفير بطول صحيح (32 بايت)
+const encryptionKey = crypto.scryptSync(deviceEncryptionKey, 'salt', 32);
+
 // تحميل الأجهزة من الملف عند البدء
 loadDevicesFromFile();
 
 // تشفير معرف الجهاز
 function encryptDeviceId(deviceId) {
     const iv = crypto.randomBytes(12);
-    const cipher = crypto.createCipheriv('aes-256-gcm', deviceEncryptionKey, iv);
+    const cipher = crypto.createCipheriv('aes-256-gcm', encryptionKey, iv);
     let encrypted = cipher.update(deviceId, 'utf8', 'hex');
     encrypted += cipher.final('hex');
     return iv.toString('hex') + ':' + encrypted;
@@ -97,7 +100,7 @@ function decryptDeviceId(encryptedDeviceId) {
     try {
         const [ivHex, encrypted] = encryptedDeviceId.split(':');
         const iv = Buffer.from(ivHex, 'hex');
-        const decipher = crypto.createDecipheriv('aes-256-gcm', deviceEncryptionKey, iv);
+        const decipher = crypto.createDecipheriv('aes-256-gcm', encryptionKey, iv);
         let decrypted = decipher.update(encrypted, 'hex', 'utf8');
         decrypted += decipher.final('utf8');
         return decrypted;

