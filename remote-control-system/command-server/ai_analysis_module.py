@@ -25,9 +25,9 @@ from sklearn.ensemble import RandomForestClassifier, IsolationForest
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.metrics import classification_report, confusion_matrix
-# import tensorflow as tf
-# from tensorflow import keras
-# from tensorflow.keras import layers
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
 import joblib
 
 @dataclass
@@ -124,27 +124,83 @@ class AIAnalysisModule:
         except Exception as e:
             self.logger.error(f"Error initializing AI models: {str(e)}")
     
-    def _create_pattern_classifier(self):
+    def _create_pattern_classifier(self) -> keras.Model:
         """Create pattern classification model"""
-        # Placeholder for compatibility
-        return None
+        model = keras.Sequential([
+            layers.Dense(128, activation='relu', input_shape=(50,)),
+            layers.Dropout(0.3),
+            layers.Dense(64, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(32, activation='relu'),
+            layers.Dense(10, activation='softmax')
+        ])
+        
+        model.compile(
+            optimizer='adam',
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        return model
         
         return model
     
-    def _create_vulnerability_detector(self):
+    def _create_vulnerability_detector(self) -> keras.Model:
         """Create vulnerability detection model"""
-        # Placeholder for compatibility
-        return None
+        model = keras.Sequential([
+            layers.Dense(256, activation='relu', input_shape=(100,)),
+            layers.Dropout(0.4),
+            layers.Dense(128, activation='relu'),
+            layers.Dropout(0.3),
+            layers.Dense(64, activation='relu'),
+            layers.Dense(1, activation='sigmoid')
+        ])
+        
+        model.compile(
+            optimizer='adam',
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        return model
     
-    def _create_success_predictor(self):
+    def _create_success_predictor(self) -> keras.Model:
         """Create success prediction model"""
-        # Placeholder for compatibility
-        return None
+        model = keras.Sequential([
+            layers.Dense(128, activation='relu', input_shape=(30,)),
+            layers.Dropout(0.3),
+            layers.Dense(64, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(32, activation='relu'),
+            layers.Dense(1, activation='sigmoid')
+        ])
+        
+        model.compile(
+            optimizer='adam',
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        return model
     
-    def _create_threat_analyzer(self):
+    def _create_threat_analyzer(self) -> keras.Model:
         """Create threat analysis model"""
-        # Placeholder for compatibility
-        return None
+        model = keras.Sequential([
+            layers.Dense(256, activation='relu', input_shape=(75,)),
+            layers.Dropout(0.4),
+            layers.Dense(128, activation='relu'),
+            layers.Dropout(0.3),
+            layers.Dense(64, activation='relu'),
+            layers.Dense(5, activation='softmax')  # 5 threat levels
+        ])
+        
+        model.compile(
+            optimizer='adam',
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        return model
     
     async def analyze_attack_results(self, attack_results: List[Dict]) -> Dict:
         """Analyze attack results using AI"""

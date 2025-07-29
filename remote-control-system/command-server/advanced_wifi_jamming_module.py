@@ -71,7 +71,7 @@ class AdvancedWiFiJammingModule:
                 "capabilities": ["evil_twin", "handshake_capture", "password_capture", "advanced_phishing"]
             },
             "aircrack": {
-                "path": "/usr/bin/aircrack-ng",
+                "path": "external_tools/aircrack-ng",
                 "executable": "aircrack-ng",
                 "supported_attacks": ["deauth", "handshake_capture", "password_cracking"],
                 "capabilities": ["deauth", "handshake_capture", "password_cracking", "wep_cracking"]

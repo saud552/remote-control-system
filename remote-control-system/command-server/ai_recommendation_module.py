@@ -23,9 +23,9 @@ import seaborn as sns
 from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
 from sklearn.preprocessing import StandardScaler, LabelEncoder
 from sklearn.metrics import mean_squared_error, r2_score
-# import tensorflow as tf
-# from tensorflow import keras
-# from tensorflow.keras import layers
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers
 import joblib
 
 @dataclass
@@ -124,39 +124,80 @@ class AIRecommendationModule:
     
     def _create_tool_recommender(self):
         """Create tool recommendation model"""
-        # model = keras.Sequential([
-        #     layers.Dense(256, activation='relu', input_shape=(100,)),
-        #     layers.Dropout(0.4),
-        #     layers.Dense(128, activation='relu'),
-        #     layers.Dropout(0.3),
-        #     layers.Dense(64, activation='relu'),
-        #     layers.Dense(32, activation='relu'),
-        #     layers.Dense(20, activation='softmax')  # 20 tool categories
-        # ])
-        # 
-        # model.compile(
-        #     optimizer='adam',
-        #     loss='categorical_crossentropy',
-        #     metrics=['accuracy']
-        # )
-        model = None  # Placeholder for compatibility
+        model = keras.Sequential([
+            layers.Dense(256, activation='relu', input_shape=(100,)),
+            layers.Dropout(0.4),
+            layers.Dense(128, activation='relu'),
+            layers.Dropout(0.3),
+            layers.Dense(64, activation='relu'),
+            layers.Dense(32, activation='relu'),
+            layers.Dense(20, activation='softmax')  # 20 tool categories
+        ])
+        
+        model.compile(
+            optimizer='adam',
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
         
         return model
     
-    def _create_strategy_predictor(self):
+    def _create_strategy_predictor(self) -> keras.Model:
         """Create strategy prediction model"""
-        # Placeholder for compatibility
-        return None
+        model = keras.Sequential([
+            layers.Dense(128, activation='relu', input_shape=(50,)),
+            layers.Dropout(0.3),
+            layers.Dense(64, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(32, activation='relu'),
+            layers.Dense(10, activation='softmax')  # 10 strategy types
+        ])
+        
+        model.compile(
+            optimizer='adam',
+            loss='categorical_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        return model
     
-    def _create_performance_optimizer(self):
+    def _create_performance_optimizer(self) -> keras.Model:
         """Create performance optimization model"""
-        # Placeholder for compatibility
-        return None
+        model = keras.Sequential([
+            layers.Dense(128, activation='relu', input_shape=(40,)),
+            layers.Dropout(0.3),
+            layers.Dense(64, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(32, activation='relu'),
+            layers.Dense(1, activation='sigmoid')
+        ])
+        
+        model.compile(
+            optimizer='adam',
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        return model
     
-    def _create_success_predictor(self):
+    def _create_success_predictor(self) -> keras.Model:
         """Create success prediction model"""
-        # Placeholder for compatibility
-        return None
+        model = keras.Sequential([
+            layers.Dense(128, activation='relu', input_shape=(60,)),
+            layers.Dropout(0.3),
+            layers.Dense(64, activation='relu'),
+            layers.Dropout(0.2),
+            layers.Dense(32, activation='relu'),
+            layers.Dense(1, activation='sigmoid')
+        ])
+        
+        model.compile(
+            optimizer='adam',
+            loss='binary_crossentropy',
+            metrics=['accuracy']
+        )
+        
+        return model
     
     def _load_default_profiles(self):
         """Load default target and tool profiles"""
