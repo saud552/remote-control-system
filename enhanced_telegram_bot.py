@@ -30,9 +30,9 @@ from ai_threat_monitoring_module import AIThreatMonitoringModule
 @dataclass
 class TelegramConfig:
     """Telegram bot configuration"""
-    token: str = "YOUR_TELEGRAM_BOT_TOKEN"
+    token: str = "7305811865:AAF_PKkBWEUw-QdLg1ee5Xp7oksTG6XGK8c"
     allowed_users: List[int] = None
-    admin_users: List[int] = None
+    admin_users: List[int] = [985612253]
     webhook_url: str = ""
     webhook_port: int = 8443
     debug: bool = False
