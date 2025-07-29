@@ -1048,12 +1048,7 @@ def import_devices_from_web_interface(user_id):
         logger.error(f"خطأ في استيراد الأجهزة من واجهة الويب: {e}")
         return False
 
-# تهيئة المدراء
-device_manager = DeviceManager(DB_FILE)
-command_executor = CommandExecutor(COMMAND_SERVER_URL)
-security_manager = SecurityManager()
-advanced_command_executor = AdvancedCommandExecutor(COMMAND_SERVER_URL)
-advanced_command_parser = AdvancedCommandParser()
+# تهيئة المدراء - سيتم تهيئتها في دالة initialize_system
 
 # إضافة مستخدمين مصرح لهم (يمكن تعديلها حسب الحاجة)
 def setup_authorized_users():
