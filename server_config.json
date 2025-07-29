@@ -1,8 +1,8 @@
 {
     "server": {
         "host": "0.0.0.0",
-        "port": 8080,
-        "ssl_enabled": true,
+        "port": 10001,
+        "ssl_enabled": false,
         "ssl_cert": "certificates/server.crt",
         "ssl_key": "certificates/server.key",
         "max_clients": 100,
@@ -313,7 +313,7 @@
     "web_interface": {
         "enabled": true,
         "port": 8081,
-        "ssl_enabled": true,
+        "ssl_enabled": false,
         "authentication": {
             "required": true,
             "method": "session"
