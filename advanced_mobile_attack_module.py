@@ -110,6 +110,11 @@ class AdvancedMobileAttackModule:
             else:
                 return
             
+            # Remove existing directory if it exists
+            if os.path.exists(tool_path):
+                import shutil
+                shutil.rmtree(tool_path)
+            
             # Clone repository
             subprocess.run([
                 "git", "clone", repo_url, tool_path

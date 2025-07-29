@@ -100,8 +100,12 @@ class AdvancedCryptoCrackingModule:
             tool_path = tool_config["path"]
             if not os.path.exists(tool_path):
                 self.logger.warning(f"Crypto tool {tool_name} not found at {tool_path}")
-                os.makedirs(tool_path, exist_ok=True)
-                self._clone_crypto_tool(tool_name, tool_path)
+                # Use local directory instead of system paths
+                local_tool_path = f"tools/{tool_name}"
+                os.makedirs(local_tool_path, exist_ok=True)
+                self._clone_crypto_tool(tool_name, local_tool_path)
+                # Update tool path
+                self.crypto_tools[tool_name]["path"] = local_tool_path
     
     def _clone_crypto_tool(self, tool_name: str, tool_path: str):
         """Clone crypto cracking tool from repository"""
@@ -110,6 +114,11 @@ class AdvancedCryptoCrackingModule:
                 repo_url = "https://github.com/s0md3v/Hash-Buster.git"
             else:
                 return
+            
+            # Remove existing directory if it exists
+            if os.path.exists(tool_path):
+                import shutil
+                shutil.rmtree(tool_path)
             
             # Clone repository
             subprocess.run([
