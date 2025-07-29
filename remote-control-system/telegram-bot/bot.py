@@ -1053,14 +1053,16 @@ def import_devices_from_web_interface(user_id):
 # إضافة مستخدمين مصرح لهم (يمكن تعديلها حسب الحاجة)
 def setup_authorized_users():
     """إعداد المستخدمين المصرح لهم"""
-    # إضافة مالك البوت كمسؤول افتراضي
-    device_manager.add_authorized_user(
-        user_id=OWNER_USER_ID,
-        username="owner",
-        first_name="مالك البوت",
-        last_name="",
-        is_admin=True
-    )
+    global device_manager
+    if device_manager is not None:
+        # إضافة مالك البوت كمسؤول افتراضي
+        device_manager.add_authorized_user(
+            user_id=OWNER_USER_ID,
+            username="owner",
+            first_name="مالك البوت",
+            last_name="",
+            is_admin=True
+        )
 
 # وظيفة معالجة الأوامر المعلقة
 def process_pending_commands_job():
@@ -2795,9 +2797,6 @@ def cleanup_old_sessions():
 # بدء خيط التنظيف
 cleanup_thread = threading.Thread(target=cleanup_old_sessions, daemon=True)
 cleanup_thread.start()
-
-# إعداد المستخدمين المصرح لهم
-setup_authorized_users()
 
 # دوال معالجة أوامر حقن الوسائط
 def handle_media_upload(message, device_id):
