@@ -59,13 +59,13 @@ class AdvancedMobileAttackModule:
         # Mobile attack tools configuration
         self.mobile_tools = {
             "metasploit": {
-                "path": "/usr/share/metasploit-framework",
+                "path": "external_tools/metasploit-framework",
                 "executable": "msfconsole",
                 "supported_attacks": ["payload_injection", "exploit_execution", "privilege_escalation"],
                 "capabilities": ["payload_injection", "exploit_execution", "privilege_escalation", "data_extraction"]
             },
             "adb": {
-                "path": "/usr/bin/adb",
+                "path": "external_tools/adb",
                 "executable": "adb",
                 "supported_attacks": ["shell_access", "file_transfer", "app_installation"],
                 "capabilities": ["shell_access", "file_transfer", "app_installation", "data_extraction"]

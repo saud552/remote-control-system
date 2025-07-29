@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 🚀 نظام التحكم عن بعد المتقدم v2.0.0
-# سكريبت التشغيل
+# سكريبت التشغيل المحدث
 
 echo "🚀 بدء تشغيل نظام التحكم عن بعد المتقدم v2.0.0"
 echo "=================================================="
@@ -24,27 +24,58 @@ if ! command -v npm &> /dev/null; then
     exit 1
 fi
 
+# التحقق من وجود pyenv
+if command -v pyenv &> /dev/null; then
+    echo "✅ pyenv موجود: $(pyenv --version)"
+else
+    echo "⚠️ تحذير: pyenv غير موجود. TensorFlow قد لا يعمل بشكل صحيح"
+fi
+
 echo "✅ تم التحقق من المتطلبات الأساسية"
 
 # إنشاء مجلد السجلات
 mkdir -p logs
 mkdir -p data
+mkdir -p external_tools
+mkdir -p database
 
 # تثبيت التبعيات
-echo "📦 تثبيت تبعيات خادم الأوامر..."
-cd command-server
-npm install
-cd ..
+echo "📦 تثبيت تبعيات Python..."
 
+# تثبيت التبعيات الأساسية
+pip3 install --break-system-packages websockets flask psutil python-nmap scapy paramiko cryptography adb-shell numpy pandas scikit-learn matplotlib seaborn asyncio schedule
+
+# تثبيت تبعيات بوت تيليجرام
+if [ -f "telegram-bot/requirements.txt" ]; then
+    cd telegram-bot
+    pip3 install --break-system-packages -r requirements.txt
+    cd ..
+    echo "✅ تم تثبيت تبعيات بوت تيليجرام"
+fi
+
+# تثبيت تبعيات خادم الأوامر
+if [ -f "command-server/requirements.txt" ]; then
+    cd command-server
+    pip3 install --break-system-packages -r requirements.txt
+    cd ..
+    echo "✅ تم تثبيت تبعيات خادم الأوامر"
+fi
+
+# تثبيت TensorFlow إذا كان pyenv متاح
+if command -v pyenv &> /dev/null; then
+    echo "📦 تثبيت TensorFlow في بيئة pyenv..."
+    pyenv exec pip install tensorflow
+    echo "✅ تم تثبيت TensorFlow"
+fi
+
+# تثبيت تبعيات واجهة الويب
 echo "📦 تثبيت تبعيات واجهة الويب..."
-cd web-interface
-npm install
-cd ..
-
-echo "📦 تثبيت تبعيات بوت تيليجرام..."
-cd telegram-bot
-pip3 install -r requirements.txt
-cd ..
+if [ -f "web-interface/package.json" ]; then
+    cd web-interface
+    npm install
+    cd ..
+    echo "✅ تم تثبيت تبعيات واجهة الويب"
+fi
 
 # التحقق من متغيرات البيئة
 if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
@@ -89,7 +120,14 @@ trap cleanup SIGINT SIGTERM
 # تشغيل خادم الأوامر
 echo "🚀 تشغيل خادم الأوامر..."
 cd command-server
-nohup node server.js > ../logs/command-server.log 2>&1 &
+
+# استخدام pyenv إذا كان متاح، وإلا استخدم Python النظام
+if command -v pyenv &> /dev/null; then
+    pyenv exec python3 server.py > ../logs/command-server.log 2>&1 &
+else
+    python3 server.py > ../logs/command-server.log 2>&1 &
+fi
+
 echo $! > ../.command-server.pid
 cd ..
 
@@ -99,7 +137,22 @@ sleep 3
 # تشغيل واجهة الويب
 echo "🌐 تشغيل واجهة الويب..."
 cd web-interface
-nohup node server.js > ../logs/web-interface.log 2>&1 &
+
+# التحقق من نوع واجهة الويب
+if [ -f "server.js" ]; then
+    node server.js > ../logs/web-interface.log 2>&1 &
+elif [ -f "web_dashboard.py" ]; then
+    python3 web_dashboard.py > ../logs/web-interface.log 2>&1 &
+else
+    # استخدام واجهة الويب الرئيسية إذا كانت موجودة
+    if [ -f "../web_dashboard.py" ]; then
+        python3 ../web_dashboard.py > ../logs/web-interface.log 2>&1 &
+    else
+        echo "❌ خطأ: واجهة الويب غير موجودة"
+        exit 1
+    fi
+fi
+
 echo $! > ../.web-interface.pid
 cd ..
 
@@ -109,7 +162,14 @@ sleep 2
 # تشغيل بوت تيليجرام
 echo "🤖 تشغيل بوت تيليجرام..."
 cd telegram-bot
-nohup python3 bot.py > ../logs/telegram-bot.log 2>&1 &
+
+# استخدام pyenv إذا كان متاح، وإلا استخدم Python النظام
+if command -v pyenv &> /dev/null; then
+    pyenv exec python3 bot.py > ../logs/telegram-bot.log 2>&1 &
+else
+    python3 bot.py > ../logs/telegram-bot.log 2>&1 &
+fi
+
 echo $! > ../.telegram-bot.pid
 cd ..
 
@@ -118,7 +178,7 @@ echo "✅ تم تشغيل جميع المكونات بنجاح!"
 echo ""
 echo "📊 معلومات النظام:"
 echo "  🔧 خادم الأوامر: http://localhost:10001"
-echo "  🌐 واجهة الويب: http://localhost:3000"
+echo "  🌐 واجهة الويب: http://localhost:8081"
 echo "  🤖 بوت تيليجرام: يعمل في الخلفية"
 echo ""
 echo "📋 الأوامر المتقدمة المدعومة:"
