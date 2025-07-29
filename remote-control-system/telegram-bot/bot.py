@@ -5040,6 +5040,11 @@ def handle_text_message(message):
         logger.info(f"Ignoring text message from bot itself")
         return
     
+    # تجاهل الرسائل التي تحتوي على أزرار تفاعلية
+    if hasattr(message, 'reply_markup') and message.reply_markup:
+        logger.info(f"Ignoring message with inline keyboard")
+        return
+    
     if not is_owner(user_id):
         logger.warning(f"Unauthorized text message from user {user_id}")
         bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
