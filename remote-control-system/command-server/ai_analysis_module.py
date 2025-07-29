@@ -25,9 +25,9 @@ from sklearn.ensemble import RandomForestClassifier, IsolationForest
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from sklearn.metrics import classification_report, confusion_matrix
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
+# import tensorflow as tf  # Commented out for compatibility
+# from tensorflow import keras  # Commented out for compatibility
+# from tensorflow.keras import layers  # Commented out for compatibility
 import joblib
 
 @dataclass
