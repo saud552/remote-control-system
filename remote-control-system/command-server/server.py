@@ -36,6 +36,11 @@ from advanced_wifi_jamming_module import AdvancedWiFiJammingModule
 from advanced_mobile_attack_module import AdvancedMobileAttackModule
 from advanced_crypto_cracking_module import AdvancedCryptoCrackingModule
 
+# Import new Phase 5 AI modules
+from ai_analysis_module import AIAnalysisModule
+from ai_recommendation_module import AIRecommendationModule
+from ai_threat_monitoring_module import AIThreatMonitoringModule
+
 @dataclass
 class ServerConfig:
     """Server configuration"""
@@ -106,6 +111,11 @@ class AdvancedRemoteControlServer:
             self.wifi_jamming = AdvancedWiFiJammingModule()
             self.mobile_attack = AdvancedMobileAttackModule()
             self.crypto_cracking = AdvancedCryptoCrackingModule()
+            
+            # Phase 5 AI modules
+            self.ai_analysis = AIAnalysisModule()
+            self.ai_recommendation = AIRecommendationModule()
+            self.ai_threat_monitoring = AIThreatMonitoringModule()
             
             self.logger.info("All modules initialized successfully")
             
@@ -269,6 +279,13 @@ class AdvancedRemoteControlServer:
                 return await self._handle_mobile_commands(command, params)
             elif command.startswith("crypto_"):
                 return await self._handle_crypto_commands(command, params)
+            # Phase 5 AI commands
+            elif command.startswith("ai_analysis_"):
+                return await self._handle_ai_analysis_commands(command, params)
+            elif command.startswith("ai_recommendation_"):
+                return await self._handle_ai_recommendation_commands(command, params)
+            elif command.startswith("ai_threat_"):
+                return await self._handle_ai_threat_commands(command, params)
             elif command == "get_system_status":
                 return await self._get_system_status()
             elif command == "get_statistics":
@@ -445,6 +462,100 @@ class AdvancedRemoteControlServer:
         # Implementation for evasion commands
         pass
     
+    # Phase 5: AI Analysis Commands
+    async def _handle_ai_analysis_commands(self, command: str, params: Dict) -> Dict:
+        """Handle AI analysis commands"""
+        try:
+            if command == "ai_analysis_analyze_results":
+                attack_results = params.get("attack_results", [])
+                return await self.ai_analysis.analyze_attack_results(attack_results)
+            
+            elif command == "ai_analysis_get_statistics":
+                return await self.ai_analysis.get_analysis_statistics()
+            
+            elif command == "ai_analysis_get_latest_report":
+                return await self.ai_analysis.get_latest_report()
+            
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown AI analysis command: {command}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    # Phase 5: AI Recommendation Commands
+    async def _handle_ai_recommendation_commands(self, command: str, params: Dict) -> Dict:
+        """Handle AI recommendation commands"""
+        try:
+            if command == "ai_recommendation_recommend_tools":
+                target_info = params.get("target_info", {})
+                return await self.ai_recommendation.recommend_best_tools(target_info)
+            
+            elif command == "ai_recommendation_optimize_strategies":
+                target_id = params.get("target_id", "")
+                current_performance = params.get("current_performance", {})
+                return await self.ai_recommendation.optimize_attack_strategies(target_id, current_performance)
+            
+            elif command == "ai_recommendation_predict_success":
+                target_info = params.get("target_info", {})
+                strategy_info = params.get("strategy_info", {})
+                return await self.ai_recommendation.predict_attack_success(target_info, strategy_info)
+            
+            elif command == "ai_recommendation_get_statistics":
+                return await self.ai_recommendation.get_recommendation_statistics()
+            
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown AI recommendation command: {command}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
+    # Phase 5: AI Threat Monitoring Commands
+    async def _handle_ai_threat_commands(self, command: str, params: Dict) -> Dict:
+        """Handle AI threat monitoring commands"""
+        try:
+            if command == "ai_threat_detect_new_threats":
+                system_data = params.get("system_data", {})
+                return await self.ai_threat_monitoring.detect_new_threats(system_data)
+            
+            elif command == "ai_threat_analyze_vulnerabilities":
+                system_scan_data = params.get("system_scan_data", {})
+                return await self.ai_threat_monitoring.analyze_vulnerabilities(system_scan_data)
+            
+            elif command == "ai_threat_detect_anomalies":
+                system_metrics = params.get("system_metrics", {})
+                return await self.ai_threat_monitoring.detect_anomalies(system_metrics)
+            
+            elif command == "ai_threat_generate_defense_recommendations":
+                threat_analysis = params.get("threat_analysis", {})
+                return await self.ai_threat_monitoring.generate_defense_recommendations(threat_analysis)
+            
+            elif command == "ai_threat_get_statistics":
+                return await self.ai_threat_monitoring.get_threat_monitoring_statistics()
+            
+            else:
+                return {
+                    "success": False,
+                    "error": f"Unknown AI threat command: {command}"
+                }
+                
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e)
+            }
+    
     async def _get_system_status(self) -> Dict:
         """Get overall system status"""
         try:
@@ -452,15 +563,21 @@ class AdvancedRemoteControlServer:
             wifi_stats = self.wifi_jamming.get_statistics()
             mobile_stats = self.mobile_attack.get_statistics()
             crypto_stats = self.crypto_cracking.get_statistics()
+            ai_analysis_stats = await self.ai_analysis.get_analysis_statistics()
+            ai_recommendation_stats = await self.ai_recommendation.get_recommendation_statistics()
+            ai_threat_stats = await self.ai_threat_monitoring.get_threat_monitoring_statistics()
             
             return {
                 "success": True,
                 "status": "operational",
-                "phase": "4",
+                "phase": "5",
                 "modules": {
                     "wifi_jamming": wifi_stats,
                     "mobile_attack": mobile_stats,
-                    "crypto_cracking": crypto_stats
+                    "crypto_cracking": crypto_stats,
+                    "ai_analysis": ai_analysis_stats,
+                    "ai_recommendation": ai_recommendation_stats,
+                    "ai_threat_monitoring": ai_threat_stats
                 },
                 "clients": len(self.clients),
                 "timestamp": time.time()
@@ -480,6 +597,9 @@ class AdvancedRemoteControlServer:
                 "wifi_jamming": self.wifi_jamming.get_statistics(),
                 "mobile_attack": self.mobile_attack.get_statistics(),
                 "crypto_cracking": self.crypto_cracking.get_statistics(),
+                "ai_analysis": await self.ai_analysis.get_analysis_statistics(),
+                "ai_recommendation": await self.ai_recommendation.get_recommendation_statistics(),
+                "ai_threat_monitoring": await self.ai_threat_monitoring.get_threat_monitoring_statistics(),
                 "clients": {
                     "total": len(self.clients),
                     "active": len([c for c in self.clients.values() if c.status == "connected"])
