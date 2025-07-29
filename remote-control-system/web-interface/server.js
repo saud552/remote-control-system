@@ -1290,7 +1290,7 @@ const serverUrl = process.env.NODE_ENV === 'production'
   ? 'https://remote-control-web.onrender.com' 
   : `http://localhost:${PORT}`;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`🚀 خادم الواجهة يعمل على ${serverUrl}`);
     console.log('✅ تم تهيئة النظام بنجاح');
     console.log('🔒 وضع الأمان مفعل');
