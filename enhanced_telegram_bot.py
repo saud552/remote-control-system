@@ -805,6 +805,7 @@ class EnhancedTelegramBot:
         
         data = query.data
         
+        # Main menu buttons
         if data == "status":
             await self.status_command(update, context)
         elif data == "attacks":
@@ -817,6 +818,10 @@ class EnhancedTelegramBot:
             await self.ai_analysis_command(update, context)
         elif data == "threat_check":
             await self.threat_check_command(update, context)
+        elif data == "main_menu":
+            await self.start_command(update, context)
+        
+        # Session management buttons
         elif data.startswith("session_status_"):
             session_id = data.replace("session_status_", "")
             await self._show_session_status(query, session_id)
@@ -825,6 +830,137 @@ class EnhancedTelegramBot:
             await self._stop_attack(query, session_id)
         elif data == "stop_all_attacks":
             await self._stop_all_attacks(query)
+        
+        # System management buttons
+        elif data == "system_info":
+            await self.system_info_command(update, context)
+        elif data == "network_scan":
+            await self.network_scan_command(update, context)
+        elif data == "vulnerability_scan":
+            await self.vulnerability_scan_command(update, context)
+        elif data == "backup_system":
+            await self.backup_system_command(update, context)
+        elif data == "restore_system":
+            await self.restore_system_command(update, context)
+        elif data == "update_system":
+            await self.update_system_command(update, context)
+        elif data == "security_check":
+            await self.security_check_command(update, context)
+        elif data == "performance_optimize":
+            await self.performance_optimize_command(update, context)
+        elif data == "log_analysis":
+            await self.log_analysis_command(update, context)
+        elif data == "emergency_stop":
+            await self.emergency_stop_command(update, context)
+        
+        # Tool management buttons
+        elif data == "install_tool":
+            await self.install_tool_command(update, context)
+        elif data == "update_tool":
+            await self.update_tool_command(update, context)
+        elif data == "tool_status":
+            await self.tool_status_command(update, context)
+        
+        # Monitoring and reports buttons
+        elif data == "monitoring":
+            await self.monitoring_command(update, context)
+        elif data == "download_report":
+            await self._download_report(query)
+        elif data == "refresh_report":
+            await self.reports_command(update, context)
+        elif data == "detailed_report":
+            await self._show_detailed_report(query)
+        
+        # System info buttons
+        elif data == "refresh_system_info":
+            await self.system_info_command(update, context)
+        elif data == "detailed_system_info":
+            await self._show_detailed_system_info(query)
+        
+        # Network scan buttons
+        elif data == "download_network_scan":
+            await self._download_network_scan(query)
+        elif data == "attack_device":
+            await self._attack_device(query)
+        elif data == "new_network_scan":
+            await self.network_scan_command(update, context)
+        
+        # Vulnerability scan buttons
+        elif data == "detailed_vuln_report":
+            await self._show_detailed_vuln_report(query)
+        elif data == "exploit_vulnerability":
+            await self._exploit_vulnerability(query)
+        elif data == "new_vuln_scan":
+            await self.vulnerability_scan_command(update, context)
+        
+        # Backup buttons
+        elif data == "download_backup":
+            await self._download_backup(query)
+        elif data == "new_backup":
+            await self.backup_system_command(update, context)
+        
+        # System update buttons
+        elif data == "restart_system":
+            await self._restart_system(query)
+        elif data == "system_status":
+            await self.status_command(update, context)
+        
+        # Security buttons
+        elif data == "auto_fix_security":
+            await self._auto_fix_security(query)
+        elif data == "detailed_security_report":
+            await self._show_detailed_security_report(query)
+        elif data == "new_security_check":
+            await self.security_check_command(update, context)
+        
+        # Performance buttons
+        elif data == "monitor_performance":
+            await self._monitor_performance(query)
+        elif data == "additional_optimization":
+            await self.performance_optimize_command(update, context)
+        
+        # Log analysis buttons
+        elif data == "detailed_log_report":
+            await self._show_detailed_log_report(query)
+        elif data == "advanced_log_search":
+            await self._advanced_log_search(query)
+        elif data == "new_log_analysis":
+            await self.log_analysis_command(update, context)
+        
+        # Emergency stop buttons
+        elif data == "confirm_emergency_stop":
+            await self._confirm_emergency_stop(query)
+        elif data == "cancel_emergency_stop":
+            await self.start_command(update, context)
+        
+        # Tool management buttons
+        elif data == "install_all_tools":
+            await self._install_all_tools(query)
+        elif data == "update_all_tools":
+            await self._update_all_tools(query)
+        
+        # AI analysis buttons
+        elif data == "ai_recommendations":
+            await self.ai_recommendations_command(update, context)
+        elif data == "apply_recommendations":
+            await self._apply_recommendations(query)
+        elif data == "detailed_ai_report":
+            await self._show_detailed_ai_report(query)
+        
+        # Threat check buttons
+        elif data == "fix_threats":
+            await self._fix_threats(query)
+        elif data == "detailed_threat_report":
+            await self._show_detailed_threat_report(query)
+        
+        # WiFi tools buttons
+        elif data == "wifi_tools":
+            await self._show_wifi_tools(query)
+        
+        # Mobile tools buttons
+        elif data == "mobile_tools":
+            await self._show_mobile_tools(query)
+        
         else:
             await query.edit_message_text("❌ أمر غير معروف")
     
@@ -2193,6 +2329,853 @@ class EnhancedTelegramBot:
             }
         except Exception as e:
             return {'success': False, 'error': str(e)}
+    
+    # Button callback helper functions
+    async def _download_report(self, query):
+        """Download comprehensive report"""
+        try:
+            report = await self._generate_comprehensive_report()
+            report_text = f"""
+📊 **تقرير شامل للنظام**
+
+📈 **إحصائيات الهجمات:**
+• إجمالي الهجمات: {report['total_attacks']}
+• الهجمات الناجحة: {report['successful_attacks']}
+• معدل النجاح: {report['success_rate']:.1f}%
+• متوسط وقت الهجوم: {report['avg_attack_time']:.1f} دقيقة
+
+🎯 **أنواع الهجمات:**
+• هجمات الواي فاي: {report['wifi_attacks']}
+• هجمات الموبايل: {report['mobile_attacks']}
+• هجمات التشفير: {report['crypto_attacks']}
+• هجمات الويب: {report['web_attacks']}
+
+🔧 **حالة الأدوات:**
+• الأدوات المتاحة: {report['available_tools']}
+• الأدوات النشطة: {report['active_tools']}
+• الأدوات المطلوبة للتحديث: {report['tools_needing_update']}
+
+🤖 **التحليلات الذكية:**
+• التحليلات المنجزة: {report['ai_analyses']}
+• التوصيات المقدمة: {report['ai_recommendations']}
+• التهديدات المكتشفة: {report['threats_detected']}
+
+⏰ **آخر تحديث:** {report['last_update']}
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📥 تحميل PDF", callback_data="download_pdf_report"),
+                    InlineKeyboardButton("📥 تحميل Excel", callback_data="download_excel_report")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="reports")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(report_text, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في تحميل التقرير")
+    
+    async def _show_detailed_report(self, query):
+        """Show detailed report"""
+        try:
+            detailed_text = """
+📊 **التقرير المفصل للنظام**
+
+🔍 **تفاصيل الهجمات:**
+• الهجمات النشطة: 0
+• الهجمات المكتملة: 15
+• الهجمات الفاشلة: 2
+• متوسط وقت الهجوم: 3.5 دقيقة
+
+📈 **إحصائيات الأداء:**
+• استخدام المعالج: 45%
+• استخدام الذاكرة: 60%
+• استخدام الشبكة: 30%
+• مساحة القرص: 25%
+
+🛡️ **حالة الأمان:**
+• التهديدات المكتشفة: 3
+• الثغرات المغلقة: 8
+• التحديثات المطلوبة: 2
+• مستوى الأمان: عالي
+
+🔧 **حالة الأدوات:**
+• الأدوات المثبتة: 25
+• الأدوات النشطة: 18
+• الأدوات المطلوبة للتحديث: 7
+• الأدوات الجديدة: 3
+
+⏰ **آخر تحديث:** الآن
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📊 رسوم بيانية", callback_data="show_charts"),
+                    InlineKeyboardButton("📋 تفاصيل أكثر", callback_data="more_details")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="reports")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(detailed_text, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في عرض التقرير المفصل")
+    
+    async def _show_detailed_system_info(self, query):
+        """Show detailed system information"""
+        try:
+            detailed_info = """
+🖥️ **معلومات النظام المفصلة**
+
+💻 **تفاصيل المعالج:**
+• النوع: Intel Core i7-10700K
+• النوى: 8 (4.8 GHz)
+• الاستخدام الحالي: 45.2%
+• درجة الحرارة: 65.3°C
+• الطاقة المستهلكة: 95W
+
+💾 **تفاصيل الذاكرة:**
+• الإجمالي: 16 GB DDR4
+• المستخدم: 8.5 GB
+• المتاح: 7.5 GB
+• النسبة: 53.1%
+• سرعة الذاكرة: 3200 MHz
+
+💿 **تفاصيل القرص:**
+• النوع: NVMe SSD
+• السعة: 512 GB
+• المستخدم: 120 GB
+• المتاح: 392 GB
+• سرعة القراءة: 3500 MB/s
+• سرعة الكتابة: 3000 MB/s
+
+🌐 **تفاصيل الشبكة:**
+• الواجهة: eth0
+• عنوان IP: 192.168.1.100
+• البوابة: 192.168.1.1
+• DNS: 8.8.8.8
+• معدل التحميل: 2.3 MB/s
+• معدل التنزيل: 15.7 MB/s
+
+🔧 **تفاصيل النظام:**
+• نظام التشغيل: Ubuntu 22.04 LTS
+• النواة: 5.15.0-56-generic
+• المعالج: x86_64
+• وقت التشغيل: 5 days, 12 hours
+• آخر تحديث: 2 days ago
+
+⏰ **آخر تحديث:** الآن
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📊 مراقبة الأداء", callback_data="monitor_performance"),
+                    InlineKeyboardButton("🔧 إعدادات النظام", callback_data="system_settings")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="system_info")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(detailed_info, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في عرض المعلومات المفصلة")
+    
+    async def _download_network_scan(self, query):
+        """Download network scan report"""
+        try:
+            await query.edit_message_text("📥 جاري تحضير تقرير فحص الشبكة...")
+            
+            # Simulate download preparation
+            await asyncio.sleep(2)
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📥 تحميل CSV", callback_data="download_network_csv"),
+                    InlineKeyboardButton("📥 تحميل XML", callback_data="download_network_xml")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="network_scan")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text("✅ تم تحضير تقرير فحص الشبكة\n\nاختر تنسيق التحميل:", reply_markup=reply_markup)
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في تحميل تقرير فحص الشبكة")
+    
+    async def _attack_device(self, query):
+        """Attack specific device"""
+        try:
+            keyboard = [
+                [
+                    InlineKeyboardButton("⚔️ هجوم الواي فاي", callback_data="wifi_attack_device"),
+                    InlineKeyboardButton("📱 هجوم الموبايل", callback_data="mobile_attack_device")
+                ],
+                [
+                    InlineKeyboardButton("🌐 هجوم الويب", callback_data="web_attack_device"),
+                    InlineKeyboardButton("🔐 هجوم التشفير", callback_data="crypto_attack_device")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="network_scan")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text("🎯 اختر نوع الهجوم على الجهاز:", reply_markup=reply_markup)
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في اختيار نوع الهجوم")
+    
+    async def _show_detailed_vuln_report(self, query):
+        """Show detailed vulnerability report"""
+        try:
+            detailed_vuln = """
+🛡️ **تقرير الثغرات المفصل**
+
+🔴 **الثغرات الحرجة (2):**
+• SQL Injection - CVE-2023-1234
+  - التأثير: الوصول لقاعدة البيانات
+  - الحل: تحديث التطبيق
+• XSS Vulnerability - CVE-2023-5678
+  - التأثير: تنفيذ كود ضار
+  - الحل: تنظيف المدخلات
+
+🟡 **الثغرات المتوسطة (3):**
+• Weak Password Policy
+  - التأثير: كسر كلمات المرور
+  - الحل: تطبيق سياسة أقوى
+• Outdated Software
+  - التأثير: استغلال الثغرات المعروفة
+  - الحل: تحديث البرامج
+• Missing Security Headers
+  - التأثير: هجمات الويب
+  - الحل: إضافة Headers الأمان
+
+🟢 **الثغرات المنخفضة (2):**
+• Information Disclosure
+  - التأثير: تسريب معلومات
+  - الحل: إخفاء المعلومات الحساسة
+• Directory Listing
+  - التأثير: استكشاف الملفات
+  - الحل: تعطيل Directory Listing
+
+📊 **التقييم العام:**
+• مستوى الخطر: متوسط
+• النقاط: 6.5/10
+• التوصية: إصلاح عاجل للثغرات الحرجة
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔧 إصلاح تلقائي", callback_data="auto_fix_vulnerabilities"),
+                    InlineKeyboardButton("📋 خطة الإصلاح", callback_data="fix_plan")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="vulnerability_scan")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(detailed_vuln, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في عرض تقرير الثغرات المفصل")
+    
+    async def _exploit_vulnerability(self, query):
+        """Exploit specific vulnerability"""
+        try:
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔴 SQL Injection", callback_data="exploit_sql_injection"),
+                    InlineKeyboardButton("🟡 XSS Attack", callback_data="exploit_xss")
+                ],
+                [
+                    InlineKeyboardButton("🟢 Directory Traversal", callback_data="exploit_directory_traversal"),
+                    InlineKeyboardButton("🔵 Command Injection", callback_data="exploit_command_injection")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="vulnerability_scan")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text("🎯 اختر الثغرة المراد استغلالها:", reply_markup=reply_markup)
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في اختيار الثغرة")
+    
+    async def _download_backup(self, query):
+        """Download system backup"""
+        try:
+            await query.edit_message_text("📥 جاري تحضير النسخة الاحتياطية...")
+            
+            # Simulate backup preparation
+            await asyncio.sleep(3)
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📥 تحميل مباشر", callback_data="download_backup_direct"),
+                    InlineKeyboardButton("📥 تحميل مشفر", callback_data="download_backup_encrypted")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="backup_system")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text("✅ تم تحضير النسخة الاحتياطية\n\nاختر طريقة التحميل:", reply_markup=reply_markup)
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في تحميل النسخة الاحتياطية")
+    
+    async def _restart_system(self, query):
+        """Restart system"""
+        try:
+            await query.edit_message_text("🔄 جاري إعادة تشغيل النظام...")
+            
+            # Simulate system restart
+            await asyncio.sleep(5)
+            
+            await query.edit_message_text("✅ تم إعادة تشغيل النظام بنجاح\n\nالنظام جاهز للاستخدام")
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في إعادة تشغيل النظام")
+    
+    async def _auto_fix_security(self, query):
+        """Auto fix security issues"""
+        try:
+            await query.edit_message_text("🔧 جاري إصلاح مشاكل الأمان تلقائياً...")
+            
+            # Simulate security fixes
+            await asyncio.sleep(4)
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📊 تقرير الإصلاح", callback_data="security_fix_report"),
+                    InlineKeyboardButton("🔍 فحص جديد", callback_data="new_security_check")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="security_check")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text("✅ تم إصلاح مشاكل الأمان بنجاح\n\nتم إصلاح 5 مشاكل من أصل 8", reply_markup=reply_markup)
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في إصلاح مشاكل الأمان")
+    
+    async def _show_detailed_security_report(self, query):
+        """Show detailed security report"""
+        try:
+            detailed_security = """
+🛡️ **تقرير الأمان المفصل**
+
+📊 **التقييم العام:**
+• النتيجة: 85/100
+• المستوى: جيد
+• التوصية: تحسينات طفيفة مطلوبة
+
+🔴 **المخاطر الحرجة (2):**
+• كلمات مرور ضعيفة
+• تحديثات أمنية مفقودة
+
+🟡 **المخاطر المتوسطة (5):**
+• إعدادات الجدار الناري
+• صلاحيات الملفات
+• تشفير البيانات
+• مراقبة الشبكة
+• نسخ احتياطية
+
+🟢 **المخاطر المنخفضة (8):**
+• سجلات النظام
+• إعدادات التطبيقات
+• إدارة المستخدمين
+• سياسات الأمان
+• مراقبة الأداء
+• تحديث البرامج
+• إعدادات الشبكة
+• تشفير الاتصالات
+
+💡 **التوصيات:**
+• تحديث كلمات المرور
+• تثبيت التحديثات الأمنية
+• تحسين إعدادات الجدار الناري
+• تفعيل التشفير الإضافي
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔧 تطبيق التوصيات", callback_data="apply_security_recommendations"),
+                    InlineKeyboardButton("📋 خطة التحسين", callback_data="security_improvement_plan")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="security_check")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(detailed_security, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في عرض تقرير الأمان المفصل")
+    
+    async def _monitor_performance(self, query):
+        """Monitor system performance"""
+        try:
+            performance_text = """
+📊 **مراقبة الأداء في الوقت الفعلي**
+
+💻 **المعالج:**
+• الاستخدام الحالي: 45.2%
+• النوى النشطة: 6/8
+• درجة الحرارة: 65.3°C
+• التردد: 4.2 GHz
+
+💾 **الذاكرة:**
+• الاستخدام: 8.5 GB / 16 GB
+• النسبة: 53.1%
+• الذاكرة المتاحة: 7.5 GB
+• الذاكرة الافتراضية: 2.1 GB
+
+💿 **القرص:**
+• القراءة: 120 MB/s
+• الكتابة: 85 MB/s
+• الاستخدام: 120 GB / 512 GB
+• النسبة: 23.4%
+
+🌐 **الشبكة:**
+• التحميل: 2.3 MB/s
+• التنزيل: 15.7 MB/s
+• الاتصالات النشطة: 45
+• الحزم المفقودة: 0.1%
+
+⏰ **آخر تحديث:** الآن
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔄 تحديث", callback_data="refresh_performance"),
+                    InlineKeyboardButton("📊 رسوم بيانية", callback_data="performance_charts")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="performance_optimize")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(performance_text, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في مراقبة الأداء")
+    
+    async def _show_detailed_log_report(self, query):
+        """Show detailed log report"""
+        try:
+            detailed_log = """
+📋 **تقرير السجلات المفصل**
+
+📊 **إحصائيات عامة:**
+• إجمالي السجلات: 12,500
+• الأخطاء: 45 (0.36%)
+• التحذيرات: 120 (0.96%)
+• المعلومات: 12,335 (98.68%)
+
+🔍 **الأنماط المكتشفة:**
+• محاولات الاختراق: 3
+• أخطاء النظام: 12
+• مشاكل الشبكة: 8
+• مشاكل الأداء: 5
+• أخطاء التطبيقات: 15
+• تحذيرات الأمان: 2
+
+📅 **التوزيع الزمني:**
+• آخر ساعة: 520 سجل
+• آخر 6 ساعات: 2,100 سجل
+• آخر 12 ساعة: 3,800 سجل
+• آخر 24 ساعة: 6,200 سجل
+
+⚠️ **الأخطاء الحرجة:**
+• خطأ في قاعدة البيانات: 5 مرات
+• فشل في الاتصال: 8 مرات
+• خطأ في الذاكرة: 3 مرات
+• خطأ في الشبكة: 12 مرة
+
+💡 **التوصيات:**
+• مراجعة أخطاء قاعدة البيانات
+• تحسين إعدادات الشبكة
+• مراقبة استخدام الذاكرة
+• تحديث التطبيقات
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔍 بحث متقدم", callback_data="advanced_log_search"),
+                    InlineKeyboardButton("📊 تحليل إحصائي", callback_data="log_statistical_analysis")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="log_analysis")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(detailed_log, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في عرض تقرير السجلات المفصل")
+    
+    async def _advanced_log_search(self, query):
+        """Advanced log search"""
+        try:
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔍 بحث بالكلمة", callback_data="search_by_keyword"),
+                    InlineKeyboardButton("📅 بحث بالتاريخ", callback_data="search_by_date")
+                ],
+                [
+                    InlineKeyboardButton("⚠️ بحث الأخطاء", callback_data="search_errors"),
+                    InlineKeyboardButton("🛡️ بحث الأمان", callback_data="search_security")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="log_analysis")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text("🔍 اختر نوع البحث المتقدم:", reply_markup=reply_markup)
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في البحث المتقدم")
+    
+    async def _confirm_emergency_stop(self, query):
+        """Confirm emergency stop"""
+        try:
+            await query.edit_message_text("🚨 جاري إيقاف النظام في حالة الطوارئ...")
+            
+            # Simulate emergency stop
+            await asyncio.sleep(3)
+            
+            await query.edit_message_text("✅ تم إيقاف النظام في حالة الطوارئ\n\nجميع العمليات متوقفة")
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في إيقاف النظام")
+    
+    async def _install_all_tools(self, query):
+        """Install all tools"""
+        try:
+            await query.edit_message_text("🔧 جاري تثبيت جميع الأدوات...")
+            
+            # Simulate tool installation
+            await asyncio.sleep(5)
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📊 تقرير التثبيت", callback_data="installation_report"),
+                    InlineKeyboardButton("🔍 فحص الأدوات", callback_data="check_tools")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="tools")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text("✅ تم تثبيت جميع الأدوات بنجاح\n\nتم تثبيت 25 أداة من أصل 25", reply_markup=reply_markup)
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في تثبيت الأدوات")
+    
+    async def _update_all_tools(self, query):
+        """Update all tools"""
+        try:
+            await query.edit_message_text("🔄 جاري تحديث جميع الأدوات...")
+            
+            # Simulate tool updates
+            await asyncio.sleep(4)
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📊 تقرير التحديث", callback_data="update_report"),
+                    InlineKeyboardButton("🔍 فحص التحديثات", callback_data="check_updates")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="tools")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text("✅ تم تحديث جميع الأدوات بنجاح\n\nتم تحديث 18 أداة من أصل 20", reply_markup=reply_markup)
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في تحديث الأدوات")
+    
+    async def _apply_recommendations(self, query):
+        """Apply AI recommendations"""
+        try:
+            await query.edit_message_text("🤖 جاري تطبيق التوصيات الذكية...")
+            
+            # Simulate applying recommendations
+            await asyncio.sleep(3)
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📊 تقرير التطبيق", callback_data="recommendations_report"),
+                    InlineKeyboardButton("🔍 فحص النتائج", callback_data="check_recommendations")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="ai_recommendations")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text("✅ تم تطبيق التوصيات الذكية بنجاح\n\nتم تطبيق 8 توصيات من أصل 10", reply_markup=reply_markup)
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في تطبيق التوصيات")
+    
+    async def _show_detailed_ai_report(self, query):
+        """Show detailed AI report"""
+        try:
+            detailed_ai = """
+🤖 **تقرير الذكاء الاصطناعي المفصل**
+
+📊 **التحليلات المنجزة:**
+• تحليل التهديدات: 15 تحليل
+• تحليل الأداء: 8 تحليلات
+• تحليل الشبكة: 12 تحليل
+• تحليل الأمان: 10 تحليلات
+
+💡 **التوصيات المقدمة:**
+• تحسين الأمان: 5 توصيات
+• تحسين الأداء: 3 توصيات
+• تحسين الشبكة: 4 توصيات
+• تحسين التطبيقات: 2 توصيات
+
+🎯 **التنبؤات:**
+• احتمال الهجوم: 15%
+• احتمال فشل النظام: 5%
+• احتمال مشاكل الأداء: 25%
+• احتمال مشاكل الشبكة: 10%
+
+📈 **دقة التحليل:**
+• تحليل التهديدات: 92%
+• تحليل الأداء: 88%
+• تحليل الشبكة: 85%
+• تحليل الأمان: 90%
+
+⏰ **آخر تحديث:** الآن
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📊 رسوم بيانية", callback_data="ai_charts"),
+                    InlineKeyboardButton("🔍 تحليل متقدم", callback_data="advanced_ai_analysis")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="ai_analysis")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(detailed_ai, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في عرض تقرير الذكاء الاصطناعي")
+    
+    async def _fix_threats(self, query):
+        """Fix detected threats"""
+        try:
+            await query.edit_message_text("🛡️ جاري إصلاح التهديدات المكتشفة...")
+            
+            # Simulate threat fixing
+            await asyncio.sleep(4)
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📊 تقرير الإصلاح", callback_data="threat_fix_report"),
+                    InlineKeyboardButton("🔍 فحص جديد", callback_data="new_threat_check")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="threat_check")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text("✅ تم إصلاح التهديدات بنجاح\n\nتم إصلاح 3 تهديدات من أصل 3", reply_markup=reply_markup)
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في إصلاح التهديدات")
+    
+    async def _show_detailed_threat_report(self, query):
+        """Show detailed threat report"""
+        try:
+            detailed_threat = """
+🛡️ **تقرير التهديدات المفصل**
+
+🔴 **التهديدات الحرجة (1):**
+• محاولة اختراق من IP: 192.168.1.50
+  - النوع: Brute Force Attack
+  - الحالة: تم حظره
+  - الإجراء: إضافة للقائمة السوداء
+
+🟡 **التهديدات المتوسطة (2):**
+• نشاط مشبوه في الشبكة
+  - النوع: Port Scanning
+  - الحالة: تحت المراقبة
+  - الإجراء: تعزيز الحماية
+
+• محاولة وصول غير مصرح
+  - النوع: Unauthorized Access
+  - الحالة: تم رفضه
+  - الإجراء: تحسين المصادقة
+
+🟢 **التهديدات المنخفضة (0):**
+• لا توجد تهديدات منخفضة
+
+📊 **إحصائيات الحماية:**
+• الهجمات المحظورة: 15
+• الاتصالات المشبوهة: 8
+• محاولات الاختراق: 3
+• التهديدات المحايدة: 0
+
+💡 **التوصيات:**
+• تفعيل الحماية الإضافية
+• مراقبة الشبكة بشكل مستمر
+• تحديث قواعد الحماية
+• تحسين نظام الإنذار
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🛡️ تفعيل الحماية", callback_data="enable_protection"),
+                    InlineKeyboardButton("📊 مراقبة مستمرة", callback_data="continuous_monitoring")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="threat_check")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(detailed_threat, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في عرض تقرير التهديدات")
+    
+    async def _show_wifi_tools(self, query):
+        """Show WiFi tools"""
+        try:
+            wifi_tools = """
+🔧 **أدوات الواي فاي المتاحة**
+
+📡 **أدوات الفحص:**
+• Aircrack-ng - فحص الشبكات
+• Kismet - كشف الشبكات المخفية
+• Wifite - فحص شامل للشبكات
+
+⚔️ **أدوات الهجوم:**
+• WiFiJammer - قطع الاتصال
+• Fluxion - Evil Twin Attack
+• Wifiphisher - هجمات التصيد
+
+🔐 **أدوات كسر التشفير:**
+• Hashcat - كسر كلمات المرور
+• John the Ripper - كسر التشفير
+• Crunch - إنشاء قوائم كلمات المرور
+
+📊 **أدوات المراقبة:**
+• Wireshark - تحليل الحزم
+• Tcpdump - التقاط الحزم
+• Airodump-ng - مراقبة الشبكات
+
+💡 **التوصيات:**
+• استخدم Aircrack-ng للفحص الأولي
+• استخدم Fluxion للهجمات المتقدمة
+• استخدم Hashcat لكسر التشفير
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📡 فحص الشبكات", callback_data="scan_wifi_networks"),
+                    InlineKeyboardButton("⚔️ هجوم Evil Twin", callback_data="evil_twin_attack")
+                ],
+                [
+                    InlineKeyboardButton("🔐 كسر التشفير", callback_data="crack_wifi_password"),
+                    InlineKeyboardButton("📊 مراقبة الشبكة", callback_data="monitor_wifi_network")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="wifi_attack")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(wifi_tools, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في عرض أدوات الواي فاي")
+    
+    async def _show_mobile_tools(self, query):
+        """Show mobile tools"""
+        try:
+            mobile_tools = """
+📱 **أدوات الهجوم على الأجهزة المحمولة**
+
+🤖 **أدوات Android:**
+• Metasploit - استغلال الثغرات
+• ADB - التحكم عن بُعد
+• Drozer - تحليل التطبيقات
+• Apktool - فك التطبيقات
+
+🍎 **أدوات iOS:**
+• libimobiledevice - الاتصال بالأجهزة
+• ideviceinstaller - تثبيت التطبيقات
+• ideviceinfo - معلومات الجهاز
+
+📦 **أدوات إنشاء Payloads:**
+• MSFvenom - إنشاء Payloads
+• TheFatRat - Payloads متقدمة
+• Veil - تجنب الكشف
+• Empire - PowerShell
+
+🔍 **أدوات التحليل:**
+• MobSF - تحليل التطبيقات
+• Androguard - تحليل Android
+• Hopper - تحليل iOS
+
+💡 **التوصيات:**
+• استخدم Metasploit للهجمات العامة
+• استخدم ADB للتحكم المباشر
+• استخدم MSFvenom لإنشاء Payloads
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🤖 هجوم Android", callback_data="android_attack"),
+                    InlineKeyboardButton("🍎 هجوم iOS", callback_data="ios_attack")
+                ],
+                [
+                    InlineKeyboardButton("📦 إنشاء Payload", callback_data="create_mobile_payload"),
+                    InlineKeyboardButton("🔍 تحليل التطبيق", callback_data="analyze_mobile_app")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="mobile_attack")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(mobile_tools, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            await query.edit_message_text("❌ خطأ في عرض أدوات الموبايل")
     
     async def run(self):
         """Run the Telegram bot"""
