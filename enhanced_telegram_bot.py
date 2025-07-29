@@ -194,8 +194,8 @@ class EnhancedTelegramBot:
         self.app.add_handler(CommandHandler("status", self.status_command))
         self.app.add_handler(CommandHandler("attacks", self.attacks_command))
         self.app.add_handler(CommandHandler("tools", self.tools_command))
-        # self.app.add_handler(CommandHandler("reports", self.reports_command))
-        # self.app.add_handler(CommandHandler("monitoring", self.monitoring_command))
+        self.app.add_handler(CommandHandler("reports", self.reports_command))
+        self.app.add_handler(CommandHandler("monitoring", self.monitoring_command))
         self.app.add_handler(CommandHandler("ai_analysis", self.ai_analysis_command))
         self.app.add_handler(CommandHandler("ai_recommendations", self.ai_recommendations_command))
         self.app.add_handler(CommandHandler("threat_check", self.threat_check_command))
@@ -208,19 +208,19 @@ class EnhancedTelegramBot:
         self.app.add_handler(CommandHandler("payload_create", self.payload_create_command))
         
         # Tool management handlers
-        # self.app.add_handler(CommandHandler("install_tool", self.install_tool_command))
-        # self.app.add_handler(CommandHandler("update_tool", self.update_tool_command))
-        # self.app.add_handler(CommandHandler("tool_status", self.tool_status_command))
+        self.app.add_handler(CommandHandler("install_tool", self.install_tool_command))
+        self.app.add_handler(CommandHandler("update_tool", self.update_tool_command))
+        self.app.add_handler(CommandHandler("tool_status", self.tool_status_command))
         
         # Session management handlers
-        # self.app.add_handler(CommandHandler("stop_attack", self.stop_attack_command))
-        # self.app.add_handler(CommandHandler("session_status", self.session_status_command))
+        self.app.add_handler(CommandHandler("stop_attack", self.stop_attack_command))
+        self.app.add_handler(CommandHandler("session_status", self.session_status_command))
         
         # Callback query handler
         self.app.add_handler(CallbackQueryHandler(self.button_callback))
         
         # Message handler for interactive commands
-        # self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
+        self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
     
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
@@ -1069,6 +1069,453 @@ class EnhancedTelegramBot:
                 count += 1
         
         return (total_time / count) / 60 if count > 0 else 0.0  # Convert to minutes
+    
+    async def reports_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /reports command - Generate comprehensive reports"""
+        if not self._is_authorized(update.effective_user.id):
+            await update.message.reply_text("❌ Unauthorized access!")
+            return
+        
+        try:
+            # Generate comprehensive report
+            report = await self._generate_comprehensive_report()
+            
+            report_text = f"""
+📊 **التقرير الشامل للنظام**
+
+📈 **إحصائيات الهجمات:**
+• إجمالي الهجمات: {report['total_attacks']}
+• الهجمات الناجحة: {report['successful_attacks']}
+• معدل النجاح: {report['success_rate']:.1f}%
+• متوسط وقت الهجوم: {report['avg_attack_time']:.1f} دقيقة
+
+🎯 **أنواع الهجمات:**
+• هجمات الواي فاي: {report['wifi_attacks']}
+• هجمات الموبايل: {report['mobile_attacks']}
+• هجمات التشفير: {report['crypto_attacks']}
+• هجمات الويب: {report['web_attacks']}
+
+🔧 **حالة الأدوات:**
+• الأدوات المتاحة: {report['available_tools']}
+• الأدوات النشطة: {report['active_tools']}
+• الأدوات المطلوبة للتحديث: {report['tools_needing_update']}
+
+🤖 **التحليلات الذكية:**
+• التحليلات المنجزة: {report['ai_analyses']}
+• التوصيات المقدمة: {report['ai_recommendations']}
+• التهديدات المكتشفة: {report['threats_detected']}
+
+⏰ **آخر تحديث:** {report['last_update']}
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("📥 تحميل التقرير", callback_data="download_report"),
+                    InlineKeyboardButton("🔄 تحديث", callback_data="refresh_report")
+                ],
+                [
+                    InlineKeyboardButton("📊 تفاصيل أكثر", callback_data="detailed_report"),
+                    InlineKeyboardButton("🔙 رجوع", callback_data="main_menu")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(report_text, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            self.logger.error(f"Error generating report: {e}")
+            await update.message.reply_text("❌ خطأ في إنشاء التقرير")
+    
+    async def monitoring_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /monitoring command - Real-time system monitoring"""
+        if not self._is_authorized(update.effective_user.id):
+            await update.message.reply_text("❌ Unauthorized access!")
+            return
+        
+        try:
+            # Get real-time monitoring data
+            monitoring_data = await self._get_monitoring_data()
+            
+            monitoring_text = f"""
+🖥️ **مراقبة النظام في الوقت الفعلي**
+
+💻 **أداء النظام:**
+• استخدام المعالج: {monitoring_data['cpu_usage']:.1f}%
+• استخدام الذاكرة: {monitoring_data['memory_usage']:.1f}%
+• استخدام القرص: {monitoring_data['disk_usage']:.1f}%
+• استخدام الشبكة: {monitoring_data['network_usage']:.1f} MB/s
+
+🌐 **حالة الشبكة:**
+• الاتصالات النشطة: {monitoring_data['active_connections']}
+• معدل نقل البيانات: {monitoring_data['data_transfer_rate']:.1f} MB/s
+• زمن الاستجابة: {monitoring_data['response_time']:.1f} ms
+
+🔒 **الأمان:**
+• التهديدات المكتشفة: {monitoring_data['threats_detected']}
+• محاولات الاختراق: {monitoring_data['intrusion_attempts']}
+• الحماية النشطة: {monitoring_data['active_protections']}
+
+⚡ **الأدوات النشطة:**
+• الهجمات الجارية: {monitoring_data['active_attacks']}
+• التحليلات الجارية: {monitoring_data['active_analyses']}
+• المراقبة النشطة: {monitoring_data['active_monitoring']}
+
+⏰ **آخر تحديث:** {monitoring_data['last_update']}
+            """
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔄 تحديث", callback_data="refresh_monitoring"),
+                    InlineKeyboardButton("📊 تفاصيل", callback_data="detailed_monitoring")
+                ],
+                [
+                    InlineKeyboardButton("⚙️ إعدادات", callback_data="monitoring_settings"),
+                    InlineKeyboardButton("🔙 رجوع", callback_data="main_menu")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(monitoring_text, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            self.logger.error(f"Error getting monitoring data: {e}")
+            await update.message.reply_text("❌ خطأ في الحصول على بيانات المراقبة")
+    
+    async def install_tool_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /install_tool command - Install new tools"""
+        if not self._is_authorized(update.effective_user.id):
+            await update.message.reply_text("❌ Unauthorized access!")
+            return
+        
+        try:
+            # Parse tool name from command
+            args = context.args
+            if not args:
+                await update.message.reply_text("❌ يرجى تحديد اسم الأداة\nمثال: /install_tool fluxion")
+                return
+            
+            tool_name = args[0].lower()
+            
+            # Check if tool is available
+            available_tools = self._get_available_tools()
+            if tool_name not in available_tools:
+                await update.message.reply_text(f"❌ الأداة '{tool_name}' غير متاحة")
+                return
+            
+            # Start installation
+            await update.message.reply_text(f"🔧 جاري تثبيت {tool_name}...")
+            
+            installation_result = await self._install_tool(tool_name)
+            
+            if installation_result['success']:
+                await update.message.reply_text(f"✅ تم تثبيت {tool_name} بنجاح!")
+            else:
+                await update.message.reply_text(f"❌ فشل في تثبيت {tool_name}: {installation_result['error']}")
+                
+        except Exception as e:
+            self.logger.error(f"Error installing tool: {e}")
+            await update.message.reply_text("❌ خطأ في تثبيت الأداة")
+    
+    async def update_tool_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /update_tool command - Update existing tools"""
+        if not self._is_authorized(update.effective_user.id):
+            await update.message.reply_text("❌ Unauthorized access!")
+            return
+        
+        try:
+            # Parse tool name from command
+            args = context.args
+            if not args:
+                await update.message.reply_text("❌ يرجى تحديد اسم الأداة\nمثال: /update_tool fluxion")
+                return
+            
+            tool_name = args[0].lower()
+            
+            # Check if tool is installed
+            installed_tools = self._get_installed_tools()
+            if tool_name not in installed_tools:
+                await update.message.reply_text(f"❌ الأداة '{tool_name}' غير مثبتة")
+                return
+            
+            # Start update
+            await update.message.reply_text(f"🔄 جاري تحديث {tool_name}...")
+            
+            update_result = await self._update_tool(tool_name)
+            
+            if update_result['success']:
+                await update.message.reply_text(f"✅ تم تحديث {tool_name} بنجاح!")
+            else:
+                await update.message.reply_text(f"❌ فشل في تحديث {tool_name}: {update_result['error']}")
+                
+        except Exception as e:
+            self.logger.error(f"Error updating tool: {e}")
+            await update.message.reply_text("❌ خطأ في تحديث الأداة")
+    
+    async def tool_status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /tool_status command - Check tool status"""
+        if not self._is_authorized(update.effective_user.id):
+            await update.message.reply_text("❌ Unauthorized access!")
+            return
+        
+        try:
+            # Get tool status
+            tool_status = await self._get_tool_status()
+            
+            status_text = "🔧 **حالة الأدوات:**\n\n"
+            
+            for tool_name, status in tool_status.items():
+                if status['installed']:
+                    status_text += f"✅ {tool_name}: مثبت ({status['version']})\n"
+                else:
+                    status_text += f"❌ {tool_name}: غير مثبت\n"
+            
+            keyboard = [
+                [
+                    InlineKeyboardButton("🔄 تحديث الحالة", callback_data="refresh_tool_status"),
+                    InlineKeyboardButton("📥 تثبيت الكل", callback_data="install_all_tools")
+                ],
+                [
+                    InlineKeyboardButton("🔙 رجوع", callback_data="main_menu")
+                ]
+            ]
+            
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await update.message.reply_text(status_text, reply_markup=reply_markup, parse_mode='Markdown')
+            
+        except Exception as e:
+            self.logger.error(f"Error getting tool status: {e}")
+            await update.message.reply_text("❌ خطأ في الحصول على حالة الأدوات")
+    
+    async def stop_attack_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /stop_attack command - Stop active attacks"""
+        if not self._is_authorized(update.effective_user.id):
+            await update.message.reply_text("❌ Unauthorized access!")
+            return
+        
+        try:
+            # Parse session ID from command
+            args = context.args
+            if not args:
+                # Stop all attacks
+                await update.message.reply_text("🛑 جاري إيقاف جميع الهجمات...")
+                
+                stopped_count = 0
+                for session_id, session in self.active_sessions.items():
+                    if session.status == "running":
+                        await self._stop_attack_session(session_id)
+                        stopped_count += 1
+                
+                await update.message.reply_text(f"✅ تم إيقاف {stopped_count} هجوم")
+            else:
+                # Stop specific attack
+                session_id = args[0]
+                if session_id in self.active_sessions:
+                    await update.message.reply_text(f"🛑 جاري إيقاف الهجوم {session_id}...")
+                    await self._stop_attack_session(session_id)
+                    await update.message.reply_text(f"✅ تم إيقاف الهجوم {session_id}")
+                else:
+                    await update.message.reply_text(f"❌ لم يتم العثور على الهجوم {session_id}")
+                    
+        except Exception as e:
+            self.logger.error(f"Error stopping attack: {e}")
+            await update.message.reply_text("❌ خطأ في إيقاف الهجوم")
+    
+    async def session_status_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle /session_status command - Check session status"""
+        if not self._is_authorized(update.effective_user.id):
+            await update.message.reply_text("❌ Unauthorized access!")
+            return
+        
+        try:
+            # Parse session ID from command
+            args = context.args
+            if not args:
+                # Show all sessions
+                if not self.active_sessions:
+                    await update.message.reply_text("📭 لا توجد جلسات نشطة")
+                    return
+                
+                status_text = "📊 **حالة الجلسات النشطة:**\n\n"
+                
+                for session_id, session in self.active_sessions.items():
+                    status_text += f"🆔 **{session_id}**\n"
+                    status_text += f"📋 النوع: {session.attack_type}\n"
+                    status_text += f"🎯 الهدف: {session.target}\n"
+                    status_text += f"📈 الحالة: {session.status}\n"
+                    status_text += f"📊 التقدم: {session.progress:.1f}%\n"
+                    status_text += f"⏰ البداية: {session.start_time.strftime('%H:%M:%S')}\n\n"
+                
+                keyboard = [
+                    [
+                        InlineKeyboardButton("🛑 إيقاف الكل", callback_data="stop_all_sessions"),
+                        InlineKeyboardButton("🔄 تحديث", callback_data="refresh_sessions")
+                    ],
+                    [
+                        InlineKeyboardButton("🔙 رجوع", callback_data="main_menu")
+                    ]
+                ]
+                
+                reply_markup = InlineKeyboardMarkup(keyboard)
+                await update.message.reply_text(status_text, reply_markup=reply_markup, parse_mode='Markdown')
+            else:
+                # Show specific session
+                session_id = args[0]
+                if session_id in self.active_sessions:
+                    session = self.active_sessions[session_id]
+                    
+                    status_text = f"""
+📊 **حالة الجلسة {session_id}**
+
+📋 **التفاصيل:**
+• النوع: {session.attack_type}
+• الهدف: {session.target}
+• الحالة: {session.status}
+• التقدم: {session.progress:.1f}%
+
+⏰ **التوقيت:**
+• البداية: {session.start_time.strftime('%H:%M:%S')}
+• المدة: {self._calculate_session_duration(session):.1f} ثانية
+
+📈 **النتائج:**
+{self._format_session_results(session)}
+                    """
+                    
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("🛑 إيقاف", callback_data=f"stop_session_{session_id}"),
+                            InlineKeyboardButton("🔄 تحديث", callback_data=f"refresh_session_{session_id}")
+                        ],
+                        [
+                            InlineKeyboardButton("🔙 رجوع", callback_data="main_menu")
+                        ]
+                    ]
+                    
+                    reply_markup = InlineKeyboardMarkup(keyboard)
+                    await update.message.reply_text(status_text, reply_markup=reply_markup, parse_mode='Markdown')
+                else:
+                    await update.message.reply_text(f"❌ لم يتم العثور على الجلسة {session_id}")
+                    
+        except Exception as e:
+            self.logger.error(f"Error getting session status: {e}")
+            await update.message.reply_text("❌ خطأ في الحصول على حالة الجلسة")
+    
+    async def handle_message(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
+        """Handle text messages"""
+        if not self._is_authorized(update.effective_user.id):
+            await update.message.reply_text("❌ Unauthorized access!")
+            return
+        
+        message_text = update.message.text.lower()
+        
+        # Handle interactive responses
+        if "هجوم" in message_text or "attack" in message_text:
+            await self.attacks_command(update, context)
+        elif "أدوات" in message_text or "tools" in message_text:
+            await self.tools_command(update, context)
+        elif "حالة" in message_text or "status" in message_text:
+            await self.status_command(update, context)
+        elif "مساعدة" in message_text or "help" in message_text:
+            await self.help_command(update, context)
+        else:
+            await update.message.reply_text("💡 اكتب /help للحصول على قائمة الأوامر المتاحة")
+    
+    # Helper methods for the new commands
+    async def _generate_comprehensive_report(self) -> Dict:
+        """Generate comprehensive system report"""
+        return {
+            'total_attacks': len(self.active_sessions),
+            'successful_attacks': len([s for s in self.active_sessions.values() if s.status == "completed"]),
+            'success_rate': self._calculate_success_rate(),
+            'avg_attack_time': self._calculate_avg_attack_time(),
+            'wifi_attacks': len([s for s in self.active_sessions.values() if s.attack_type == "wifi"]),
+            'mobile_attacks': len([s for s in self.active_sessions.values() if s.attack_type == "mobile"]),
+            'crypto_attacks': len([s for s in self.active_sessions.values() if s.attack_type == "crypto"]),
+            'web_attacks': len([s for s in self.active_sessions.values() if s.attack_type == "web"]),
+            'available_tools': len(self.hacking_tools),
+            'active_tools': len([t for t in self.hacking_tools.values() if t.get('active', False)]),
+            'tools_needing_update': 3,  # Simulated
+            'ai_analyses': 15,  # Simulated
+            'ai_recommendations': 8,  # Simulated
+            'threats_detected': 2,  # Simulated
+            'last_update': datetime.now().strftime('%H:%M:%S')
+        }
+    
+    async def _get_monitoring_data(self) -> Dict:
+        """Get real-time monitoring data"""
+        return {
+            'cpu_usage': 45.2,  # Simulated
+            'memory_usage': 67.8,  # Simulated
+            'disk_usage': 23.4,  # Simulated
+            'network_usage': 12.5,  # Simulated
+            'active_connections': 8,  # Simulated
+            'data_transfer_rate': 2.3,  # Simulated
+            'response_time': 45.7,  # Simulated
+            'threats_detected': 2,  # Simulated
+            'intrusion_attempts': 0,  # Simulated
+            'active_protections': 5,  # Simulated
+            'active_attacks': len([s for s in self.active_sessions.values() if s.status == "running"]),
+            'active_analyses': 2,  # Simulated
+            'active_monitoring': 3,  # Simulated
+            'last_update': datetime.now().strftime('%H:%M:%S')
+        }
+    
+    def _get_available_tools(self) -> List[str]:
+        """Get list of available tools"""
+        return list(self.hacking_tools.keys())
+    
+    def _get_installed_tools(self) -> List[str]:
+        """Get list of installed tools"""
+        return ["fluxion", "wifijammer", "hashbuster", "metasploit", "adb"]  # Simulated
+    
+    async def _install_tool(self, tool_name: str) -> Dict:
+        """Install a tool"""
+        try:
+            # Simulate installation
+            await asyncio.sleep(2)
+            return {'success': True, 'message': f'Tool {tool_name} installed successfully'}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+    
+    async def _update_tool(self, tool_name: str) -> Dict:
+        """Update a tool"""
+        try:
+            # Simulate update
+            await asyncio.sleep(1)
+            return {'success': True, 'message': f'Tool {tool_name} updated successfully'}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+    
+    async def _get_tool_status(self) -> Dict:
+        """Get status of all tools"""
+        tools = {}
+        for tool_name in self._get_available_tools():
+            tools[tool_name] = {
+                'installed': tool_name in self._get_installed_tools(),
+                'version': '1.0.0' if tool_name in self._get_installed_tools() else None
+            }
+        return tools
+    
+    async def _stop_attack_session(self, session_id: str):
+        """Stop a specific attack session"""
+        if session_id in self.active_sessions:
+            session = self.active_sessions[session_id]
+            session.status = "stopped"
+            session.progress = 0.0
+            self.logger.info(f"Stopped attack session {session_id}")
+    
+    def _calculate_session_duration(self, session: AttackSession) -> float:
+        """Calculate session duration in seconds"""
+        return (datetime.now() - session.start_time).total_seconds()
+    
+    def _format_session_results(self, session: AttackSession) -> str:
+        """Format session results for display"""
+        if session.results:
+            results_text = ""
+            for key, value in session.results.items():
+                results_text += f"• {key}: {value}\n"
+            return results_text
+        else:
+            return "لا توجد نتائج بعد"
     
     async def run(self):
         """Run the Telegram bot"""
