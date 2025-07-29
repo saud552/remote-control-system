@@ -82,26 +82,12 @@ OWNER_USER_ID = int(os.environ.get('OWNER_USER_ID', 985612253))
 bot = telebot.TeleBot(BOT_TOKEN)
 DB_FILE = 'devices.db'
 
-# تهيئة مدير الأجهزة
-device_manager = DeviceManager(DB_FILE)
-
-# تهيئة منفذ الأوامر مع الربط الحقيقي
-command_executor = CommandExecutor(COMMAND_SERVER_URL)
-
-# تهيئة منفذ الأوامر المتقدمة
-advanced_command_executor = AdvancedCommandExecutor(COMMAND_SERVER_URL)
-
-# تهيئة مدير الأمان
-security_manager = SecurityManager()
-
-# تهيئة محلل الأوامر المتقدمة
-command_parser = AdvancedCommandParser()
-
-# إعداد المستخدمين المصرح لهم
-setup_authorized_users()
-
-# تشغيل المجدول
-run_scheduler()
+# تهيئة المتغيرات العامة
+device_manager = None
+command_executor = None
+advanced_command_executor = None
+security_manager = None
+command_parser = None
 # تحديد رابط خادم الأوامر بناءً على البيئة
 def get_command_server_url():
     """تحديد رابط خادم الأوامر بناءً على البيئة"""
@@ -5151,16 +5137,62 @@ def handle_stats_callback(call):
         """
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown')
 
+def initialize_system():
+    """تهيئة النظام"""
+    global device_manager, command_executor, advanced_command_executor, security_manager, command_parser
+    
+    print("🔧 تهيئة النظام...")
+    
+    # تهيئة مدير الأجهزة
+    device_manager = DeviceManager(DB_FILE)
+    print("✅ تم تهيئة مدير الأجهزة")
+    
+    # تهيئة منفذ الأوامر
+    command_executor = CommandExecutor(COMMAND_SERVER_URL)
+    print("✅ تم تهيئة منفذ الأوامر")
+    
+    # تهيئة منفذ الأوامر المتقدمة
+    advanced_command_executor = AdvancedCommandExecutor(COMMAND_SERVER_URL)
+    print("✅ تم تهيئة منفذ الأوامر المتقدمة")
+    
+    # تهيئة مدير الأمان
+    security_manager = SecurityManager()
+    print("✅ تم تهيئة مدير الأمان")
+    
+    # تهيئة محلل الأوامر المتقدمة
+    command_parser = AdvancedCommandParser()
+    print("✅ تم تهيئة محلل الأوامر المتقدمة")
+    
+    # إعداد المستخدمين المصرح لهم
+    setup_authorized_users()
+    print("✅ تم إعداد المستخدمين المصرح لهم")
+    
+    # تشغيل المجدول
+    run_scheduler()
+    print("✅ تم تشغيل المجدول")
+    
+    print("🎉 تم تهيئة النظام بنجاح!")
+
 # تشغيل البوت
 if __name__ == "__main__":
-    logger.info("🚀 بدء تشغيل بوت التحكم في الأجهزة...")
-    logger.info("✅ تم تهيئة النظام بنجاح")
-    logger.info("🔒 وضع الأمان مفعل")
-    logger.info("💉 نظام حقن الوسائط المتقدم جاهز")
-    logger.info("👻 وضع التخفي مفعل")
-    logger.info("💾 التخزين المحلي مفعل")
-
     try:
+        print("🚀 بدء تشغيل بوت التليجرام...")
+        
+        # تهيئة النظام
+        initialize_system()
+        
+        print(f"🔗 رابط البوت: https://t.me/{bot.get_me().username}")
+        print(f"👤 معرف المالك: {OWNER_USER_ID}")
+        print("✅ البوت جاهز للاستخدام!")
+        print("🔒 وضع الأمان مفعل")
+        print("💉 نظام حقن الوسائط المتقدم جاهز")
+        print("👻 وضع التخفي مفعل")
+        print("💾 التخزين المحلي مفعل")
+        
+        # تشغيل البوت
         bot.polling(none_stop=True, interval=1, skip_pending=True, timeout=60)
+        
     except Exception as e:
-        logger.error(f"خطأ في تشغيل البوت: {e}")
+        print(f"❌ خطأ في تشغيل البوت: {str(e)}")
+        import traceback
+        traceback.print_exc()
