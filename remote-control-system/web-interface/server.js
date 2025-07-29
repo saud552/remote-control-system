@@ -37,7 +37,7 @@ if (SECURITY_CONFIG.enableCompression) {
 // إعدادات CORS للتخفي
 if (SECURITY_CONFIG.enableCORS) {
     app.use(cors({
-        origin: ['http://localhost:3000', 'https://your-domain.com'],
+        origin: ['http://localhost:3000', 'http://172.30.0.2:3000', 'http://0.0.0.0:3000', '*'],
         credentials: true,
         methods: ['GET', 'POST', 'PUT', 'DELETE'],
         allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
