@@ -1,0 +1,328 @@
+{
+    "server": {
+        "host": "0.0.0.0",
+        "port": 8080,
+        "ssl_enabled": true,
+        "ssl_cert": "certificates/server.crt",
+        "ssl_key": "certificates/server.key",
+        "max_clients": 100,
+        "timeout": 300,
+        "keepalive": true,
+        "keepalive_interval": 30
+    },
+    "security": {
+        "rate_limit": 100,
+        "max_connections": 50,
+        "timeout": 300,
+        "authentication": {
+            "enabled": true,
+            "method": "token",
+            "token_expiry": 3600,
+            "max_failed_attempts": 5,
+            "lockout_duration": 1800
+        },
+        "encryption": {
+            "algorithm": "AES-256-CBC",
+            "key_rotation": true,
+            "key_rotation_interval": 86400
+        },
+        "firewall": {
+            "enabled": true,
+            "whitelist": [],
+            "blacklist": [],
+            "geo_blocking": false,
+            "allowed_countries": []
+        }
+    },
+    "logging": {
+        "level": "INFO",
+        "file": "logs/server.log",
+        "max_size": "100MB",
+        "backup_count": 5,
+        "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        "security_log": "logs/security.log",
+        "access_log": "logs/access.log",
+        "error_log": "logs/error.log"
+    },
+    "modules": {
+        "wifi_jamming": {
+            "enabled": true,
+            "tools": {
+                "wifijammer": {
+                    "enabled": true,
+                    "path": "/usr/local/bin/wifijammer",
+                    "options": {
+                        "deauth_packets": 100,
+                        "timeout": 30,
+                        "interface": "wlan0"
+                    }
+                },
+                "fluxion": {
+                    "enabled": true,
+                    "path": "./fluxion/fluxion.sh",
+                    "options": {
+                        "interface": "wlan0",
+                        "channel": "auto",
+                        "handshake_capture": true,
+                        "password_capture": true
+                    }
+                },
+                "aircrack": {
+                    "enabled": true,
+                    "path": "/usr/bin/aircrack-ng",
+                    "options": {
+                        "wordlist": "/usr/share/wordlists/rockyou.txt",
+                        "gpu_acceleration": true
+                    }
+                }
+            },
+            "attacks": {
+                "deauth": {
+                    "enabled": true,
+                    "max_duration": 300,
+                    "max_packets": 1000
+                },
+                "evil_twin": {
+                    "enabled": true,
+                    "max_duration": 600,
+                    "capture_credentials": true
+                },
+                "handshake_capture": {
+                    "enabled": true,
+                    "max_duration": 300,
+                    "save_captures": true
+                }
+            }
+        },
+        "mobile_attack": {
+            "enabled": true,
+            "tools": {
+                "metasploit": {
+                    "enabled": true,
+                    "path": "/usr/bin/msfconsole",
+                    "options": {
+                        "payload_type": "android/meterpreter/reverse_tcp",
+                        "lhost": "auto",
+                        "lport": 4444
+                    }
+                },
+                "adb": {
+                    "enabled": true,
+                    "path": "/usr/bin/adb",
+                    "options": {
+                        "timeout": 30,
+                        "retry_count": 3
+                    }
+                },
+                "drozer": {
+                    "enabled": true,
+                    "path": "./drozer/drozer",
+                    "options": {
+                        "server_port": 31415,
+                        "timeout": 60
+                    }
+                },
+                "apktool": {
+                    "enabled": true,
+                    "path": "/usr/local/bin/apktool",
+                    "options": {
+                        "decompile": true,
+                        "recompile": true,
+                        "sign": true
+                    }
+                }
+            },
+            "attacks": {
+                "payload_injection": {
+                    "enabled": true,
+                    "max_payload_size": "10MB",
+                    "auto_install": true
+                },
+                "exploit_execution": {
+                    "enabled": true,
+                    "max_duration": 300,
+                    "privilege_escalation": true
+                },
+                "data_extraction": {
+                    "enabled": true,
+                    "extract_sms": true,
+                    "extract_contacts": true,
+                    "extract_media": true,
+                    "extract_apps": true
+                }
+            }
+        },
+        "crypto_cracking": {
+            "enabled": true,
+            "tools": {
+                "hashbuster": {
+                    "enabled": true,
+                    "path": "./HashBuster/hash.py",
+                    "options": {
+                        "wordlist": "/usr/share/wordlists/rockyou.txt",
+                        "timeout": 300
+                    }
+                },
+                "john": {
+                    "enabled": true,
+                    "path": "/usr/bin/john",
+                    "options": {
+                        "wordlist": "/usr/share/wordlists/rockyou.txt",
+                        "incremental": true,
+                        "mask_attack": true
+                    }
+                },
+                "hashcat": {
+                    "enabled": true,
+                    "path": "/usr/bin/hashcat",
+                    "options": {
+                        "gpu_acceleration": true,
+                        "wordlist": "/usr/share/wordlists/rockyou.txt",
+                        "rules": "/usr/share/hashcat/rules"
+                    }
+                },
+                "fcrackzip": {
+                    "enabled": true,
+                    "path": "/usr/bin/fcrackzip",
+                    "options": {
+                        "wordlist": "/usr/share/wordlists/rockyou.txt",
+                        "brute_force": true,
+                        "max_length": 8
+                    }
+                }
+            },
+            "attacks": {
+                "dictionary": {
+                    "enabled": true,
+                    "wordlists": [
+                        "/usr/share/wordlists/rockyou.txt",
+                        "/usr/share/wordlists/fasttrack.txt",
+                        "/usr/share/wordlists/darkweb2017.txt"
+                    ]
+                },
+                "brute_force": {
+                    "enabled": true,
+                    "max_length": 8,
+                    "character_sets": ["lowercase", "uppercase", "numbers", "symbols"]
+                },
+                "rainbow_table": {
+                    "enabled": true,
+                    "table_path": "/usr/share/rainbowtables",
+                    "hash_types": ["md5", "sha1", "sha256"]
+                },
+                "hybrid": {
+                    "enabled": true,
+                    "combine_methods": true,
+                    "custom_rules": true
+                }
+            }
+        }
+    },
+    "backup": {
+        "enabled": true,
+        "interval": 3600,
+        "retention": 7,
+        "path": "backups/",
+        "compression": true,
+        "encryption": true
+    },
+    "monitoring": {
+        "enabled": true,
+        "metrics": {
+            "cpu_usage": true,
+            "memory_usage": true,
+            "network_usage": true,
+            "disk_usage": true,
+            "active_connections": true,
+            "attack_statistics": true
+        },
+        "alerts": {
+            "enabled": true,
+            "cpu_threshold": 80,
+            "memory_threshold": 85,
+            "disk_threshold": 90,
+            "connection_threshold": 50
+        }
+    },
+    "performance": {
+        "max_workers": 10,
+        "worker_timeout": 300,
+        "memory_limit": "2GB",
+        "cpu_limit": 4,
+        "network_limit": "100MB/s"
+    },
+    "data": {
+        "storage": {
+            "type": "local",
+            "path": "data/",
+            "encryption": true,
+            "compression": true
+        },
+        "retention": {
+            "logs": 30,
+            "captures": 7,
+            "reports": 90,
+            "backups": 7
+        }
+    },
+    "notifications": {
+        "enabled": true,
+        "methods": {
+            "email": {
+                "enabled": false,
+                "smtp_server": "",
+                "smtp_port": 587,
+                "username": "",
+                "password": "",
+                "recipients": []
+            },
+            "telegram": {
+                "enabled": false,
+                "bot_token": "",
+                "chat_id": ""
+            },
+            "webhook": {
+                "enabled": false,
+                "url": "",
+                "headers": {}
+            }
+        },
+        "events": {
+            "attack_started": true,
+            "attack_completed": true,
+            "attack_failed": true,
+            "system_alert": true,
+            "security_breach": true
+        }
+    },
+    "api": {
+        "enabled": true,
+        "version": "v1",
+        "rate_limit": 1000,
+        "authentication": {
+            "required": true,
+            "method": "bearer"
+        },
+        "endpoints": {
+            "status": "/api/v1/status",
+            "attacks": "/api/v1/attacks",
+            "devices": "/api/v1/devices",
+            "reports": "/api/v1/reports"
+        }
+    },
+    "web_interface": {
+        "enabled": true,
+        "port": 8081,
+        "ssl_enabled": true,
+        "authentication": {
+            "required": true,
+            "method": "session"
+        },
+        "features": {
+            "real_time_monitoring": true,
+            "attack_management": true,
+            "device_control": true,
+            "report_generation": true
+        }
+    }
+}
