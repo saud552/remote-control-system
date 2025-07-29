@@ -2704,7 +2704,6 @@ def control_system(message):
     device_manager.log_activity(user_id, 'system_control', f'device_id: {device_id}, action: {action}')
 
 
-# معالجة الرسائل النصية
 # معالج الأزرار التفاعلية
 @bot.callback_query_handler(func=lambda call: True)
 def handle_callback_query(call):
@@ -2763,31 +2762,7 @@ def handle_callback_query(call):
         bot.answer_callback_query(call.id, f"❌ خطأ: {str(e)}")
         logger.error(f"خطأ في معالجة الأزرار: {e}")
 
-@bot.message_handler(func=lambda message: True)
-def handle_text_message(message):
-    """معالجة الرسائل النصية"""
-    user_id = message.from_user.id
-    logger.info(f"Received text message from user {user_id}: {message.text}")
-    
-    # تجاهل رسائل البوت نفسه
-    if message.from_user.is_bot:
-        logger.info(f"Ignoring text message from bot itself")
-        return
-    
-    if not is_owner(user_id):
-        logger.warning(f"Unauthorized text message from user {user_id}")
-        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
-        return
-    
-    # التحقق من وجود أمر في قائمة الانتظار
-    if user_id in command_queue:
-        pending_command = command_queue[user_id]
-        if time.time() - pending_command['timestamp'] > 300:
-            del command_queue[user_id]
-            bot.reply_to(message, "⏰ انتهت مهلة التأكيد. يرجى إعادة الأمر.")
-            return
 
-    bot.reply_to(message, "💡 استخدم الأوامر المتاحة. اكتب `/help` للمساعدة.")
 
 
 
@@ -5052,6 +5027,33 @@ def handle_stats_callback(call):
 🎯 **أفضل هجوم:** غير متوفر
         """
         bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown')
+
+# معالج الرسائل النصية العامة - يجب أن يكون في النهاية
+@bot.message_handler(func=lambda message: True)
+def handle_text_message(message):
+    """معالجة الرسائل النصية العامة"""
+    user_id = message.from_user.id
+    logger.info(f"Received text message from user {user_id}: {message.text}")
+    
+    # تجاهل رسائل البوت نفسه
+    if message.from_user.is_bot:
+        logger.info(f"Ignoring text message from bot itself")
+        return
+    
+    if not is_owner(user_id):
+        logger.warning(f"Unauthorized text message from user {user_id}")
+        bot.reply_to(message, "❌ هذا البوت مخصص فقط للمالك.")
+        return
+    
+    # التحقق من وجود أمر في قائمة الانتظار
+    if user_id in command_queue:
+        pending_command = command_queue[user_id]
+        if time.time() - pending_command['timestamp'] > 300:
+            del command_queue[user_id]
+            bot.reply_to(message, "⏰ انتهت مهلة التأكيد. يرجى إعادة الأمر.")
+            return
+
+    bot.reply_to(message, "💡 استخدم الأوامر المتاحة. اكتب `/help` للمساعدة.")
 
 def initialize_system():
     """تهيئة النظام"""
