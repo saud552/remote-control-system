@@ -148,11 +148,11 @@ def command():
             'timestamp': time.time()
         }
         
-        logger.info(f"تم استقبال أمر من البوت: {command} للجهاز {device_id}")
+        print(f"تم استقبال أمر من البوت: {command} للجهاز {device_id}")
         return jsonify(result)
         
     except Exception as e:
-        logger.error(f"خطأ في معالجة الأمر: {e}")
+        print(f"خطأ في معالجة الأمر: {e}")
         return jsonify({'error': str(e)}), 500
 
 @app.route('/client-status/<device_id>')

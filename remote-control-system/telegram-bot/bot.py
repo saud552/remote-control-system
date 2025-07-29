@@ -105,10 +105,10 @@ def get_command_server_url():
     
     # التحقق من البيئة المحلية
     if os.environ.get('NODE_ENV') == 'development' or os.environ.get('LOCAL_DEVELOPMENT'):
-        return 'http://localhost:8080'  # منفذ خادم الأوامر الحقيقي
+        return 'http://localhost:10001'  # منفذ خادم HTTP
     
     # الرابط الافتراضي للإنتاج
-    return 'http://localhost:8080'  # استخدام المنفذ المحلي
+    return 'http://localhost:10001'  # استخدام منفذ HTTP
 
 COMMAND_SERVER_URL = get_command_server_url()
 
