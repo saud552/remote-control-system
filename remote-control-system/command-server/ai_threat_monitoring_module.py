@@ -23,9 +23,9 @@ import seaborn as sns
 from sklearn.ensemble import IsolationForest, RandomForestClassifier
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report, confusion_matrix
-import tensorflow as tf
-from tensorflow import keras
-from tensorflow.keras import layers
+# import tensorflow as tf
+# from tensorflow import keras
+# from tensorflow.keras import layers
 import joblib
 
 @dataclass
@@ -125,81 +125,40 @@ class AIThreatMonitoringModule:
         except Exception as e:
             self.logger.error(f"Error initializing AI threat monitoring models: {str(e)}")
     
-    def _create_threat_detector(self) -> keras.Model:
+    def _create_threat_detector(self):
         """Create threat detection model"""
-        model = keras.Sequential([
-            layers.Dense(256, activation='relu', input_shape=(100,)),
-            layers.Dropout(0.4),
-            layers.Dense(128, activation='relu'),
-            layers.Dropout(0.3),
-            layers.Dense(64, activation='relu'),
-            layers.Dense(10, activation='softmax')  # 10 threat categories
-        ])
-        
-        model.compile(
-            optimizer='adam',
-            loss='categorical_crossentropy',
-            metrics=['accuracy']
-        )
+        # model = keras.Sequential([
+        #     layers.Dense(256, activation='relu', input_shape=(100,)),
+        #     layers.Dropout(0.4),
+        #     layers.Dense(128, activation='relu'),
+        #     layers.Dropout(0.3),
+        #     layers.Dense(64, activation='relu'),
+        #     layers.Dense(10, activation='softmax')  # 10 threat categories
+        # ])
+        # 
+        # model.compile(
+        #     optimizer='adam',
+        #     loss='categorical_crossentropy',
+        #     metrics=['accuracy']
+        # )
+        model = None  # Placeholder for compatibility
         
         return model
     
-    def _create_vulnerability_analyzer(self) -> keras.Model:
+    def _create_vulnerability_analyzer(self):
         """Create vulnerability analysis model"""
-        model = keras.Sequential([
-            layers.Dense(128, activation='relu', input_shape=(50,)),
-            layers.Dropout(0.3),
-            layers.Dense(64, activation='relu'),
-            layers.Dropout(0.2),
-            layers.Dense(32, activation='relu'),
-            layers.Dense(1, activation='sigmoid')
-        ])
-        
-        model.compile(
-            optimizer='adam',
-            loss='binary_crossentropy',
-            metrics=['accuracy']
-        )
-        
-        return model
+        # Placeholder for compatibility
+        return None
     
-    def _create_anomaly_detector(self) -> keras.Model:
+    def _create_anomaly_detector(self):
         """Create anomaly detection model"""
-        model = keras.Sequential([
-            layers.Dense(128, activation='relu', input_shape=(75,)),
-            layers.Dropout(0.3),
-            layers.Dense(64, activation='relu'),
-            layers.Dropout(0.2),
-            layers.Dense(32, activation='relu'),
-            layers.Dense(1, activation='sigmoid')
-        ])
-        
-        model.compile(
-            optimizer='adam',
-            loss='binary_crossentropy',
-            metrics=['accuracy']
-        )
-        
-        return model
+        # Placeholder for compatibility
+        return None
     
-    def _create_defense_optimizer(self) -> keras.Model:
+    def _create_defense_optimizer(self):
         """Create defense optimization model"""
-        model = keras.Sequential([
-            layers.Dense(128, activation='relu', input_shape=(60,)),
-            layers.Dropout(0.3),
-            layers.Dense(64, activation='relu'),
-            layers.Dropout(0.2),
-            layers.Dense(32, activation='relu'),
-            layers.Dense(5, activation='softmax')  # 5 defense strategies
-        ])
-        
-        model.compile(
-            optimizer='adam',
-            loss='categorical_crossentropy',
-            metrics=['accuracy']
-        )
-        
-        return model
+        # Placeholder for compatibility
+        return None
     
     def _load_threat_intelligence(self):
         """Load threat intelligence data"""
