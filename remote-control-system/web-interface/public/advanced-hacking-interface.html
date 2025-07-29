@@ -1,0 +1,899 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>واجهة أدوات الهجوم المتقدمة</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .panel h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .value {
+            font-size: 2em;
+            font-weight: bold;
+        }
+
+        .tools-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .tools-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .tool-category {
+            margin-bottom: 20px;
+        }
+
+        .tool-category h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+
+        .tool-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 15px;
+        }
+
+        .tool-card {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 15px;
+            transition: all 0.3s ease;
+        }
+
+        .tool-card:hover {
+            border-color: #3498db;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.2);
+        }
+
+        .tool-card.active {
+            border-color: #27ae60;
+            background: #d5f4e6;
+        }
+
+        .tool-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .tool-name {
+            font-weight: bold;
+            color: #2c3e50;
+            font-size: 1.1em;
+        }
+
+        .tool-status {
+            padding: 4px 8px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+
+        .tool-status.active {
+            background: #27ae60;
+            color: white;
+        }
+
+        .tool-status.inactive {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .tool-description {
+            color: #7f8c8d;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+
+        .tool-capabilities {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .capability-tag {
+            background: #3498db;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.7em;
+        }
+
+        .tool-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #229954;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+
+        .btn-warning {
+            background: #f39c12;
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background: #e67e22;
+        }
+
+        .attack-form {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #e9ecef;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .logs-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .log-entry {
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
+        .log-success {
+            background: #d5f4e6;
+            color: #27ae60;
+            border-left: 4px solid #27ae60;
+        }
+
+        .log-error {
+            background: #fadbd8;
+            color: #e74c3c;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .log-info {
+            background: #d6eaf8;
+            color: #3498db;
+            border-left: 4px solid #3498db;
+        }
+
+        .log-warning {
+            background: #fdeaa7;
+            color: #f39c12;
+            border-left: 4px solid #f39c12;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #3498db;
+            background: transparent;
+            color: #3498db;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .filter-btn.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .filter-btn:hover {
+            background: #3498db;
+            color: white;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 20px;
+            font-size: 1em;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        @media (max-width: 768px) {
+            .dashboard {
+                grid-template-columns: 1fr;
+            }
+            
+            .tools-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .tool-list {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔧 أدوات الهجوم المتقدمة</h1>
+            <p>واجهة تحكم شاملة لأدوات الهجوم من المستودع المحلي والمستودع العام</p>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="dashboard">
+            <div class="panel">
+                <h2>📊 إحصائيات الأدوات</h2>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>إجمالي الأدوات</h3>
+                        <div class="value" id="totalTools">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>الأدوات النشطة</h3>
+                        <div class="value" id="activeTools">0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>معدل النجاح</h3>
+                        <div class="value" id="successRate">0%</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>الهجمات اليوم</h3>
+                        <div class="value" id="todayAttacks">0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>🎯 الهجوم الحالي</h2>
+                <div id="currentAttack">
+                    <p>لا يوجد هجوم نشط حالياً</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Attack Form -->
+        <div class="attack-form">
+            <h2>🚀 تنفيذ هجوم متعدد الأدوات</h2>
+            <form id="multiToolAttackForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="targetDevice">الجهاز المستهدف:</label>
+                        <input type="text" id="targetDevice" placeholder="أدخل IP أو اسم الجهاز" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="attackCategory">فئة الهجوم:</label>
+                        <select id="attackCategory" required>
+                            <option value="">اختر فئة الهجوم</option>
+                            <option value="data_exfiltration">استخراج البيانات</option>
+                            <option value="network_hacking">اختراق الشبكات</option>
+                            <option value="web_hacking">اختراق الويب</option>
+                            <option value="app_hacking">اختراق التطبيقات</option>
+                            <option value="phishing">التصيد</option>
+                            <option value="payload_generation">توليد Payload</option>
+                            <option value="password_hacking">كسر كلمات المرور</option>
+                            <option value="social_engineering">التصيد الاجتماعي</option>
+                            <option value="wireless_hacking">اختراق الشبكات اللاسلكية</option>
+                            <option value="iot_hacking">اختراق IoT</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="selectedTools">الأدوات المختارة:</label>
+                        <select id="selectedTools" multiple size="5">
+                            <option value="">اختر الأدوات أولاً</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="attackOptions">خيارات الهجوم:</label>
+                        <textarea id="attackOptions" rows="4" placeholder="أدخل خيارات الهجوم بصيغة JSON"></textarea>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">🚀 بدء الهجوم</button>
+                        <button type="button" class="btn btn-warning" onclick="stopCurrentAttack()">⏹️ إيقاف الهجوم</button>
+                    </div>
+                    <div class="form-group">
+                        <button type="button" class="btn btn-success" onclick="activateAllTools()">✅ تفعيل جميع الأدوات</button>
+                        <button type="button" class="btn btn-danger" onclick="deactivateAllTools()">❌ إلغاء تفعيل جميع الأدوات</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Tools Container -->
+        <div class="tools-container">
+            <!-- Tools Panel -->
+            <div class="tools-panel">
+                <h2>🔧 الأدوات المتاحة</h2>
+                
+                <!-- Filters -->
+                <div class="filters">
+                    <div class="search-box">
+                        <input type="text" id="toolSearch" placeholder="البحث في الأدوات...">
+                    </div>
+                    <button class="filter-btn active" data-category="all">الكل</button>
+                    <button class="filter-btn" data-category="data_exfiltration">استخراج البيانات</button>
+                    <button class="filter-btn" data-category="network_hacking">اختراق الشبكات</button>
+                    <button class="filter-btn" data-category="web_hacking">اختراق الويب</button>
+                    <button class="filter-btn" data-category="app_hacking">اختراق التطبيقات</button>
+                    <button class="filter-btn" data-category="phishing">التصيد</button>
+                    <button class="filter-btn" data-category="payload_generation">توليد Payload</button>
+                    <button class="filter-btn" data-category="password_hacking">كسر كلمات المرور</button>
+                    <button class="filter-btn" data-category="social_engineering">التصيد الاجتماعي</button>
+                    <button class="filter-btn" data-category="wireless_hacking">اختراق الشبكات اللاسلكية</button>
+                    <button class="filter-btn" data-category="iot_hacking">اختراق IoT</button>
+                </div>
+
+                <!-- Tools List -->
+                <div id="toolsList">
+                    <!-- Tools will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Logs Panel -->
+            <div class="tools-panel">
+                <h2>📋 سجل العمليات</h2>
+                <div class="logs-container" id="logsContainer">
+                    <!-- Logs will be displayed here -->
+                </div>
+                <div style="margin-top: 10px;">
+                    <button class="btn btn-warning" onclick="clearLogs()">🗑️ مسح السجلات</button>
+                    <button class="btn btn-primary" onclick="exportLogs()">📤 تصدير السجلات</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="advanced-hacking-tools.js"></script>
+    <script>
+        let hackingTools = null;
+        let currentAttack = null;
+        let logs = [];
+        let currentCategory = 'all';
+        let searchTerm = '';
+
+        // تهيئة النظام
+        async function initializeHackingTools() {
+            try {
+                addLog('🚀 بدء تهيئة نظام أدوات الهجوم...', 'info');
+                
+                hackingTools = window.advancedHackingTools;
+                
+                if (hackingTools) {
+                    await hackingTools.start();
+                    addLog('✅ تم تهيئة نظام أدوات الهجوم بنجاح', 'success');
+                    updateDashboard();
+                    loadTools();
+                } else {
+                    addLog('❌ فشل في تحميل نظام أدوات الهجوم', 'error');
+                }
+            } catch (error) {
+                addLog(`❌ خطأ في تهيئة النظام: ${error.message}`, 'error');
+            }
+        }
+
+        // إضافة سجل
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            
+            const logsContainer = document.getElementById('logsContainer');
+            logsContainer.appendChild(logEntry);
+            logsContainer.scrollTop = logsContainer.scrollHeight;
+            
+            logs.push({ timestamp, message, type });
+            
+            // حفظ السجلات
+            localStorage.setItem('hacking_tools_logs', JSON.stringify(logs.slice(-100)));
+        }
+
+        // تحديث لوحة المعلومات
+        function updateDashboard() {
+            if (hackingTools) {
+                const stats = hackingTools.getToolStatistics();
+                
+                document.getElementById('totalTools').textContent = stats.total_tools;
+                document.getElementById('activeTools').textContent = stats.active_tools;
+                document.getElementById('successRate').textContent = `${Math.round(stats.success_rate * 100)}%`;
+                
+                // حساب الهجمات اليوم
+                const today = new Date().toDateString();
+                const todayLogs = logs.filter(log => 
+                    new Date(log.timestamp).toDateString() === today
+                );
+                document.getElementById('todayAttacks').textContent = todayLogs.length;
+            }
+        }
+
+        // تحميل الأدوات
+        function loadTools() {
+            const toolsList = document.getElementById('toolsList');
+            toolsList.innerHTML = '';
+
+            if (hackingTools) {
+                const allTools = hackingTools.getAllTools();
+                const filteredTools = allTools.filter(tool => {
+                    const matchesCategory = currentCategory === 'all' || tool.category === currentCategory;
+                    const matchesSearch = searchTerm === '' || 
+                        tool.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                        tool.description.toLowerCase().includes(searchTerm.toLowerCase());
+                    return matchesCategory && matchesSearch;
+                });
+
+                // تجميع الأدوات حسب الفئة
+                const toolsByCategory = {};
+                filteredTools.forEach(tool => {
+                    if (!toolsByCategory[tool.category]) {
+                        toolsByCategory[tool.category] = [];
+                    }
+                    toolsByCategory[tool.category].push(tool);
+                });
+
+                // عرض الأدوات
+                Object.keys(toolsByCategory).forEach(category => {
+                    const categoryTools = toolsByCategory[category];
+                    const categoryDiv = document.createElement('div');
+                    categoryDiv.className = 'tool-category';
+                    
+                    const categoryTitle = getCategoryTitle(category);
+                    categoryDiv.innerHTML = `
+                        <h3>${categoryTitle}</h3>
+                        <div class="tool-list">
+                            ${categoryTools.map(tool => createToolCard(tool)).join('')}
+                        </div>
+                    `;
+                    
+                    toolsList.appendChild(categoryDiv);
+                });
+            }
+        }
+
+        // الحصول على عنوان الفئة
+        function getCategoryTitle(category) {
+            const titles = {
+                'data_exfiltration': '📊 استخراج البيانات',
+                'network_hacking': '🌐 اختراق الشبكات',
+                'web_hacking': '🌍 اختراق الويب',
+                'app_hacking': '📱 اختراق التطبيقات',
+                'phishing': '🎣 التصيد',
+                'payload_generation': '💣 توليد Payload',
+                'password_hacking': '🔓 كسر كلمات المرور',
+                'social_engineering': '👥 التصيد الاجتماعي',
+                'wireless_hacking': '📶 اختراق الشبكات اللاسلكية',
+                'iot_hacking': '🏠 اختراق IoT'
+            };
+            return titles[category] || category;
+        }
+
+        // إنشاء بطاقة الأداة
+        function createToolCard(tool) {
+            return `
+                <div class="tool-card ${tool.isActive ? 'active' : ''}" data-tool-id="${tool.id}">
+                    <div class="tool-header">
+                        <div class="tool-name">${tool.name}</div>
+                        <div class="tool-status ${tool.isActive ? 'active' : 'inactive'}">
+                            ${tool.isActive ? 'نشط' : 'غير نشط'}
+                        </div>
+                    </div>
+                    <div class="tool-description">${tool.description}</div>
+                    <div class="tool-capabilities">
+                        ${tool.capabilities.slice(0, 3).map(cap => 
+                            `<span class="capability-tag">${cap}</span>`
+                        ).join('')}
+                        ${tool.capabilities.length > 3 ? 
+                            `<span class="capability-tag">+${tool.capabilities.length - 3} أكثر</span>` : 
+                            ''
+                        }
+                    </div>
+                    <div class="tool-controls">
+                        <button class="btn ${tool.isActive ? 'btn-danger' : 'btn-success'}" 
+                                onclick="toggleTool('${tool.id}')">
+                            ${tool.isActive ? 'إلغاء التفعيل' : 'تفعيل'}
+                        </button>
+                        <button class="btn btn-primary" onclick="testTool('${tool.id}')">
+                            اختبار
+                        </button>
+                        <button class="btn btn-warning" onclick="showToolInfo('${tool.id}')">
+                            معلومات
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // تبديل حالة الأداة
+        function toggleTool(toolId) {
+            if (hackingTools) {
+                const tool = hackingTools.getTool(toolId);
+                if (tool) {
+                    if (tool.isActive) {
+                        hackingTools.deactivateTool(toolId);
+                        addLog(`⏹️ تم إلغاء تفعيل الأداة: ${tool.name}`, 'warning');
+                    } else {
+                        hackingTools.activateTool(toolId);
+                        addLog(`✅ تم تفعيل الأداة: ${tool.name}`, 'success');
+                    }
+                    loadTools();
+                    updateDashboard();
+                }
+            }
+        }
+
+        // اختبار الأداة
+        async function testTool(toolId) {
+            if (hackingTools) {
+                const tool = hackingTools.getTool(toolId);
+                if (tool) {
+                    addLog(`🧪 بدء اختبار الأداة: ${tool.name}`, 'info');
+                    
+                    try {
+                        const result = await tool.execute('test_target', { test: true });
+                        
+                        if (result.success) {
+                            addLog(`✅ نجح اختبار الأداة: ${tool.name}`, 'success');
+                        } else {
+                            addLog(`❌ فشل اختبار الأداة: ${tool.name}`, 'error');
+                        }
+                    } catch (error) {
+                        addLog(`❌ خطأ في اختبار الأداة ${tool.name}: ${error.message}`, 'error');
+                    }
+                }
+            }
+        }
+
+        // عرض معلومات الأداة
+        function showToolInfo(toolId) {
+            if (hackingTools) {
+                const tool = hackingTools.getTool(toolId);
+                if (tool) {
+                    const info = `
+                        اسم الأداة: ${tool.name}
+                        الوصف: ${tool.description}
+                        الفئة: ${getCategoryTitle(tool.category)}
+                        المصدر: ${tool.source === 'local' ? 'المستودع المحلي' : 'المستودع العام'}
+                        الملف: ${tool.file}
+                        المتطلبات: ${tool.requirements.join(', ')}
+                        الإمكانيات: ${tool.capabilities.join(', ')}
+                        عدد مرات الاستخدام: ${tool.successCount + tool.failureCount}
+                        معدل النجاح: ${tool.successCount > 0 ? Math.round((tool.successCount / (tool.successCount + tool.failureCount)) * 100) : 0}%
+                    `;
+                    
+                    alert(info);
+                }
+            }
+        }
+
+        // تفعيل جميع الأدوات
+        function activateAllTools() {
+            if (hackingTools) {
+                const allTools = hackingTools.getAllTools();
+                allTools.forEach(tool => {
+                    hackingTools.activateTool(tool.id);
+                });
+                addLog('✅ تم تفعيل جميع الأدوات', 'success');
+                loadTools();
+                updateDashboard();
+            }
+        }
+
+        // إلغاء تفعيل جميع الأدوات
+        function deactivateAllTools() {
+            if (hackingTools) {
+                const allTools = hackingTools.getAllTools();
+                allTools.forEach(tool => {
+                    hackingTools.deactivateTool(tool.id);
+                });
+                addLog('⏹️ تم إلغاء تفعيل جميع الأدوات', 'warning');
+                loadTools();
+                updateDashboard();
+            }
+        }
+
+        // تنفيذ هجوم متعدد الأدوات
+        async function executeMultiToolAttack(event) {
+            event.preventDefault();
+            
+            const target = document.getElementById('targetDevice').value;
+            const category = document.getElementById('attackCategory').value;
+            const selectedTools = Array.from(document.getElementById('selectedTools').selectedOptions).map(option => option.value);
+            const options = document.getElementById('attackOptions').value;
+            
+            if (!target || !category || selectedTools.length === 0) {
+                addLog('❌ يرجى ملء جميع الحقول المطلوبة', 'error');
+                return;
+            }
+            
+            try {
+                addLog(`🚀 بدء هجوم متعدد الأدوات على ${target}`, 'info');
+                
+                const attackOptions = options ? JSON.parse(options) : {};
+                
+                const result = await hackingTools.executeMultiToolAttack(target, selectedTools, attackOptions);
+                
+                if (result.success_rate > 0) {
+                    addLog(`✅ تم تنفيذ الهجوم بنجاح. معدل النجاح: ${Math.round(result.success_rate * 100)}%`, 'success');
+                } else {
+                    addLog(`❌ فشل في تنفيذ الهجوم`, 'error');
+                }
+                
+                // مسح النموذج
+                document.getElementById('multiToolAttackForm').reset();
+                
+            } catch (error) {
+                addLog(`❌ خطأ في تنفيذ الهجوم: ${error.message}`, 'error');
+            }
+        }
+
+        // إيقاف الهجوم الحالي
+        function stopCurrentAttack() {
+            if (currentAttack) {
+                addLog('⏹️ تم إيقاف الهجوم الحالي', 'warning');
+                currentAttack = null;
+                document.getElementById('currentAttack').innerHTML = '<p>لا يوجد هجوم نشط حالياً</p>';
+            }
+        }
+
+        // مسح السجلات
+        function clearLogs() {
+            const logsContainer = document.getElementById('logsContainer');
+            logsContainer.innerHTML = '';
+            logs = [];
+            localStorage.removeItem('hacking_tools_logs');
+            addLog('🗑️ تم مسح جميع السجلات', 'info');
+        }
+
+        // تصدير السجلات
+        function exportLogs() {
+            const logsText = logs.map(log => `[${log.timestamp}] ${log.message}`).join('\n');
+            const blob = new Blob([logsText], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `hacking_tools_logs_${new Date().toISOString().slice(0, 10)}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            addLog('📤 تم تصدير السجلات', 'info');
+        }
+
+        // تحميل السجلات المحفوظة
+        function loadSavedLogs() {
+            const savedLogs = localStorage.getItem('hacking_tools_logs');
+            if (savedLogs) {
+                logs = JSON.parse(savedLogs);
+                logs.forEach(log => {
+                    addLog(log.message, log.type);
+                });
+            }
+        }
+
+        // تحديث قائمة الأدوات عند تغيير الفئة
+        document.getElementById('attackCategory').addEventListener('change', function() {
+            const category = this.value;
+            const toolsSelect = document.getElementById('selectedTools');
+            
+            toolsSelect.innerHTML = '<option value="">اختر الأدوات</option>';
+            
+            if (hackingTools && category) {
+                const categoryTools = hackingTools.getToolsByCategory(category);
+                categoryTools.forEach(tool => {
+                    const option = document.createElement('option');
+                    option.value = tool.id;
+                    option.textContent = tool.name;
+                    toolsSelect.appendChild(option);
+                });
+            }
+        });
+
+        // البحث في الأدوات
+        document.getElementById('toolSearch').addEventListener('input', function() {
+            searchTerm = this.value;
+            loadTools();
+        });
+
+        // تصفية الأدوات حسب الفئة
+        document.querySelectorAll('.filter-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentCategory = this.dataset.category;
+                loadTools();
+            });
+        });
+
+        // إعداد الأحداث
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSavedLogs();
+            initializeHackingTools();
+            
+            // إعداد نموذج الهجوم
+            document.getElementById('multiToolAttackForm').addEventListener('submit', executeMultiToolAttack);
+        });
+    </script>
+</body>
+</html>

