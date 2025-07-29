@@ -72,19 +72,19 @@ class AdvancedCryptoCrackingModule:
                 "capabilities": ["hash_cracking", "password_recovery", "hash_identification"]
             },
             "john": {
-                "path": "/usr/bin/john",
+                "path": "external_tools/john",
                 "executable": "john",
                 "supported_attacks": ["dictionary", "brute_force", "incremental"],
                 "capabilities": ["hash_cracking", "password_recovery", "format_detection"]
             },
             "hashcat": {
-                "path": "/usr/bin/hashcat",
+                "path": "external_tools/hashcat",
                 "executable": "hashcat",
                 "supported_attacks": ["dictionary", "brute_force", "mask_attack", "hybrid"],
                 "capabilities": ["hash_cracking", "gpu_acceleration", "multi_hash"]
             },
             "fcrackzip": {
-                "path": "/usr/bin/fcrackzip",
+                "path": "external_tools/fcrackzip",
                 "executable": "fcrackzip",
                 "supported_attacks": ["dictionary", "brute_force"],
                 "capabilities": ["zip_cracking", "password_recovery"]

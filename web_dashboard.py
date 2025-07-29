@@ -24,6 +24,9 @@ import psutil
 import sqlite3
 
 # Import our modules
+import sys
+sys.path.append('remote-control-system/command-server')
+
 from advanced_wifi_jamming_module import AdvancedWiFiJammingModule
 from advanced_mobile_attack_module import AdvancedMobileAttackModule
 from advanced_crypto_cracking_module import AdvancedCryptoCrackingModule
@@ -36,7 +39,7 @@ class DashboardConfig:
     """Dashboard configuration"""
     host: str = "0.0.0.0"
     port: int = 8081
-    ssl_enabled: bool = True
+    ssl_enabled: bool = False
     ssl_cert: str = "certificates/server.crt"
     ssl_key: str = "certificates/server.key"
     debug: bool = False

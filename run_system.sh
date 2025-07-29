@@ -2,7 +2,7 @@
 
 # ========================================
 # Advanced Remote Control System
-# Complete Auto Startup Script
+# Complete Auto Startup Script - RADICAL SOLUTION
 # ========================================
 
 set -e
@@ -87,7 +87,7 @@ install_dependencies() {
     
     # Install Python system dependencies
     print_status "Installing Python system dependencies..."
-    pip3 install --break-system-packages websockets flask psutil python-nmap scapy paramiko cryptography adb-shell numpy pandas scikit-learn matplotlib seaborn asyncio schedule pyTelegramBotAPI requests
+    pip3 install --break-system-packages websockets flask psutil python-nmap scapy paramiko cryptography adb-shell numpy pandas scikit-learn matplotlib seaborn asyncio schedule pyTelegramBotAPI requests aiohttp-cors
     
     # Install bot dependencies
     if [ -f "remote-control-system/telegram-bot/requirements.txt" ]; then
@@ -138,7 +138,7 @@ create_directories() {
     print_success "Directories created"
 }
 
-# Function to start command server
+# Function to start command server with proper error handling
 start_command_server() {
     print_status "Starting command server..."
     
@@ -155,11 +155,17 @@ start_command_server() {
     echo $COMMAND_SERVER_PID > ../../.command-server.pid
     cd ../..
     
-    print_success "Command server started (PID: $COMMAND_SERVER_PID)"
-    sleep 3
+    # Wait and check if server started successfully
+    sleep 5
+    if kill -0 $COMMAND_SERVER_PID 2>/dev/null; then
+        print_success "Command server started (PID: $COMMAND_SERVER_PID)"
+    else
+        print_error "Command server failed to start"
+        return 1
+    fi
 }
 
-# Function to start web interface
+# Function to start web interface with proper error handling
 start_web_interface() {
     print_status "Starting web interface..."
     
@@ -168,7 +174,15 @@ start_web_interface() {
         python3 web_dashboard.py > logs/web-interface.log 2>&1 &
         WEB_INTERFACE_PID=$!
         echo $WEB_INTERFACE_PID > .web-interface.pid
-        print_success "Web interface started (PID: $WEB_INTERFACE_PID)"
+        
+        # Wait and check if web interface started successfully
+        sleep 3
+        if kill -0 $WEB_INTERFACE_PID 2>/dev/null; then
+            print_success "Web interface started (PID: $WEB_INTERFACE_PID)"
+        else
+            print_error "Web interface failed to start"
+            return 1
+        fi
     else
         # Check in web-interface directory
         cd remote-control-system/web-interface
@@ -185,13 +199,19 @@ start_web_interface() {
         WEB_INTERFACE_PID=$!
         echo $WEB_INTERFACE_PID > ../../.web-interface.pid
         cd ../..
-        print_success "Web interface started (PID: $WEB_INTERFACE_PID)"
+        
+        # Wait and check if web interface started successfully
+        sleep 3
+        if kill -0 $WEB_INTERFACE_PID 2>/dev/null; then
+            print_success "Web interface started (PID: $WEB_INTERFACE_PID)"
+        else
+            print_error "Web interface failed to start"
+            return 1
+        fi
     fi
-    
-    sleep 2
 }
 
-# Function to start telegram bot
+# Function to start telegram bot with proper error handling
 start_telegram_bot() {
     print_status "Starting telegram bot..."
     
@@ -208,7 +228,14 @@ start_telegram_bot() {
     echo $TELEGRAM_BOT_PID > ../../.telegram-bot.pid
     cd ../..
     
-    print_success "Telegram bot started (PID: $TELEGRAM_BOT_PID)"
+    # Wait and check if bot started successfully
+    sleep 3
+    if kill -0 $TELEGRAM_BOT_PID 2>/dev/null; then
+        print_success "Telegram bot started (PID: $TELEGRAM_BOT_PID)"
+    else
+        print_error "Telegram bot failed to start"
+        return 1
+    fi
 }
 
 # Function to check system status
@@ -297,11 +324,32 @@ start_system() {
     # Install dependencies
     install_dependencies
     
-    # Start components
+    # Start components with proper error handling
     print_header "Starting System Components"
-    start_command_server
-    start_web_interface
-    start_telegram_bot
+    
+    # Start command server
+    if start_command_server; then
+        print_success "Command server started successfully"
+    else
+        print_error "Failed to start command server"
+        exit 1
+    fi
+    
+    # Start web interface
+    if start_web_interface; then
+        print_success "Web interface started successfully"
+    else
+        print_error "Failed to start web interface"
+        exit 1
+    fi
+    
+    # Start telegram bot
+    if start_telegram_bot; then
+        print_success "Telegram bot started successfully"
+    else
+        print_error "Failed to start telegram bot"
+        exit 1
+    fi
     
     # Show status
     check_system_status
