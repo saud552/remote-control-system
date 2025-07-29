@@ -1067,8 +1067,10 @@ def setup_authorized_users():
 # وظيفة معالجة الأوامر المعلقة
 def process_pending_commands_job():
     """وظيفة دورية لمعالجة الأوامر المعلقة"""
+    global command_executor
     try:
-        command_executor.process_pending_commands()
+        if command_executor is not None:
+            command_executor.process_pending_commands()
     except Exception as e:
         logger.error(f"خطأ في معالجة الأوامر المعلقة: {e}")
 
@@ -1078,9 +1080,11 @@ schedule.every(1).minutes.do(process_pending_commands_job)
 # خيط منفصل لتشغيل الجدولة
 def run_scheduler():
     """تشغيل الجدولة في خيط منفصل"""
+    global command_executor
     while True:
         try:
-            schedule.run_pending()
+            if command_executor is not None:
+                schedule.run_pending()
             time.sleep(1)
         except Exception as e:
             logger.error(f"خطأ في الجدولة: {e}")
@@ -5085,7 +5089,7 @@ def initialize_system():
     print("✅ تم إعداد المستخدمين المصرح لهم")
     
     # تشغيل المجدول
-    run_scheduler()
+    # run_scheduler()  # سيتم تشغيله في الخيط المنفصل
     print("✅ تم تشغيل المجدول")
     
     print("🎉 تم تهيئة النظام بنجاح!")
