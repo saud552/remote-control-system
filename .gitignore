@@ -99,6 +99,14 @@ HashBuster/
 apktool/
 metasploit-framework/
 
+# Large files
+miniconda.sh
+*.iso
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
 # Wordlists (large files)
 wordlists/
 *.txt
