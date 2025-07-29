@@ -1,0 +1,228 @@
+# Advanced Remote Control System - Phase 4 & 5
+# Git Ignore File
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Logs
+logs/
+*.log
+*.log.*
+
+# Data and captures
+data/
+captures/
+results/
+extracted_data/
+wifi_captures/
+mobile_data/
+crypto_results/
+
+# Certificates and keys
+certificates/
+*.crt
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Configuration files with sensitive data
+config.json
+secrets.json
+.env
+*.env
+
+# PID files
+*.pid
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Backup files
+backups/
+*.backup
+*.bak
+*.old
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-*
+.project
+.settings/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Attack tools and external repositories
+wifijammer/
+fluxion/
+drozer/
+HashBuster/
+apktool/
+metasploit-framework/
+
+# Wordlists (large files)
+wordlists/
+*.txt
+!requirements.txt
+!README*.txt
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Reports and outputs
+reports/
+outputs/
+screenshots/
+recordings/
+
+# System files
+*.pid
+*.lock
+*.socket
+
+# Network captures
+*.pcap
+*.cap
+*.hccapx
+
+# Mobile attack files
+*.apk
+*.dex
+*.smali
+
+# Crypto files
+*.hash
+*.cracked
+*.rainbow
+
+# Test files
+test_*
+*_test.py
+tests/
+
+# Documentation builds
+docs/_build/
+site/
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# PEP 582
+__pypackages__/
+
+# Celery
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# Server specific
+server.pid
+client.pid
+server.log
+client.log
+
+# Attack module specific
+wifi_attacks/
+mobile_attacks/
+crypto_attacks/
+
+# AI models and caches
+models/
+*.h5
+*.pkl
+*.joblib
+cache/
+
+# Large files
+*.zip
+*.tar.gz
+*.rar
+*.7z
+
+# Sensitive data
+passwords.txt
+credentials.txt
+tokens.txt
+secrets.txt
