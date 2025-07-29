@@ -32,10 +32,14 @@ class TelegramConfig:
     """Telegram bot configuration"""
     token: str = "7305811865:AAF_PKkBWEUw-QdLg1ee5Xp7oksTG6XGK8c"
     allowed_users: List[int] = None
-    admin_users: List[int] = [985612253]
+    admin_users: List[int] = None
     webhook_url: str = ""
     webhook_port: int = 8443
     debug: bool = False
+    
+    def __post_init__(self):
+        if self.admin_users is None:
+            self.admin_users = [985612253]
 
 @dataclass
 class AttackSession:

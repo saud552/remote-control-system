@@ -93,8 +93,12 @@ class AdvancedMobileAttackModule:
             tool_path = tool_config["path"]
             if not os.path.exists(tool_path):
                 self.logger.warning(f"Mobile tool {tool_name} not found at {tool_path}")
-                os.makedirs(tool_path, exist_ok=True)
-                self._clone_mobile_tool(tool_name, tool_path)
+                # Use local directory instead of system paths
+                local_tool_path = f"tools/{tool_name}"
+                os.makedirs(local_tool_path, exist_ok=True)
+                self._clone_mobile_tool(tool_name, local_tool_path)
+                # Update tool path
+                self.mobile_tools[tool_name]["path"] = local_tool_path
     
     def _clone_mobile_tool(self, tool_name: str, tool_path: str):
         """Clone mobile attack tool from repository"""
