@@ -1,0 +1,755 @@
+{% extends "base.html" %}
+
+{% block title %}لوحة التحكم - نظام التحكم عن بعد المتقدم{% endblock %}
+
+{% block content %}
+<!-- Notification Area -->
+<div id="notification-area"></div>
+
+<!-- Dashboard Header -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="h3 mb-0">
+                    <i class="fas fa-tachometer-alt text-primary"></i>
+                    لوحة التحكم
+                </h1>
+                <p class="text-muted">مراقبة شاملة للأجهزة والأنظمة</p>
+            </div>
+            <div class="d-flex align-items-center">
+                <span class="status-indicator status-online" id="connection-status" title="متصل"></span>
+                <span class="ms-2">متصل بالخادم</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Stats -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">الأجهزة المتصلة</h5>
+                        <h2 class="mb-0" id="connected-devices">0</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-mobile-alt fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">التنبيهات النشطة</h5>
+                        <h2 class="mb-0" id="active-alerts">0</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-bell fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">مستوى التهديد</h5>
+                        <h2 class="mb-0" id="threat-level">0/10</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-shield-alt fa-2x"></i>
+                        <span class="status-indicator" id="threat-indicator"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card metric-card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <h5 class="card-title">جلسات المراقبة</h5>
+                        <h2 class="mb-0" id="monitoring-sessions">0</h2>
+                    </div>
+                    <div class="align-self-center">
+                        <i class="fas fa-chart-line fa-2x"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Device Management -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-mobile-alt"></i>
+                    إدارة الأجهزة
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover" id="devices-table">
+                        <thead>
+                            <tr>
+                                <th>الجهاز</th>
+                                <th>النوع</th>
+                                <th>الحالة</th>
+                                <th>آخر ظهور</th>
+                                <th>الإجراءات</th>
+                            </tr>
+                        </thead>
+                        <tbody id="devices-tbody">
+                            <!-- سيتم ملؤها بواسطة JavaScript -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Command Control -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-terminal"></i>
+                    التحكم بالأوامر
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="selected-device" class="form-label">اختر الجهاز:</label>
+                            <select class="form-select" id="selected-device">
+                                <option value="">اختر جهاز...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="command-type" class="form-label">نوع الأمر:</label>
+                            <select class="form-select" id="command-type">
+                                <option value="">اختر أمر...</option>
+                                <option value="data_exfiltration">استخراج البيانات</option>
+                                <option value="surveillance">المراقبة</option>
+                                <option value="wifi_jamming">هجوم الواي فاي</option>
+                                <option value="mobile_attack">هجوم الأجهزة المحمولة</option>
+                                <option value="system_control">التحكم بالنظام</option>
+                                <option value="tool_execution">تنفيذ الأدوات</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-12">
+                        <button class="btn btn-primary" id="execute-command">
+                            <i class="fas fa-play"></i>
+                            تنفيذ الأمر
+                        </button>
+                        <button class="btn btn-secondary" id="refresh-devices">
+                            <i class="fas fa-sync"></i>
+                            تحديث الأجهزة
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Command Results -->
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-list"></i>
+                    نتائج الأوامر
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="command-results">
+                    <p class="text-muted">لا توجد نتائج بعد</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Advanced Controls -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-database"></i>
+                    استخراج البيانات
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <button class="btn btn-info w-100 mb-2" onclick="extractData('contacts')">
+                        <i class="fas fa-address-book"></i>
+                        استخراج جهات الاتصال
+                    </button>
+                    <button class="btn btn-info w-100 mb-2" onclick="extractData('sms')">
+                        <i class="fas fa-comment"></i>
+                        استخراج الرسائل
+                    </button>
+                    <button class="btn btn-info w-100 mb-2" onclick="extractData('media')">
+                        <i class="fas fa-images"></i>
+                        استخراج الوسائط
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-eye"></i>
+                    المراقبة
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <button class="btn btn-warning w-100 mb-2" onclick="surveillance('screenshot')">
+                        <i class="fas fa-camera"></i>
+                        لقطة شاشة
+                    </button>
+                    <button class="btn btn-warning w-100 mb-2" onclick="surveillance('record')">
+                        <i class="fas fa-video"></i>
+                        تسجيل الكاميرا
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Attack Controls -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-wifi"></i>
+                    هجمات الواي فاي
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <button class="btn btn-danger w-100 mb-2" onclick="wifiAttack('deauth')">
+                        <i class="fas fa-broadcast-tower"></i>
+                        هجوم Deauth
+                    </button>
+                    <button class="btn btn-danger w-100 mb-2" onclick="wifiAttack('beacon')">
+                        <i class="fas fa-signal"></i>
+                        هجوم Beacon
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-mobile-alt"></i>
+                    هجمات الأجهزة المحمولة
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <button class="btn btn-danger w-100 mb-2" onclick="mobileAttack('metasploit')">
+                        <i class="fas fa-bug"></i>
+                        Metasploit
+                    </button>
+                    <button class="btn btn-danger w-100 mb-2" onclick="mobileAttack('payload')">
+                        <i class="fas fa-rocket"></i>
+                        Payload Generation
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- System Control -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-cogs"></i>
+                    التحكم بالنظام
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <button class="btn btn-secondary w-100 mb-2" onclick="systemControl('info')">
+                        <i class="fas fa-info-circle"></i>
+                        معلومات النظام
+                    </button>
+                    <button class="btn btn-warning w-100 mb-2" onclick="systemControl('restart')">
+                        <i class="fas fa-redo"></i>
+                        إعادة تشغيل
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-tools"></i>
+                    الأدوات
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <button class="btn btn-primary w-100 mb-2" onclick="toolExecution('metasploit', 'start')">
+                        <i class="fas fa-play"></i>
+                        تشغيل Metasploit
+                    </button>
+                    <button class="btn btn-primary w-100 mb-2" onclick="toolExecution('metasploit', 'stop')">
+                        <i class="fas fa-stop"></i>
+                        إيقاف Metasploit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for Dashboard -->
+<script>
+// تهيئة Socket.IO
+const socket = io();
+
+// متغيرات عامة
+let selectedDevice = null;
+let devices = [];
+
+// إعداد الأحداث
+document.addEventListener('DOMContentLoaded', function() {
+    initializeDashboard();
+    setupEventListeners();
+    loadDevices();
+});
+
+function initializeDashboard() {
+    console.log('تهيئة لوحة التحكم...');
+    
+    // إعداد Socket.IO
+    socket.on('connect', function() {
+        console.log('متصل بالخادم');
+        document.getElementById('connection-status').className = 'status-indicator status-online';
+    });
+    
+    socket.on('disconnect', function() {
+        console.log('انقطع الاتصال بالخادم');
+        document.getElementById('connection-status').className = 'status-indicator status-offline';
+    });
+    
+    socket.on('device_update', function(data) {
+        console.log('تحديث الجهاز:', data);
+        updateDeviceStatus(data);
+    });
+    
+    socket.on('command_result', function(data) {
+        console.log('نتيجة الأمر:', data);
+        showCommandResult(data);
+    });
+}
+
+function setupEventListeners() {
+    // تحديث الأجهزة
+    document.getElementById('refresh-devices').addEventListener('click', loadDevices);
+    
+    // تنفيذ الأمر
+    document.getElementById('execute-command').addEventListener('click', executeCommand);
+    
+    // تغيير الجهاز المحدد
+    document.getElementById('selected-device').addEventListener('change', function() {
+        selectedDevice = this.value;
+        console.log('تم اختيار الجهاز:', selectedDevice);
+    });
+}
+
+async function loadDevices() {
+    try {
+        const response = await fetch('/api/devices');
+        const data = await response.json();
+        
+        if (data.success) {
+            devices = data.devices;
+            updateDevicesTable();
+            updateDevicesSelect();
+            updateStats();
+        } else {
+            showNotification('خطأ في تحميل الأجهزة', 'error');
+        }
+    } catch (error) {
+        console.error('خطأ في تحميل الأجهزة:', error);
+        showNotification('خطأ في الاتصال', 'error');
+    }
+}
+
+function updateDevicesTable() {
+    const tbody = document.getElementById('devices-tbody');
+    tbody.innerHTML = '';
+    
+    devices.forEach(device => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-mobile-alt me-2"></i>
+                    <div>
+                        <strong>${device.device_name}</strong>
+                        <br><small class="text-muted">${device.device_id}</small>
+                    </div>
+                </div>
+            </td>
+            <td>${device.device_type}</td>
+            <td>
+                <span class="badge ${device.status === 'active' ? 'bg-success' : 'bg-secondary'}">
+                    ${device.status}
+                </span>
+            </td>
+            <td>${new Date(device.last_seen).toLocaleString('ar-SA')}</td>
+            <td>
+                <button class="btn btn-sm btn-primary" onclick="selectDevice('${device.device_id}')">
+                    <i class="fas fa-check"></i>
+                    اختيار
+                </button>
+                <button class="btn btn-sm btn-info" onclick="getDeviceStatus('${device.device_id}')">
+                    <i class="fas fa-info"></i>
+                    حالة
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function updateDevicesSelect() {
+    const select = document.getElementById('selected-device');
+    select.innerHTML = '<option value="">اختر جهاز...</option>';
+    
+    devices.forEach(device => {
+        const option = document.createElement('option');
+        option.value = device.device_id;
+        option.textContent = `${device.device_name} (${device.device_id})`;
+        select.appendChild(option);
+    });
+}
+
+function updateStats() {
+    document.getElementById('connected-devices').textContent = devices.length;
+    document.getElementById('active-alerts').textContent = '0';
+    document.getElementById('threat-level').textContent = '0/10';
+    document.getElementById('monitoring-sessions').textContent = '0';
+}
+
+function selectDevice(deviceId) {
+    selectedDevice = deviceId;
+    document.getElementById('selected-device').value = deviceId;
+    showNotification(`تم اختيار الجهاز: ${deviceId}`, 'success');
+}
+
+async function getDeviceStatus(deviceId) {
+    try {
+        const response = await fetch(`/api/devices/${deviceId}/status`);
+        const data = await response.json();
+        
+        if (data.error) {
+            showNotification(`خطأ: ${data.error}`, 'error');
+        } else {
+            showNotification(`حالة الجهاز: ${JSON.stringify(data)}`, 'info');
+        }
+    } catch (error) {
+        console.error('خطأ في جلب حالة الجهاز:', error);
+        showNotification('خطأ في الاتصال', 'error');
+    }
+}
+
+async function executeCommand() {
+    if (!selectedDevice) {
+        showNotification('يرجى اختيار جهاز أولاً', 'warning');
+        return;
+    }
+    
+    const commandType = document.getElementById('command-type').value;
+    if (!commandType) {
+        showNotification('يرجى اختيار نوع الأمر', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/command', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                device_id: selectedDevice,
+                command: commandType,
+                parameters: {}
+            })
+        });
+        
+        const data = await response.json();
+        showCommandResult(data);
+    } catch (error) {
+        console.error('خطأ في تنفيذ الأمر:', error);
+        showNotification('خطأ في تنفيذ الأمر', 'error');
+    }
+}
+
+// وظائف استخراج البيانات
+async function extractData(type) {
+    if (!selectedDevice) {
+        showNotification('يرجى اختيار جهاز أولاً', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/data/${type}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                device_id: selectedDevice,
+                action: 'backup_all'
+            })
+        });
+        
+        const data = await response.json();
+        showCommandResult(data);
+    } catch (error) {
+        console.error('خطأ في استخراج البيانات:', error);
+        showNotification('خطأ في استخراج البيانات', 'error');
+    }
+}
+
+// وظائف المراقبة
+async function surveillance(action) {
+    if (!selectedDevice) {
+        showNotification('يرجى اختيار جهاز أولاً', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/surveillance/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                device_id: selectedDevice,
+                duration: action === 'record' ? 30 : undefined
+            })
+        });
+        
+        const data = await response.json();
+        showCommandResult(data);
+    } catch (error) {
+        console.error('خطأ في المراقبة:', error);
+        showNotification('خطأ في المراقبة', 'error');
+    }
+}
+
+// وظائف الهجمات
+async function wifiAttack(attackType) {
+    if (!selectedDevice) {
+        showNotification('يرجى اختيار جهاز أولاً', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/attacks/wifi', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                device_id: selectedDevice,
+                attack_type: attackType,
+                target_ssid: 'all',
+                duration: 60
+            })
+        });
+        
+        const data = await response.json();
+        showCommandResult(data);
+    } catch (error) {
+        console.error('خطأ في هجوم الواي فاي:', error);
+        showNotification('خطأ في هجوم الواي فاي', 'error');
+    }
+}
+
+async function mobileAttack(attackType) {
+    if (!selectedDevice) {
+        showNotification('يرجى اختيار جهاز أولاً', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/attacks/mobile', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                device_id: selectedDevice,
+                attack_type: attackType,
+                target_os: 'android',
+                payload_type: 'reverse_shell'
+            })
+        });
+        
+        const data = await response.json();
+        showCommandResult(data);
+    } catch (error) {
+        console.error('خطأ في هجوم الأجهزة المحمولة:', error);
+        showNotification('خطأ في هجوم الأجهزة المحمولة', 'error');
+    }
+}
+
+// وظائف التحكم بالنظام
+async function systemControl(action) {
+    if (!selectedDevice) {
+        showNotification('يرجى اختيار جهاز أولاً', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/system/${action}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                device_id: selectedDevice
+            })
+        });
+        
+        const data = await response.json();
+        showCommandResult(data);
+    } catch (error) {
+        console.error('خطأ في التحكم بالنظام:', error);
+        showNotification('خطأ في التحكم بالنظام', 'error');
+    }
+}
+
+// وظائف الأدوات
+async function toolExecution(tool, action) {
+    if (!selectedDevice) {
+        showNotification('يرجى اختيار جهاز أولاً', 'warning');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/tools/metasploit', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                device_id: selectedDevice,
+                action: action
+            })
+        });
+        
+        const data = await response.json();
+        showCommandResult(data);
+    } catch (error) {
+        console.error('خطأ في تنفيذ الأداة:', error);
+        showNotification('خطأ في تنفيذ الأداة', 'error');
+    }
+}
+
+function showCommandResult(data) {
+    const resultsDiv = document.getElementById('command-results');
+    
+    if (data.error) {
+        resultsDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i>
+                خطأ: ${data.error}
+            </div>
+        `;
+    } else {
+        resultsDiv.innerHTML = `
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                تم تنفيذ الأمر بنجاح
+                <pre class="mt-2">${JSON.stringify(data, null, 2)}</pre>
+            </div>
+        `;
+    }
+}
+
+function showNotification(message, type = 'info') {
+    const notificationArea = document.getElementById('notification-area');
+    const alertClass = type === 'error' ? 'alert-danger' : 
+                      type === 'success' ? 'alert-success' : 
+                      type === 'warning' ? 'alert-warning' : 'alert-info';
+    
+    const notification = document.createElement('div');
+    notification.className = `alert ${alertClass} alert-dismissible fade show`;
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    notificationArea.appendChild(notification);
+    
+    // إزالة التنبيه بعد 5 ثوان
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+function updateDeviceStatus(data) {
+    // تحديث حالة الجهاز في الجدول
+    const deviceRow = document.querySelector(`[data-device-id="${data.device_id}"]`);
+    if (deviceRow) {
+        const statusCell = deviceRow.querySelector('.badge');
+        statusCell.className = `badge ${data.status === 'active' ? 'bg-success' : 'bg-secondary'}`;
+        statusCell.textContent = data.status;
+    }
+}
+</script>
+{% endblock %}

