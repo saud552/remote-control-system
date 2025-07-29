@@ -71,13 +71,13 @@ class AdvancedMobileAttackModule:
                 "capabilities": ["shell_access", "file_transfer", "app_installation", "data_extraction"]
             },
             "drozer": {
-                "path": "external_tools/drozer",
+                "path": "tools/drozer",
                 "executable": "drozer",
                 "supported_attacks": ["app_analysis", "vulnerability_scan", "exploit_execution"],
                 "capabilities": ["app_analysis", "vulnerability_scan", "exploit_execution", "data_extraction"]
             },
             "apktool": {
-                "path": "external_tools/apktool",
+                "path": "tools/apktool",
                 "executable": "apktool",
                 "supported_attacks": ["app_decompilation", "code_analysis", "modification"],
                 "capabilities": ["app_decompilation", "code_analysis", "modification", "repackaging"]

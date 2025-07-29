@@ -194,8 +194,8 @@ class EnhancedTelegramBot:
         self.app.add_handler(CommandHandler("status", self.status_command))
         self.app.add_handler(CommandHandler("attacks", self.attacks_command))
         self.app.add_handler(CommandHandler("tools", self.tools_command))
-        self.app.add_handler(CommandHandler("reports", self.reports_command))
-        self.app.add_handler(CommandHandler("monitoring", self.monitoring_command))
+        # self.app.add_handler(CommandHandler("reports", self.reports_command))
+        # self.app.add_handler(CommandHandler("monitoring", self.monitoring_command))
         self.app.add_handler(CommandHandler("ai_analysis", self.ai_analysis_command))
         self.app.add_handler(CommandHandler("ai_recommendations", self.ai_recommendations_command))
         self.app.add_handler(CommandHandler("threat_check", self.threat_check_command))
@@ -208,19 +208,19 @@ class EnhancedTelegramBot:
         self.app.add_handler(CommandHandler("payload_create", self.payload_create_command))
         
         # Tool management handlers
-        self.app.add_handler(CommandHandler("install_tool", self.install_tool_command))
-        self.app.add_handler(CommandHandler("update_tool", self.update_tool_command))
-        self.app.add_handler(CommandHandler("tool_status", self.tool_status_command))
+        # self.app.add_handler(CommandHandler("install_tool", self.install_tool_command))
+        # self.app.add_handler(CommandHandler("update_tool", self.update_tool_command))
+        # self.app.add_handler(CommandHandler("tool_status", self.tool_status_command))
         
         # Session management handlers
-        self.app.add_handler(CommandHandler("stop_attack", self.stop_attack_command))
-        self.app.add_handler(CommandHandler("session_status", self.session_status_command))
+        # self.app.add_handler(CommandHandler("stop_attack", self.stop_attack_command))
+        # self.app.add_handler(CommandHandler("session_status", self.session_status_command))
         
         # Callback query handler
         self.app.add_handler(CallbackQueryHandler(self.button_callback))
         
         # Message handler for interactive commands
-        self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
+        # self.app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_message))
     
     async def start_command(self, update: Update, context: ContextTypes.DEFAULT_TYPE):
         """Handle /start command"""
@@ -877,65 +877,102 @@ class EnhancedTelegramBot:
     
     # Attack simulation methods
     async def _run_wifi_attack(self, session: AttackSession):
-        """Simulate WiFi attack"""
+        """Run real WiFi attack using the module"""
         try:
-            for i in range(100):
-                session.progress = i
-                await asyncio.sleep(0.5)
+            # Create WiFi attack configuration
+            from advanced_wifi_jamming_module import WiFiJammingConfig
             
-            session.status = "completed"
-            session.progress = 100.0
-            session.results = {
-                'handshakes_captured': 5,
-                'passwords_cracked': 2,
-                'networks_scanned': 15,
-                'evil_twin_created': True
-            }
+            config = WiFiJammingConfig(
+                target_ssid=session.target,
+                target_bssid="",
+                channel=1,
+                attack_type="deauth",
+                duration=60,
+                deauth_packets=10,
+                evil_twin=False,
+                password_capture=True,
+                handshake_capture=True,
+                custom_options={}
+            )
             
+            # Start real attack
+            result = await self.wifi_jamming.start_wifi_attack(config)
+            
+            if result["success"]:
+                session.status = "completed"
+                session.progress = 100.0
+                session.results = result
+            else:
+                session.status = "failed"
+                session.error = result.get("error", "Unknown error")
+                
         except Exception as e:
             session.status = "failed"
             session.error = str(e)
             self.logger.error(f"WiFi attack failed: {e}")
     
     async def _run_mobile_attack(self, session: AttackSession):
-        """Simulate mobile attack"""
+        """Run real mobile attack using the module"""
         try:
-            for i in range(100):
-                session.progress = i
-                await asyncio.sleep(0.5)
+            # Create mobile attack configuration
+            from advanced_mobile_attack_module import MobileAttackConfig
             
-            session.status = "completed"
-            session.progress = 100.0
-            session.results = {
-                'contacts_extracted': 150,
-                'sms_messages': 200,
-                'apps_analyzed': 25,
-                'files_extracted': 50,
-                'shell_access': True
-            }
+            config = MobileAttackConfig(
+                target_device=session.target,
+                attack_type="payload_injection",
+                payload_path="",
+                exploit_name="",
+                privilege_escalation=True,
+                data_extraction=True,
+                system_control=False,
+                custom_options={}
+            )
             
+            # Start real attack
+            result = await self.mobile_attack.start_mobile_attack(config)
+            
+            if result["success"]:
+                session.status = "completed"
+                session.progress = 100.0
+                session.results = result
+            else:
+                session.status = "failed"
+                session.error = result.get("error", "Unknown error")
+                
         except Exception as e:
             session.status = "failed"
             session.error = str(e)
             self.logger.error(f"Mobile attack failed: {e}")
     
     async def _run_crypto_attack(self, session: AttackSession):
-        """Simulate crypto attack"""
+        """Run real crypto attack using the module"""
         try:
-            for i in range(100):
-                session.progress = i
-                await asyncio.sleep(0.5)
+            # Create crypto attack configuration
+            from advanced_crypto_cracking_module import CryptoCrackingConfig
             
-            session.status = "completed"
-            session.progress = 100.0
-            session.results = {
-                'hashes_cracked': 25,
-                'total_hashes': 50,
-                'success_rate': 50.0,
-                'time_taken': 300,
-                'passwords_found': 15
-            }
+            config = CryptoCrackingConfig(
+                target_file=session.target,
+                hash_type="md5",
+                wordlist_path="/usr/share/wordlists/rockyou.txt",
+                attack_mode="dictionary",
+                custom_options={},
+                brute_force=False,
+                dictionary_attack=True,
+                rainbow_table=False,
+                gpu_acceleration=True
+            )
             
+            # Start real attack
+            result = await self.crypto_cracking.start_crypto_attack(config)
+            
+            if result["success"]:
+                session.status = "completed"
+                session.progress = 100.0
+                session.results = result
+            else:
+                session.status = "failed"
+                session.error = result.get("error", "Unknown error")
+                
         except Exception as e:
             session.status = "failed"
             session.error = str(e)

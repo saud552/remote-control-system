@@ -59,13 +59,13 @@ class AdvancedWiFiJammingModule:
         # WiFi jamming tools configuration
         self.wifi_tools = {
             "wifijammer": {
-                "path": "external_tools/wifijammer",
-                "executable": "python wifijammer.py",
+                "path": "tools/wifijammer",
+                "executable": "python3 wifijammer",
                 "supported_attacks": ["deauth", "beacon", "probe", "evil_twin"],
                 "capabilities": ["deauth_packets", "channel_hopping", "evil_twin", "password_capture"]
             },
             "fluxion": {
-                "path": "external_tools/fluxion",
+                "path": "tools/fluxion",
                 "executable": "bash fluxion.sh",
                 "supported_attacks": ["evil_twin", "handshake_capture", "password_capture"],
                 "capabilities": ["evil_twin", "handshake_capture", "password_capture", "advanced_phishing"]

@@ -66,8 +66,8 @@ class AdvancedCryptoCrackingModule:
         # Crypto cracking tools configuration
         self.crypto_tools = {
             "hashbuster": {
-                "path": "external_tools/hashbuster",
-                "executable": "python hashbuster.py",
+                "path": "tools/hashbuster",
+                "executable": "python3 hash.py",
                 "supported_attacks": ["dictionary", "brute_force", "rainbow_table"],
                 "capabilities": ["hash_cracking", "password_recovery", "hash_identification"]
             },
