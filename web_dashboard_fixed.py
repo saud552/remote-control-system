@@ -431,7 +431,7 @@ class FixedWebDashboard:
             """الصفحة الرئيسية"""
             if 'user_id' not in session:
                 return redirect(url_for('login'))
-            return render_template('dashboard.html')
+            return render_template('dashboard_fixed.html')
         
         @self.app.route('/login', methods=['GET', 'POST'])
         def login():
